@@ -53,3 +53,10 @@ google-services.json
 firebase_options.dart
 key.jks
 **/*.keystore
+
+# Large Files & Backups
+*.exe
+*.zip
+*.rar
+backups/
+supabase.exe
