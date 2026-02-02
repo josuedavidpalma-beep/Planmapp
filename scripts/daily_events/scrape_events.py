@@ -39,14 +39,24 @@ def extract_event_links(html_content):
     links = set()
     
     # Logic for Idartes: Find links that look like event pages
-    # Usually: /es/agenda/category/slug
+    # Structure seen in HTML: /es/agenda/festival/vagos-fest
+    # So we look for /es/agenda/ + something + / + something
     for a in soup.find_all('a', href=True):
         href = a['href']
-        if '/es/agenda/' in href and not any(x in href for x in ['type:', 'ctg:', 'page=', '?']):
+        # Must contain /agenda/ and have at least 3 parts (e.g. agenda/type/slug)
+        # Avoid filters which have ?f[0] or type:
+        if '/es/agenda/' in href and '?' not in href and ':' not in href:
+            parts = href.split('/')
+            # Filter out the main agenda links which are just /es/agenda or /agenda/teatro-jeg (venues)
+            # We want deep links like /agenda/festival/vagos-fest
+            # But wait, looking at the chunk:
+            # [Vagos Fest](/es/agenda/festival/vagos-fest)
+            # [Las Fórmulas...](/es/agenda/obra/las-formulas...)
+            # These are good.
             full_url = "https://www.idartes.gov.co" + href if href.startswith('/') else href
             links.add(full_url)
             
-    return list(links)[:10] # Limit to top 10 to avoid timeouts
+    return list(links)[:10] # Limit to top 10
 
 def extract_event_details_with_gemini(html_content, source_url):
     if not GEMINI_API_KEY:

@@ -1,6 +1,12 @@
 class Event {
   final String id;
   final String title;
+  final String? description;
+  final String? date;
+  final String? location;
+  final String? category;
+  final String? imageUrl;
+  final String? sourceUrl;
   final String? endDate;
   final String? address;
   final String? contactInfo;
