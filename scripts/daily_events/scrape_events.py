@@ -42,8 +42,13 @@ def extract_events_with_gemini(html_content):
         print("Error: GEMINI_API_KEY not set.")
         return []
 
+    print(f"GenAI Version: {genai.__version__}")
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
+    try:
+        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+    except:
+        print("Fallback to gemini-pro")
+        model = genai.GenerativeModel('gemini-pro')
 
     # Truncate HTML to avoid token limits if extremely large, focused on body
     soup = BeautifulSoup(html_content, 'html.parser')
