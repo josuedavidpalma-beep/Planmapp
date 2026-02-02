@@ -1,12 +1,9 @@
 class Event {
   final String id;
   final String title;
-  final String? description;
-  final String? date;
-  final String? location;
-  final String? category;
-  final String? imageUrl;
-  final String? sourceUrl;
+  final String? endDate;
+  final String? address;
+  final String? contactInfo;
 
   Event({
     required this.id,
@@ -17,6 +14,9 @@ class Event {
     this.category,
     this.imageUrl,
     this.sourceUrl,
+    this.endDate,
+    this.address,
+    this.contactInfo,
   });
 
   factory Event.fromJson(Map<String, dynamic> json) {
@@ -29,6 +29,9 @@ class Event {
       category: json['category'] as String?,
       imageUrl: json['image_url'] as String?,
       sourceUrl: json['source_url'] as String?,
+      endDate: json['end_date'] as String?,
+      address: json['address'] as String?,
+      contactInfo: json['contact_info'] as String?,
     );
   }
 
@@ -42,6 +45,9 @@ class Event {
       'category': category,
       'image_url': imageUrl,
       'source_url': sourceUrl,
+      'end_date': endDate,
+      'address': address,
+      'contact_info': contactInfo,
     };
   }
 }

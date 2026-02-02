@@ -7,6 +7,7 @@ import 'package:planmapp/features/notifications/services/notification_service.da
 import 'package:planmapp/features/explore/services/events_service.dart';
 import 'package:planmapp/features/explore/data/models/event_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -251,11 +252,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   children: [
                                       Text(title, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
                                       const SizedBox(height: 8),
-                                      Text(subtitle, style: const TextStyle(color: Colors.grey, fontSize: 16)),
-                                      const SizedBox(height: 16),
+
+                                      // NEW: Location & Date Info
+                                      if (event.address != null || event.location != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(bottom: 6),
+                                          child: Row(children: [
+                                            const Icon(Icons.location_on, size: 16, color: AppTheme.secondaryBrand),
+                                            const SizedBox(width: 8),
+                                            Expanded(child: Text(event.address ?? event.location!, style: const TextStyle(color: Colors.black87), overflow: TextOverflow.ellipsis, maxLines: 2)),
+                                          ]),
+                                        ),
+                                      if (event.date != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(bottom: 6),
+                                          child: Row(children: [
+                                            const Icon(Icons.calendar_month, size: 16, color: AppTheme.primaryBrand),
+                                            const SizedBox(width: 8),
+                                            Text(event.endDate != null && event.endDate != event.date ? "Del ${event.date} al ${event.endDate}" : "${event.date}", style: const TextStyle(color: Colors.black87)),
+                                          ]),
+                                        ),
+                                      if (event.contactInfo != null)
+                                        Padding(
+                                          padding: const EdgeInsets.only(bottom: 6),
+                                          child: Row(children: [
+                                            const Icon(Icons.phone, size: 16, color: Colors.grey),
+                                            const SizedBox(width: 8),
+                                            Text(event.contactInfo!, style: const TextStyle(color: Colors.black87)),
+                                          ]),
+                                        ),
+
+                                      const SizedBox(height: 12),
                                       if (event.description != null)
-                                          Text(event.description!, style: const TextStyle(fontSize: 14)),
+                                          Text(event.description!, style: const TextStyle(fontSize: 14, height: 1.5)),
                                       const SizedBox(height: 24),
+
                                       SizedBox(
                                           width: double.infinity,
                                           height: 50,
@@ -269,10 +300,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                               child: const Text("¡Me apunto! Crear Plan"),
                                           ),
                                       ),
+                                      
+                                      // NEW: More Info Link
                                       if (event.sourceUrl != null && (event.sourceUrl?.isNotEmpty ?? false))
                                           Padding(
-                                            padding: const EdgeInsets.only(top: 8.0),
-                                            child: Center(child: Text("Fuente: ${event.sourceUrl}", style: const TextStyle(fontSize: 10, color: Colors.grey))),
+                                            padding: const EdgeInsets.only(top: 12),
+                                            child: SizedBox(
+                                              width: double.infinity,
+                                              height: 50,
+                                              child: OutlinedButton.icon(
+                                                  onPressed: () async {
+                                                      final uri = Uri.parse(event.sourceUrl!);
+                                                      if (await canLaunchUrl(uri)) {
+                                                          await launchUrl(uri, mode: LaunchMode.externalApplication);
+                                                      } else {
+                                                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No se pudo abrir el enlace")));
+                                                      } 
+                                                  },
+                                                  icon: const Icon(Icons.public, size: 18),
+                                                  label: const Text("Ver más información"),
+                                                  style: OutlinedButton.styleFrom(foregroundColor: Colors.black),
+                                              ),
+                                            ),
                                           ),
                                       const SizedBox(height: 16), // Extra bottom padding
                                   ],

@@ -3,21 +3,18 @@ import requests
 from bs4 import BeautifulSoup
 import google.generativeai as genai
 from supabase import create_client, Client
-from datetime import datetime
+from datetime import datetime, timedelta
 import json
+import time
 
 # --- CONFIGURATION ---
 GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
 SUPABASE_URL = os.environ.get("SUPABASE_URL")
 SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
 
-# Target URL (Example: SpanishDict example or an actual event site like Atrápalo)
-# Note: In a real scenario, you'd target a dynamic event list. 
-# For this demo, we'll simulate extracting from a text-heavy page or a known event list.
-TARGET_URL = "https://www.atrapalo.com.co/entradas/bogota/" 
-# Fallback/Test URL from prompt context: "https://www.spanishdict.com/translate/ejemplo" (as requested, though less useful for real events)
+TARGET_URL = "https://www.idartes.gov.co/es/agenda"
 
-# Mapping categories to default images
+# Mapping categories to default images (Fallback)
 DEFAULT_IMAGES = {
     "music": "https://images.unsplash.com/photo-1514525253440-b393452e8d26?auto=format&fit=crop&q=80&w=800",
     "food": "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&q=80&w=800",
@@ -29,46 +26,58 @@ DEFAULT_IMAGES = {
 
 def fetch_page_content(url):
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-        response = requests.get(url, headers=headers)
+        headers = {'User-Agent': 'Mozilla/5.0'}
+        response = requests.get(url, headers=headers, timeout=10)
         response.raise_for_status()
         return response.text
     except Exception as e:
-        print(f"Error fetching URL: {e}")
+        print(f"Error fetching URL {url}: {e}")
         return None
 
-def extract_events_with_gemini(html_content):
+def extract_event_links(html_content):
+    soup = BeautifulSoup(html_content, 'html.parser')
+    links = set()
+    
+    # Logic for Idartes: Find links that look like event pages
+    # Usually: /es/agenda/category/slug
+    for a in soup.find_all('a', href=True):
+        href = a['href']
+        if '/es/agenda/' in href and not any(x in href for x in ['type:', 'ctg:', 'page=', '?']):
+            full_url = "https://www.idartes.gov.co" + href if href.startswith('/') else href
+            links.add(full_url)
+            
+    return list(links)[:10] # Limit to top 10 to avoid timeouts
+
+def extract_event_details_with_gemini(html_content, source_url):
     if not GEMINI_API_KEY:
         print("Error: GEMINI_API_KEY not set.")
-        return []
+        return None
 
-    print(f"GenAI Version: {genai.__version__}")
     genai.configure(api_key=GEMINI_API_KEY)
     try:
         model = genai.GenerativeModel('gemini-1.5-flash-latest')
     except:
-        print("Fallback to gemini-pro")
         model = genai.GenerativeModel('gemini-pro')
 
-    # Truncate HTML to avoid token limits if extremely large, focused on body
     soup = BeautifulSoup(html_content, 'html.parser')
-    text_content = soup.get_text(separator=' ', strip=True)[:30000] # Limit context
+    text_content = soup.get_text(separator=' ', strip=True)[:20000]
 
     prompt = f"""
-    You are an event extraction agent. Process the following text content from a web page listing events in Colombia (Bogotá/Barranquilla, etc.).
-    Extract up to 5 distinct events. 
+    You are an event extraction agent. Extract details for a SINGLE event from the text below.
     
-    Return a STRICT JSON array where each object has these keys:
-    - title: String (Event name)
-    - description: String (Short summary, max 2 sentences)
-    - date: String (YYYY-MM-DD or "Próximamente")
-    - location: String (City/Venue)
-    - category: String (One of: "music", "food", "culture", "outdoors", "party", "other")
-    - source_url: String (The source URL provided below)
-    - image_search_term: String (A generic search term for this event to find an image, e.g. "Jazz concert", "Burger festival")
+    Return a STRICT JSON object with these keys:
+    - title: String
+    - description: String (Max 3 lines, Spanish)
+    - date: String (Start Date YYYY-MM-DD. If range, use start date. If "Permanent" use today)
+    - end_date: String (End Date YYYY-MM-DD. If one day, same as date. If permanent, put date + 1 year)
+    - location: String (Venue Name)
+    - address: String (Physical Address if found, else null)
+    - category: String ("music", "culture", "outdoors", "party", "food", "other")
+    - image_url: String (Find a URL ending in jpg/png in text if possible, else null)
+    - contact_info: String (Phone or Email if found, else null)
 
-    If no clear events are found, return an empty array [].
-    
+    If the text is not about an event, return null.
+
     Source Text:
     {text_content}
     """
@@ -76,78 +85,93 @@ def extract_events_with_gemini(html_content):
     try:
         response = model.generate_content(prompt)
         cleaned_text = response.text.replace('```json', '').replace('```', '').strip()
-        events = json.loads(cleaned_text)
-        return events
+        event_data = json.loads(cleaned_text)
+        if event_data:
+            event_data['source_url'] = source_url
+            if not event_data.get('category'): event_data['category'] = 'other'
+            if not event_data.get('image_url'): 
+                event_data['image_url'] = DEFAULT_IMAGES.get(event_data['category'], DEFAULT_IMAGES['other'])
+                
+        return event_data
     except Exception as e:
-        print(f"Error parsing with Gemini: {e}")
-        return []
+        print(f"Error parsing detail with Gemini: {e}")
+        return None
 
-def assign_image(event):
-    # In a real production script, you might use Google Custom Search API here.
-    # For this cost-effective version, we use the category default.
-    category = event.get('category', 'other').lower()
-    return DEFAULT_IMAGES.get(category, DEFAULT_IMAGES['other'])
-
-def upload_to_supabase(events):
-    if not SUPABASE_URL or not SUPABASE_KEY:
-        print("Error: Supabase credentials not set.")
-        return
+def upload_to_supabase(event_data):
+    if not SUPABASE_URL or not SUPABASE_KEY: return
 
     supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
     
-    count = 0
-    for event in events:
+    # Check expiry
+    today = datetime.now().strftime("%Y-%m-%d")
+    end_date = event_data.get('end_date') or event_data.get('date')
+    if end_date and end_date < today:
+        print(f"Skipping expired event: {event_data['title']}")
+        return
+
+    try:
         data = {
-            "title": event.get('title'),
-            "description": event.get('description'),
-            "date": event.get('date'),
-            "location": event.get('location'),
-            "category": event.get('category'),
-            "source_url": TARGET_URL,
-            "image_url": assign_image(event),
+            "title": event_data.get('title'),
+            "description": event_data.get('description'),
+            "date": event_data.get('date'),
+            "end_date": end_date,
+            "location": event_data.get('location'),
+            "address": event_data.get('address'),
+            "category": event_data.get('category'),
+            "image_url": event_data.get('image_url'),
+            "source_url": event_data.get('source_url'),
+            "contact_info": event_data.get('contact_info'),
             "created_at": datetime.utcnow().isoformat()
         }
-        
-        # Upsert based on title and date to avoid duplicates (assuming unique constraint or just insert)
-        # Using title as a simple duplicate check for this demo
-        try:
-            # Check if exists
-            existing = supabase.table('events').select("*").eq('title', data['title']).execute()
-            if not existing.data:
-                supabase.table('events').insert(data).execute()
-                print(f"Uploaded: {data['title']}")
-                count += 1
-            else:
-                print(f"Skipped (Duplicate): {data['title']}")
-        except Exception as e:
-            print(f"Error uploading {data['title']}: {e}")
+
+        # Upsert
+        existing = supabase.table('events').select("*").eq('title', data['title']).execute()
+        if not existing.data:
+            supabase.table('events').insert(data).execute()
+            print(f"Uploaded: {data['title']}")
+        else:
+            print(f"Skipped (Duplicate): {data['title']}")
             
-    print(f"Successfully processed {count} new events.")
+    except Exception as e:
+        print(f"Error uploading {event_data.get('title')}: {e}")
 
 def main():
-    print("Starting Event Scraper...")
-    html = fetch_page_content(TARGET_URL)
-    if html:
-        print("Content fetched. analyzing with Gemini...")
-        events = extract_events_with_gemini(html)
-        print(f"Found {len(events)} events.")
-        if events:
-            upload_to_supabase(events)
-        else:
-            print("No events found to upload.")
-            # FALLBACK: Insert a debug event to prove the pipeline works
-            print("injecting FAILSAFE event to verify Supabase connection...")
-            failsafe_event = {
-                "title": "Debug: El Scraper Funcionó",
-                "description": "Si ves esto, Github y Supabase están conectados. El problema es que la web 'Atrapalo' no se deja leer.",
-                "date": datetime.now().strftime("%Y-%m-%d"),
-                "location": "Internet",
-                "category": "other",
-                "image_search_term": "robot"
-            }
-            upload_to_supabase([failsafe_event])
-    else:
-        print("Failed to fetch content.")
+    print("Starting Idartes Scraper...")
+    main_html = fetch_page_content(TARGET_URL)
+    if not main_html: return
+
+    links = extract_event_links(main_html)
+    print(f"Found {len(links)} potential event links.")
+    
+    count = 0
+    for link in links:
+        print(f"Scraping detailed view: {link}")
+        detail_html = fetch_page_content(link)
+        if detail_html:
+            event = extract_event_details_with_gemini(detail_html, link)
+            if event:
+                upload_to_supabase(event)
+                count += 1
+            time.sleep(1) # Be polite
+            
+    print(f"Finished. Processed {count} events.")
+    
+    # Failsafe if 0
+    if count == 0:
+        print("Injecting fallback event...")
+        fallback = {
+            "title": "Agenda Cultural Bogotá (Idartes)",
+            "description": "Explora la programación oficial de Idartes. No pudimos extraer eventos específicos, pero visita el sitio oficial.",
+            "date": datetime.now().strftime("%Y-%m-%d"),
+            "end_date": datetime.now().strftime("%Y-%m-%d"),
+            "location": "Bogotá D.C.",
+            "address": "Calle 8 # 8-52 (Ejemplo)",
+            "category": "culture",
+            "image_url": DEFAULT_IMAGES['culture'],
+            "source_url": TARGET_URL,
+            "contact_info": "contactenos@idartes.gov.co"
+        }
+        upload_to_supabase(fallback)
 
 if __name__ == "__main__":
     main()
