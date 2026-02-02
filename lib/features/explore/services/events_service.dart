@@ -9,10 +9,7 @@ class EventsService {
       final response = await _supabase
           .from('events')
           .select()
-          .order('date', ascending: true) // Sort by date? or created_at? Let's use created_at for "freshness" or date for event timing. 
-          // Let's assume we want upcoming events, so date. But text date is tricky.
-          // Let's use created_at desc to show latest added for now, or just limit to 20.
-          // In a real app we'd parse date.
+          .order('created_at', ascending: false) // Show fully newest scraped items first
           .limit(20);
 
       // ignore: unnecessary_type_check

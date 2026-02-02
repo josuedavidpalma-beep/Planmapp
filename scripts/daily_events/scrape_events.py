@@ -135,6 +135,17 @@ def main():
             upload_to_supabase(events)
         else:
             print("No events found to upload.")
+            # FALLBACK: Insert a debug event to prove the pipeline works
+            print("injecting FAILSAFE event to verify Supabase connection...")
+            failsafe_event = {
+                "title": "Debug: El Scraper Funcionó",
+                "description": "Si ves esto, Github y Supabase están conectados. El problema es que la web 'Atrapalo' no se deja leer.",
+                "date": datetime.now().strftime("%Y-%m-%d"),
+                "location": "Internet",
+                "category": "other",
+                "image_search_term": "robot"
+            }
+            upload_to_supabase([failsafe_event])
     else:
         print("Failed to fetch content.")
 
