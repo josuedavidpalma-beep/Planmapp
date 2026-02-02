@@ -112,7 +112,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: rootNavigatorKey, 
         builder: (context, state) {
            final extra = state.extra as Map<String, dynamic>?;
-           return CreatePlanScreen(initialTitle: extra?['initialTitle']);
+           return CreatePlanScreen(
+               initialTitle: extra?['initialTitle'],
+               initialAddress: extra?['initialAddress'],
+               initialDate: extra?['initialDate']
+           );
         },
       ),
       GoRoute(

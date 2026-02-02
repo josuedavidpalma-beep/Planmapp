@@ -18,8 +18,10 @@ import 'package:geocoding/geocoding.dart';
 
 class CreatePlanScreen extends StatefulWidget {
   final String? initialTitle;
+  final String? initialAddress;
+  final DateTime? initialDate;
 
-  const CreatePlanScreen({super.key, this.initialTitle});
+  const CreatePlanScreen({super.key, this.initialTitle, this.initialAddress, this.initialDate});
 
   @override
   State<CreatePlanScreen> createState() => _CreatePlanScreenState();
@@ -49,7 +51,13 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
   void initState() {
     super.initState();
     _titleController = TextEditingController(text: widget.initialTitle);
-    _locationController = TextEditingController();
+    _locationController = TextEditingController(text: widget.initialAddress);
+    
+    // Pre-fill date if provided
+    if (widget.initialDate != null) {
+        _isDateDefined = true;
+        _selectedDate = widget.initialDate;
+    }
   }
 
   @override

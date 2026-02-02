@@ -293,7 +293,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           child: ElevatedButton(
                                               onPressed: () {
                                                   Navigator.pop(context);
-                                                  context.push('/create-plan', extra: {'initialTitle': title}); 
+                                                  
+                                                  // Parse date if possible
+                                                  DateTime? parsedDate;
+                                                  try {
+                                                      if (event.date != null) {
+                                                          parsedDate = DateTime.parse(event.date!);
+                                                      }
+                                                  } catch (_) {}
+
+                                                  context.push('/create-plan', extra: {
+                                                      'initialTitle': title,
+                                                      'initialAddress': event.address ?? event.location,
+                                                      'initialDate': parsedDate
+                                                  }); 
                                                   ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Creando plan: $title")));
                                               }, 
                                               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white),
