@@ -10,6 +10,7 @@ class Event {
   final String? endDate;
   final String? address;
   final String? contactInfo;
+  final String city;
 
   Event({
     required this.id,
@@ -23,6 +24,7 @@ class Event {
     this.endDate,
     this.address,
     this.contactInfo,
+    this.city = 'Bogotá',
   });
 
   factory Event.fromJson(Map<String, dynamic> json) {
@@ -38,6 +40,7 @@ class Event {
       endDate: json['end_date'] as String?,
       address: json['address'] as String?,
       contactInfo: json['contact_info'] as String?,
+      city: json['city'] as String? ?? 'Bogotá',
     );
   }
 
@@ -54,6 +57,7 @@ class Event {
       'end_date': endDate,
       'address': address,
       'contact_info': contactInfo,
+      'city': city,
     };
   }
 }

@@ -8,6 +8,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:planmapp/core/utils/currency_formatter.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 class BudgetPlanTab extends StatefulWidget {
   final String planId;
@@ -35,6 +36,7 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
   bool _showAutoBanner = false;
   bool _isCurrentUserCreator = false;
   String? _creatorIdDebug;
+  String _paymentMode = '';
 
   @override
   void initState() {
@@ -104,6 +106,7 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
           _isCurrentUserCreator = isCreator;
           _creatorIdDebug = cId;
           _isLoading = false;
+          _paymentMode = planRes['payment_mode'] ?? '';
         });
       }
     } catch (e) {
@@ -458,6 +461,47 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
                             ),
                         ),
                     ),
+
+                // SMART SUGGESTION FOR VACA
+                if (_paymentMode == 'pool' && _budgetItems.isEmpty)
+                   Container(
+                        margin: const EdgeInsets.only(top: 24), // Add spacing
+                        padding: const EdgeInsets.all(16),
+                        decoration: BoxDecoration(
+                            gradient: LinearGradient(colors: [Colors.orange.withOpacity(0.2), Colors.orange.withOpacity(0.05)]),
+                            borderRadius: BorderRadius.circular(16),
+                            border: Border.all(color: Colors.orange.withOpacity(0.3))
+                        ),
+                        child: Row(
+                            children: [
+                                Container(
+                                    padding: const EdgeInsets.all(10),
+                                    decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
+                                    child: const Icon(Icons.savings, color: Colors.orange, size: 24),
+                                ),
+                                const SizedBox(width: 16),
+                                Expanded(
+                                    child: Column(
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                            const Text("Modo Vaca Activado 🐮", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                                            const SizedBox(height: 4),
+                                            const Text("Define la meta o el costo total para empezar a recoger el dinero.", style: TextStyle(fontSize: 12)),
+                                            const SizedBox(height: 8),
+                                            SizedBox(
+                                                height: 32,
+                                                child: ElevatedButton(
+                                                    style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16)),
+                                                    onPressed: _addItem,
+                                                    child: const Text("Definir Meta / Agregar Gasto"),
+                                                ),
+                                            )
+                                        ],
+                                    )
+                                )
+                            ],
+                        ),
+                    ).animate().fade().slideY(begin: 0.2, end: 0),
                 
                 const SizedBox(height: 24),
                 

@@ -44,6 +44,7 @@ class SimplePlanHeader extends StatelessWidget {
                 child: Column(
                     children: [
                         Row(
+                            crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                                 Expanded(child: _buildField(
                                     context, 
@@ -65,17 +66,21 @@ class SimplePlanHeader extends StatelessWidget {
                                     onTap: canEdit ? onEditTime : null
                                 )),
                                 Container(height: 40, width: 1, color: Colors.grey[200]),
-                                Expanded(child: _buildField(
+                                Expanded(child: _buildPaymentField(context)),
+                            ],
+                        ),
+                        const Divider(height: 32, thickness: 0.5),
+                         Row(
+                           children: [
+                             Expanded(child: _buildField(
                                     context,
                                     label: "LUGAR",
                                     value: plan.locationName.isNotEmpty ? plan.locationName : "Por definir",
                                     icon: Icons.location_on_outlined,
                                     onTap: canEdit ? onEditLocation : null
                                 )),
-                            ],
-                        ),
-                        const Divider(height: 32, thickness: 0.5),
-                        _buildPaymentRow(context),
+                           ],
+                         ),
                         
                         // OBSERVATIONS SECTION (Auto-filled by Polls)
                         if (plan.description != null && plan.description!.isNotEmpty) ...[
@@ -150,7 +155,7 @@ class SimplePlanHeader extends StatelessWidget {
       );
   }
 
-  Widget _buildPaymentRow(BuildContext context) {
+  Widget _buildPaymentField(BuildContext context) {
       final modes = {
         'individual': {'icon': Icons.person_outline, 'label': 'Individual', 'color': Colors.blue},
         'pool': {'icon': Icons.savings_outlined, 'label': 'Vaca', 'color': Colors.orange},
@@ -167,33 +172,25 @@ class SimplePlanHeader extends StatelessWidget {
           onTap: canEdit ? () => _showPaymentModeDialog(context) : null,
           borderRadius: BorderRadius.circular(12),
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            child: Row(
-                children: [
-                    Container(
-                        padding: const EdgeInsets.all(8),
-                        decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                        child: Icon(icon, size: 18, color: color),
-                    ),
-                    const SizedBox(width: 12),
-                    Expanded(
-                        child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                                const Text("MODO DE PAGO", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey)),
-                                Text(label, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                            ],
-                        ),
-                    ),
-                    if (canEdit)
-                        Chip(
-                            label: const Text("Cambiar", style: TextStyle(fontSize: 10, color: Colors.blue)),
-                            backgroundColor: Colors.blue.withOpacity(0.05),
-                            visualDensity: VisualDensity.compact,
-                            padding: EdgeInsets.zero,
-                        )
-                ],
-            ),
+              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                      Row(
+                        children: [
+                          Icon(icon, size: 14, color: color),
+                          const SizedBox(width: 6),
+                          const Text("PAGO", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.0)),
+                        ],
+                      ),
+                      const SizedBox(height: 6),
+                      Text(
+                          label, 
+                          style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: color),
+                          maxLines: 1, overflow: TextOverflow.ellipsis,
+                      )
+                  ],
+              ),
           ),
       );
   }

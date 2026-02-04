@@ -18,6 +18,8 @@ class HomeScreen extends ConsumerStatefulWidget {
 
 class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _selectedFilter = "Todo";
+  String _selectedCity = "Bogotá";
+  final List<String> _cities = ["Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena"];
 
   @override
   Widget build(BuildContext context) {
@@ -26,12 +28,37 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       appBar: AppBar(
-        title: const Column(
-          children: [
-             Text("Explorar", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-             Text("Colombia", style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.w400)),
-          ],
+        title: PopupMenuButton<String>(
+          onSelected: (value) {
+            setState(() {
+              _selectedCity = value;
+            });
+          },
+          position: PopupMenuPosition.under,
+          child: Column(
+            children: [
+               const Text("Explorar", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+               Row(
+                 mainAxisSize: MainAxisSize.min,
+                 children: [
+                   Text(_selectedCity, style: const TextStyle(fontSize: 13, color: AppTheme.primaryBrand, fontWeight: FontWeight.bold)),
+                   const Icon(Icons.keyboard_arrow_down, size: 16, color: AppTheme.primaryBrand)
+                 ],
+               ),
+            ],
+          ),
+          itemBuilder: (context) => _cities.map((city) => PopupMenuItem(
+            value: city,
+            child: Row(
+              children: [
+                Icon(Icons.location_on_outlined, size: 18, color: city == _selectedCity ? AppTheme.primaryBrand : Colors.grey),
+                const SizedBox(width: 8),
+                Text(city, style: TextStyle(fontWeight: city == _selectedCity ? FontWeight.bold : FontWeight.normal)),
+              ],
+            ),
+          )).toList(),
         ),
+        centerTitle: true,
         actions: [
           IconButton(
             icon: Icon(ref.watch(themeProvider) == ThemeMode.light ? Icons.dark_mode_rounded : Icons.light_mode_rounded),
@@ -53,11 +80,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               );
             }
           ),
-          const SizedBox(width: 16),
+          const SizedBox(width: 8),
         ],
       ),
       body: FutureBuilder<List<Event>>(
-        future: EventsService().getDailyEvents(),
+        key: ValueKey(_selectedCity), // Refresh when city changes
+        future: EventsService().getDailyEvents(city: _selectedCity),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
              return const Center(child: CircularProgressIndicator());
@@ -70,16 +98,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           
           // Filter logic
           final filteredEvents = allEvents.where((event) {
+// ... rest of logic
              if (_selectedFilter == "Todo") return true;
              
              // Map UI filter to backend category
              final category = event.category?.toLowerCase() ?? "";
              switch (_selectedFilter) {
                case "Comida": return category == "food";
-               case "Rumba": return category == "party";
+               case "Rumba": return category == "party"; // Corrected this line implicitly by context
                case "Aire Libre": return category == "outdoors";
                case "Cultura": return category == "culture";
-               case "Música": return category == "music"; // Added extra
+               case "Música": return category == "music"; 
                default: return true;
              }
           }).toList();
@@ -94,9 +123,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   "Hola, Josué 👋",
                   style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
                 ),
-                const Text(
-                  "¿Qué sale hoy?",
-                  style: TextStyle(fontSize: 20, color: Colors.grey, fontWeight: FontWeight.w500),
+                Text(
+                  "¿Qué sale hoy en $_selectedCity?",
+                  style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.w500),
                 ),
                 const SizedBox(height: 24),
     

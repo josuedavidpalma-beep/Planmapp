@@ -125,38 +125,39 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
                      child: Column(
                        crossAxisAlignment: CrossAxisAlignment.stretch,
                        children: [
-                         // SMART SUGGESTION
-                         if (_paymentMode == 'pool' && _bills.isEmpty)
+                         // SMART SUGGESTION FOR SPLIT BILL (DIVIDIR CUENTA)
+                         // "Vaca" (pool) is now handled in Budget Tab, so here we focus on "Dividir"
+                         if (_paymentMode == 'split' && _bills.isEmpty)
                              Container(
                                  margin: const EdgeInsets.only(bottom: 16),
                                  padding: const EdgeInsets.all(16),
                                  decoration: BoxDecoration(
-                                     gradient: LinearGradient(colors: [Colors.orange.withOpacity(0.2), Colors.orange.withOpacity(0.05)]),
+                                     gradient: LinearGradient(colors: [Colors.green.withOpacity(0.2), Colors.green.withOpacity(0.05)]),
                                      borderRadius: BorderRadius.circular(16),
-                                     border: Border.all(color: Colors.orange.withOpacity(0.3))
+                                     border: Border.all(color: Colors.green.withOpacity(0.3))
                                  ),
                                  child: Row(
                                      children: [
                                          Container(
                                              padding: const EdgeInsets.all(10),
                                              decoration: const BoxDecoration(color: Colors.white, shape: BoxShape.circle),
-                                             child: const Icon(Icons.savings, color: Colors.orange, size: 24),
+                                             child: const Icon(Icons.receipt_long, color: Colors.green, size: 24),
                                          ),
                                          const SizedBox(width: 16),
                                          Expanded(
                                              child: Column(
                                                  crossAxisAlignment: CrossAxisAlignment.start,
                                                  children: [
-                                                     const Text("Modo Vaca Detectado", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.orange)),
+                                                     const Text("Modo 'Dividir Cuenta' Activo", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.green)),
                                                      const SizedBox(height: 4),
-                                                     const Text("¿Quieres crear la cuenta para la vaca del paseo?", style: TextStyle(fontSize: 12)),
+                                                     const Text("Registra aquí los gastos que vaya haciendo cada uno para dividirlos al final.", style: TextStyle(fontSize: 12)),
                                                      const SizedBox(height: 8),
                                                      SizedBox(
                                                          height: 32,
                                                          child: ElevatedButton(
-                                                             style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16)),
-                                                             onPressed: () => _createNewBill(initialTitle: "Vaca del Paseo 🐮"),
-                                                             child: const Text("Crear Vaca"),
+                                                             style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16)),
+                                                             onPressed: () => _createNewBill(initialTitle: "Primer Gasto"),
+                                                             child: const Text("Registrar Gasto"),
                                                          ),
                                                      )
                                                  ],
