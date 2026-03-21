@@ -27,48 +27,82 @@ class ReceiptScannerImplementation implements ReceiptScannerPlatform {
     return await _scanWithLocalMLKit(file);
   }
 
-  // --- Gemini Implementation ---
+  // --- Gemini Implementation (Dart SDK / Código Sugerido) ---
   Future<ParsedReceipt> _scanWithGemini(File imageFile) async {
-      print(">>> MOBILE SCANNER: Starting Gemini-Pro Call");
-      final model = GenerativeModel(model: 'gemini-pro', apiKey: ApiConfig.geminiApiKey);
+      print(">>> MOBILE SCANNER: Llamando a Gemini-2.5-Flash (SDK) en API v1");
+      
+      // 1. Configurar modelo con ajustes de seguridad permissivos para OCR
+      final model = GenerativeModel(
+        model: 'gemini-2.5-flash', 
+        apiKey: ApiConfig.geminiApiKey,
+        requestOptions: const RequestOptions(apiVersion: 'v1'),
+        safetySettings: [
+          SafetySetting(HarmCategory.harassment, HarmBlockThreshold.none),
+          SafetySetting(HarmCategory.hateSpeech, HarmBlockThreshold.none),
+        ],
+      );
+
       final imageBytes = await imageFile.readAsBytes();
+      
+      // 2. Detectar MIME Type dinámicamente
+      final String mimeType = imageFile.path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
 
       final prompt = Content.multi([
-          TextPart("Analyze this receipt image. Extract items, prices, quantities, and totals. "
-                   "Ignore dates, addresses, or phone numbers. "
-                   "Return ONLY a valid JSON object with this structure: "
-                   "{ \"items\": [{\"name\": \"string\", \"qty\": int, \"price\": double}], \"tip\": double, \"tax\": double, \"total\": double } "
-                   "If a value is not found, use 0. Do not use Markdown formatting (no ```json). Just the raw JSON string."),
-          DataPart('image/jpeg', imageBytes),
+          TextPart("Analiza esta imagen de una factura/recibo de Colombia. Extrae los ítems consumidos con su precio final, y los valores totales de la cuenta.\n\n"
+                        "ROL DEL SISTEMA: Eres un motor OCR de precisión para facturas. Usa la 'ESTRATEGIA DE SUSTRACCIÓN':\n"
+                        "1. Detectar números: Identifica primero PRECIO y CANTIDAD. Sustrae esos números de la línea.\n"
+                        "2. El sobrante: Lo que queda es la DESCRIPCIÓN del ítem. Si el sobrante es vacío, busca texto en la línea de arriba.\n\n"
+                        "REGLAS DE BLOQUEO:\n"
+                        "- Primero evalúa Cantidad/Precio. Lo que sobre es Descripción.\n"
+                        "- Si el campo 'name' o descripción contiene solo números o símbolos, ignora la línea (es un ítem inválido).\n\n"
+                        "Aplica estas reglas del contexto colombiano:\n"
+                        "- 'subtotal': Corresponde a la suma de los productos antes de impuestos y propina.\n"
+                        "- 'tax': Es el impuesto cobrado, usualmente dice 'Impoconsumo (8%)' o 'IVA (19%)'.\n"
+                        "- 'tip': Es la propina voluntaria, usualmente el 10% del subtotal.\n"
+                        "- 'total': Es la suma de subtotal + tax + tip.\n"
+                        "Ignora fechas, direcciones o teléfonos.\n\n"
+                        "Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura estricta: "
+                        "{ \"items\": [{\"name\": \"string\", \"qty\": int, \"price\": double}], \"subtotal\": double, \"tip\": double, \"tax\": double, \"total\": double }\n"
+                        "Si un valor no se encuentra en el papel, infiérelo matemáticamente si es posible o devuélvelo como 0. No uses formato Markdown. Solo el texto JSON."),
+          DataPart(mimeType, imageBytes),
       ]);
 
-      final response = await model.generateContent([prompt]);
-      final text = response.text;
-      
-      if (text == null) throw Exception("Empty response from AI");
+      try {
+        final response = await model.generateContent([prompt]);
+        final text = response.text;
+        
+        if (text == null) throw Exception("La IA no devolvió texto");
 
-      // Clean cleanup just in case (e.g. if it adds backticks)
-      final cleanJson = text.replaceAll('```json', '').replaceAll('```', '').trim();
-      
-      final Map<String, dynamic> data = jsonDecode(cleanJson);
-      
-      List<ParsedItem> items = [];
-      if (data['items'] != null) {
-          for (var i in data['items']) {
-              items.add(ParsedItem(
-                  name: i['name']?.toString() ?? 'Item', 
-                  price: double.tryParse(i['price']?.toString() ?? '0') ?? 0.0, 
-                  quantity: int.tryParse(i['qty']?.toString() ?? '1') ?? 1
-              ));
-          }
+        // 3. Limpieza de JSON mejorada
+        final startIndex = text.indexOf('{');
+        final endIndex = text.lastIndexOf('}');
+        if (startIndex == -1 || endIndex == -1) throw Exception("JSON no encontrado en respuesta");
+        
+        final cleanJson = text.substring(startIndex, endIndex + 1);
+        final Map<String, dynamic> data = jsonDecode(cleanJson);
+        
+        List<ParsedItem> items = [];
+        if (data['items'] != null) {
+            for (var i in data['items']) {
+                items.add(ParsedItem(
+                    name: i['name']?.toString() ?? 'Item', 
+                    price: double.tryParse(i['price']?.toString() ?? '0') ?? 0.0, 
+                    quantity: int.tryParse(i['qty']?.toString() ?? '1') ?? 1
+                ));
+            }
+        }
+
+        return ParsedReceipt(
+            items: items,
+            subtotal: double.tryParse(data['subtotal']?.toString() ?? ''),
+            total: double.tryParse(data['total']?.toString() ?? ''),
+            tip: double.tryParse(data['tip']?.toString() ?? ''),
+            tax: double.tryParse(data['tax']?.toString() ?? ''),
+        );
+      } catch (e) {
+        print("Error específico en la llamada a Gemini: $e");
+        rethrow;
       }
-
-      return ParsedReceipt(
-          items: items,
-          total: double.tryParse(data['total']?.toString() ?? ''),
-          tip: double.tryParse(data['tip']?.toString() ?? ''),
-          tax: double.tryParse(data['tax']?.toString() ?? ''),
-      );
   }
 
   // --- Local Fallback (ML Kit) ---
@@ -117,15 +151,26 @@ class ReceiptScannerImplementation implements ReceiptScannerPlatform {
 
   ParsedItem? _extractItemFromLine(String line) {
       try {
-        String clean = line.replaceAll(r'$', '').trim();
-        final match = RegExp(r'^(\d+\s+)?(.+?)(\s+[\d\.,]+)$').firstMatch(clean);
+        // Se eliminan símbolos de moneda comunes y múltiples espacios para estandarizar
+        String clean = line.replaceAll(RegExp(r'[\$]'), '').replaceAll(RegExp(r'\s+'), ' ').trim();
+        
+        // Regex mejorada: Soporta cantidad opcional, descripción alfanumérica y precio al final.
+        // Maneja casos donde el OCR no lee correctamente los espacios entre texto y números.
+        final match = RegExp(r'^([\d.,]+\s+)?(.+?)\s*([\d\.,]+)$').firstMatch(clean);
+        
         if (match != null) {
            int qty = 1;
            if (match.group(1) != null) {
-              qty = int.tryParse(match.group(1)!.trim()) ?? 1;
+              String qtyStr = match.group(1)!.replaceAll(RegExp(r'[^\d]'), '');
+              qty = int.tryParse(qtyStr) ?? 1;
            }
            String name = match.group(2)!.trim();
+           // Descartar si el nombre no contiene al menos letras (evitar capturar líneas solo con números)
+           if (!RegExp(r'[a-zA-Z]').hasMatch(name)) return null;
+
            double price = _parsePrice(match.group(3)!.trim());
+           if (price == 0) return null;
+
            return ParsedItem(name: name, price: price, quantity: qty);
         }
         return null;

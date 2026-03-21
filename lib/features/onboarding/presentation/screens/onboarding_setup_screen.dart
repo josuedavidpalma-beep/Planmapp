@@ -42,7 +42,7 @@ class _OnboardingSetupScreenState extends State<OnboardingSetupScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Completa tu Perfil")),
-      body: Padding(
+      body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Column(
           children: [

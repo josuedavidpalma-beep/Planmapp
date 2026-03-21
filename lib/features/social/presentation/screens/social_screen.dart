@@ -79,23 +79,25 @@ class _SocialScreenState extends State<SocialScreen> {
 
      if (_feed.isEmpty) {
         return Center(
-          child: Padding(
-            padding: const EdgeInsets.all(32.0),
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Icon(Icons.diversity_3_rounded, size: 80, color: Colors.indigo.shade100),
-                const SizedBox(height: 16),
-                const Text("Tu Muro está tranquilo", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                const SizedBox(height: 8),
-                const Text("Parece que tus amigos no han publicado planes públicos recientemente.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
-                const SizedBox(height: 24),
-                ElevatedButton(
-                    onPressed: () => context.push('/friends'), // Go to friends to add more
-                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white),
-                    child: const Text("Buscar nuevos amigos")
-                )
-              ],
+          child: SingleChildScrollView(
+            child: Padding(
+              padding: const EdgeInsets.all(32.0),
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                  Icon(Icons.diversity_3_rounded, size: 80, color: Colors.indigo.shade100),
+                  const SizedBox(height: 16),
+                  const Text("Tu Muro está tranquilo", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  const Text("Parece que tus amigos no han publicado planes públicos recientemente.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                      onPressed: () => context.push('/friends'), // Go to friends to add more
+                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white),
+                      child: const Text("Buscar nuevos amigos", overflow: TextOverflow.ellipsis, maxLines: 1,)
+                  )
+                ],
+              ),
             ),
           ),
         );

@@ -298,7 +298,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           child: Row(children: [
                                             const Icon(Icons.calendar_month, size: 16, color: AppTheme.primaryBrand),
                                             const SizedBox(width: 8),
-                                            Text(event.endDate != null && event.endDate != event.date ? "Del ${event.date} al ${event.endDate}" : "${event.date}", style: const TextStyle(color: Colors.black87)),
+                                            Expanded(child: Text(event.endDate != null && event.endDate != event.date ? "Del ${event.date} al ${event.endDate}" : "${event.date}", style: const TextStyle(color: Colors.black87), maxLines: 2, overflow: TextOverflow.ellipsis)),
                                           ]),
                                         ),
                                       if (event.contactInfo != null)
@@ -307,7 +307,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           child: Row(children: [
                                             const Icon(Icons.phone, size: 16, color: Colors.grey),
                                             const SizedBox(width: 8),
-                                            Text(event.contactInfo!, style: const TextStyle(color: Colors.black87)),
+                                            Expanded(child: Text(event.contactInfo!, style: const TextStyle(color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis)),
                                           ]),
                                         ),
 

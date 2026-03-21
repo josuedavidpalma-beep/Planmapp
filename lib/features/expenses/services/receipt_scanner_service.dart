@@ -19,6 +19,7 @@ class ReceiptScannerService {
 
 class ParsedReceipt {
   final List<ParsedItem> items;
+  final double? subtotal;
   final double? total;
   final double? tip;
   final double? discount;
@@ -26,6 +27,7 @@ class ParsedReceipt {
 
   ParsedReceipt({
     required this.items, 
+    this.subtotal,
     this.total,
     this.tip,
     this.discount,

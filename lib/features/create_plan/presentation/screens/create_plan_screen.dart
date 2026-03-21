@@ -466,8 +466,8 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                    children: [
                        Icon(icon, color: AppTheme.primaryBrand),
                        const SizedBox(width: 12),
-                       Text(title, style: const TextStyle(fontSize: 16)),
-                       const Spacer(),
+                       Expanded(child: Text(title, style: const TextStyle(fontSize: 16), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                       const SizedBox(width: 8),
                        Icon(Icons.arrow_forward_ios_rounded, size: 16, color: colorScheme.onSurfaceVariant),
                    ],
                ),

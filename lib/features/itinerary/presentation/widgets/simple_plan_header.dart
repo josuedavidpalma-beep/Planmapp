@@ -140,7 +140,9 @@ class SimplePlanHeader extends StatelessWidget {
                         children: [
                           Icon(icon, size: 14, color: AppTheme.primaryBrand),
                           const SizedBox(width: 6),
-                          Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey[600], letterSpacing: 1.0)),
+                          Flexible(
+                            child: Text(label, style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey[600], letterSpacing: 1.0), overflow: TextOverflow.ellipsis, maxLines: 1),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 6),
@@ -180,7 +182,9 @@ class SimplePlanHeader extends StatelessWidget {
                         children: [
                           Icon(icon, size: 14, color: color),
                           const SizedBox(width: 6),
-                          const Text("PAGO", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.0)),
+                          const Flexible(
+                            child: Text("PAGO", style: TextStyle(fontSize: 10, fontWeight: FontWeight.bold, color: Colors.grey, letterSpacing: 1.0), overflow: TextOverflow.ellipsis, maxLines: 1),
+                          ),
                         ],
                       ),
                       const SizedBox(height: 6),

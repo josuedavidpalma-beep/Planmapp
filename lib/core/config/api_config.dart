@@ -1,3 +1,3 @@
 class ApiConfig {
-  static const String geminiApiKey = "AIzaSyB9PhkXejEfeNJvjCk8U6mnY4MelD-ejIM"; // User provided
+  static const String geminiApiKey = "AIzaSyBlD-7lLs1s24e1bCEJ9rP6BNTcEjAYnTw"; // User provided
 }

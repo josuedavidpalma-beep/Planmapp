@@ -96,9 +96,9 @@ class _MainWrapperScreenState extends State<MainWrapperScreen> {
 
               // Right Side
               _NavBarItem(
-                icon: Icons.account_balance_wallet_outlined, 
-                activeIcon: Icons.account_balance_wallet_rounded,
-                label: "Finanzas", // WAS Social
+                icon: Icons.handyman_outlined, 
+                activeIcon: Icons.handyman_rounded,
+                label: "Herramientas", // WAS Social/Finanzas
                 isSelected: currentIndex == 3,
                 onTap: () => _onItemTapped(3, context),
               ),

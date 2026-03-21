@@ -118,6 +118,75 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> {
       });
   }
 
+  void _markAsMine(String itemId, int itemQuantity) {
+      final currentUid = Supabase.instance.client.auth.currentUser?.id;
+      if (currentUid == null) return;
+      
+      setState(() {
+          _assignments[itemId] = [AssignmentModel(userId: currentUid, quantity: itemQuantity.toDouble())];
+      });
+  }
+
+  void _markAsShared(ExpenseItem item) {
+      final selectedUsers = <String>{};
+      final selectedGuests = <String>{};
+      
+      showDialog(context: context, builder: (ctx) {
+         return StatefulBuilder(builder: (ctx, setDialogState) {
+            return AlertDialog(
+                title: Text("¿Compartieron ${item.name}?"),
+                content: SizedBox(
+                    width: double.maxFinite,
+                    child: ListView(
+                        shrinkWrap: true,
+                        children: [
+                            ..._members.map((m) => CheckboxListTile(
+                                title: Text(m.name),
+                                dense: true,
+                                value: selectedUsers.contains(m.id),
+                                onChanged: (val) {
+                                    setDialogState(() {
+                                        if (val == true) selectedUsers.add(m.id);
+                                        else selectedUsers.remove(m.id);
+                                    });
+                                }
+                            )),
+                            ..._tempGuests.map((g) => CheckboxListTile(
+                                title: Text("$g (Inv)"),
+                                dense: true,
+                                value: selectedGuests.contains(g),
+                                onChanged: (val) {
+                                    setDialogState(() {
+                                        if (val == true) selectedGuests.add(g);
+                                        else selectedGuests.remove(g);
+                                    });
+                                }
+                            )),
+                        ]
+                    )
+                ),
+                actions: [
+                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
+                    ElevatedButton(onPressed: () {
+                        final totalSelected = selectedUsers.length + selectedGuests.length;
+                        if (totalSelected > 0) {
+                            final qtyPerPerson = item.quantity / totalSelected;
+                            final newAssignments = <AssignmentModel>[];
+                            for(var u in selectedUsers) newAssignments.add(AssignmentModel(userId: u, quantity: qtyPerPerson));
+                            for(var g in selectedGuests) newAssignments.add(AssignmentModel(guestName: g, quantity: qtyPerPerson));
+                            
+                            setState(() {
+                                _assignments[item.id] = newAssignments;
+                            });
+                        }
+                        Navigator.pop(ctx);
+                    }, child: const Text("Dividir"))
+                ]
+            );
+         });
+      });
+  }
+
   // WIZARD
   void _openSplitWizard(ExpenseItem item) {
       showModalBottomSheet(
@@ -196,23 +265,61 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> {
                                 ),
                                 child: Column(
                                   children: [
-                                    ListTile(
-                                        title: Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                        subtitle: Text(
-                                            "${item.quantity} x ${CurrencyInputFormatter.format(item.price / (item.quantity == 0 ? 1 : item.quantity))} = ${CurrencyInputFormatter.format(item.price)}\n"
-                                            "${isComplete ? 'Completo' : 'Faltan: ${missing.toStringAsFixed(1)}'}",
-                                            style: TextStyle(color: isComplete ? Colors.green : Colors.orange, fontSize: 12)
-                                        ),
-                                        trailing: ElevatedButton.icon(
-                                            onPressed: () => _openSplitWizard(item),
-                                            icon: const Icon(Icons.auto_fix_high, size: 16),
-                                            label: const Text("Asistente"),
-                                            style: ElevatedButton.styleFrom(
-                                                backgroundColor: AppTheme.primaryBrand.withOpacity(0.1),
-                                                foregroundColor: AppTheme.primaryBrand,
-                                                elevation: 0
-                                            ),
-                                        ),
+                                    Padding(
+                                        padding: const EdgeInsets.all(12),
+                                        child: Column(
+                                            crossAxisAlignment: CrossAxisAlignment.start,
+                                            children: [
+                                                Row(
+                                                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                    crossAxisAlignment: CrossAxisAlignment.start,
+                                                    children: [
+                                                        Expanded(
+                                                            child: Column(
+                                                                crossAxisAlignment: CrossAxisAlignment.start,
+                                                                children: [
+                                                                    Text(item.name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                                                    const SizedBox(height: 4),
+                                                                    Text(
+                                                                        "${item.quantity} x ${CurrencyInputFormatter.format(item.price / (item.quantity == 0 ? 1 : item.quantity))} = ${CurrencyInputFormatter.format(item.price)}",
+                                                                        style: const TextStyle(fontSize: 13, color: Colors.grey)
+                                                                    ),
+                                                                    Text(
+                                                                        isComplete ? 'Asignado' : 'Faltan: ${missing.toStringAsFixed(1)}',
+                                                                        style: TextStyle(color: isComplete ? Colors.green : Colors.orange, fontSize: 12, fontWeight: FontWeight.bold)
+                                                                    ),
+                                                                ]
+                                                            )
+                                                        ),
+                                                        IconButton(
+                                                            onPressed: () => _openSplitWizard(item),
+                                                            icon: const Icon(Icons.auto_fix_high, color: AppTheme.primaryBrand),
+                                                            tooltip: "División Avanzada",
+                                                        )
+                                                    ]
+                                                ),
+                                                const SizedBox(height: 8),
+                                                Row(
+                                                    children: [
+                                                        Expanded(
+                                                            child: OutlinedButton(
+                                                                onPressed: () => _markAsMine(item.id, item.quantity),
+                                                                style: OutlinedButton.styleFrom(foregroundColor: AppTheme.primaryBrand, side: const BorderSide(color: AppTheme.primaryBrand)),
+                                                                child: const Text("Mío", style: TextStyle(fontWeight: FontWeight.bold)),
+                                                            )
+                                                        ),
+                                                        const SizedBox(width: 8),
+                                                        Expanded(
+                                                            child: ElevatedButton(
+                                                                onPressed: () => _markAsShared(item),
+                                                                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, elevation: 0),
+                                                                child: const Text("Compartido"),
+                                                            )
+                                                        ),
+                                                    ]
+                                                )
+                                            ]
+                                        )
                                     ),
                                     // Mini preview of who pays
                                     if ((_assignments[item.id] ?? []).isNotEmpty)
@@ -294,6 +401,16 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
   }
 
   // ... (existing code)
+
+  void _initValuesFromCurrent() {
+      for (var a in widget.currentAssignments) {
+          if (a.userId != null) {
+              _tempValues["u_${a.userId}"] = a.quantity;
+          } else if (a.guestName != null) {
+              _tempValues["g_${a.guestName}"] = a.quantity;
+          }
+      }
+  }
 
   void _save() {
       List<AssignmentModel> result = [];

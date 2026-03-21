@@ -11,6 +11,9 @@ class Expense extends Equatable {
   final String? receiptImageUrl;
   final String? paymentMethod; 
   final String? paymentInstructions; 
+  final double? subtotal; 
+  final double? taxAmount; 
+  final double? tipAmount; 
   final String? category; // New field
   final String? emoji; // New field
   final DateTime createdAt;
@@ -27,6 +30,9 @@ class Expense extends Equatable {
     this.receiptImageUrl,
     this.paymentMethod,
     this.paymentInstructions,
+    this.subtotal,
+    this.taxAmount,
+    this.tipAmount,
     this.category,
     this.emoji,
     required this.createdAt,
@@ -45,6 +51,9 @@ class Expense extends Equatable {
       receiptImageUrl: json['receipt_image_url'] as String?,
       paymentMethod: json['payment_method'] as String?,
       paymentInstructions: json['payment_instructions'] as String?,
+      subtotal: (json['subtotal'] as num?)?.toDouble(),
+      taxAmount: (json['tax_amount'] as num?)?.toDouble(),
+      tipAmount: (json['tip_amount'] as num?)?.toDouble(),
       category: json['category'] as String?,
       emoji: json['emoji'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
@@ -68,6 +77,9 @@ class Expense extends Equatable {
       'receipt_image_url': receiptImageUrl,
       'payment_method': paymentMethod,
       'payment_instructions': paymentInstructions,
+      'subtotal': subtotal,
+      'tax_amount': taxAmount,
+      'tip_amount': tipAmount,
       'category': category,
       'emoji': emoji,
       'created_at': createdAt.toIso8601String(),
@@ -83,13 +95,16 @@ class Expense extends Equatable {
       'currency': currency,
       'receipt_image_url': receiptImageUrl,
       'payment_method': paymentMethod,
+      'subtotal': subtotal,
+      'tax_amount': taxAmount,
+      'tip_amount': tipAmount,
       'category': category,
       'emoji': emoji,
     };
   }
 
   @override
-  List<Object?> get props => [id, planId, createdBy, title, totalAmount, currency, receiptImageUrl, paymentMethod, category, emoji, createdAt, items, participantStatuses];
+  List<Object?> get props => [id, planId, createdBy, title, totalAmount, currency, receiptImageUrl, paymentMethod, subtotal, taxAmount, tipAmount, category, emoji, createdAt, items, participantStatuses];
 }
 
 class ParticipantStatus extends Equatable {

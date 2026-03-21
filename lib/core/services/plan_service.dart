@@ -2,6 +2,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/features/plans/domain/models/plan_model.dart';
 import 'package:flutter/foundation.dart';
+import 'package:uuid/uuid.dart';
 
 class PlanService {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -51,6 +52,7 @@ class PlanService {
           // Filter: Show Drafts (null) OR Future Plans (>= yesterday)
           // We use yesterday to give a grace period before disappearing
           .or('event_date.is.null,event_date.gte.${DateTime.now().subtract(const Duration(days: 1)).toIso8601String()}')
+          .neq('title', '__PLANMAPP_TOOLS_MODE__') // Filter out the internal tools plan
           .order('created_at', ascending: false);
       
       return (response as List)
@@ -193,5 +195,50 @@ class PlanService {
        } catch (e) {
            throw Exception("Error al actualizar estado: $e");
        }
+  }
+
+  // --- INTERNAL TOOLS PLAN ---
+  Future<String> getOrCreateToolsPlan() async {
+      try {
+          final user = _supabase.auth.currentUser;
+          if (user == null) throw Exception("No autenticado");
+
+          // 1. Check if it exists for this user
+          // Note: Since each user should have their own isolated tools sandbox, 
+          // we look for a plan created by them with the specific title.
+          final existing = await _supabase.from('plans')
+              .select('id')
+              .eq('creator_id', user.id)
+              .eq('title', '__PLANMAPP_TOOLS_MODE__')
+              .maybeSingle();
+
+          if (existing != null) {
+              return existing['id'] as String;
+          }
+
+          // 2. Create if not exists
+          // Create dummy plan data
+          final newId = const Uuid().v4();
+          await _supabase.from('plans').insert({
+              'id': newId,
+              'creator_id': user.id,
+              'title': '__PLANMAPP_TOOLS_MODE__',
+              'description': 'Internal sandbox for standalone tools',
+              'location_name': 'Herramientas',
+              'status': 'draft' // or planning
+          });
+
+          // Also add them as admin
+          await _supabase.from('plan_members').insert({
+              'plan_id': newId,
+              'user_id': user.id,
+              'role': 'admin'
+          });
+
+          return newId;
+      } catch (e) {
+          print("Error in getOrCreateToolsPlan: $e");
+          throw Exception("No se pudo inicializar la base de datos de herramientas: $e");
+      }
   }
 }

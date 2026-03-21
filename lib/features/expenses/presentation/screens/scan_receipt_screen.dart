@@ -31,6 +31,9 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
   // Editable state
   List<ParsedItem> _items = [];
   double _total = 0.0;
+  double _subtotal = 0.0;
+  double _tax = 0.0;
+  double _tip = 0.0;
   String _paymentMethod = "Efectivo";
   
   // Loading Animation
@@ -86,7 +89,10 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
         setState(() {
           _receipt = receipt;
           _items = receipt.items;
-          _total = receipt.total ?? receipt.items.fold(0.0, (sum, item) => sum + item.price);
+          _subtotal = receipt.subtotal ?? receipt.items.fold(0.0, (sum, item) => sum + item.price);
+          _tax = receipt.tax ?? 0.0;
+          _tip = receipt.tip ?? 0.0;
+          _total = receipt.total ?? (_subtotal + _tax + _tip);
           _isScanning = false;
         });
         _timer.cancel();
@@ -119,6 +125,9 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
           'created_by': user.id,
           'title': _titleController.text,
           'total_amount': _total,
+          'subtotal': _subtotal,
+          'tax_amount': _tax,
+          'tip_amount': _tip,
           'currency': 'COP',
         };
         
@@ -176,6 +185,9 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
         'created_by': currentUid,
         'title': _titleController.text,
         'total_amount': _total,
+        'subtotal': _subtotal,
+        'tax_amount': _tax,
+        'tip_amount': _tip,
         'currency': 'COP',
         'payment_method': _paymentMethod,
     };
@@ -192,6 +204,14 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
             Navigator.of(context)..pop()..pop(); // Close Scan and Add Screen
         }
     });
+  }
+
+  void _handleMainAction() {
+    if (widget.isImportMode) {
+      _saveExpense();
+    } else {
+      _goToSplit();
+    }
   }
 
   @override
@@ -288,7 +308,8 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
                                                 final q = int.tryParse(val) ?? 1;
                                                 setState(() {
                                                     _items[index] = ParsedItem(name: item.name, price: item.price, quantity: q);
-                                                    _total = _items.fold(0, (sum, i) => sum + (i.price * i.quantity)); // Auto-recalculate Total
+                                                    _subtotal = _items.fold(0, (sum, i) => sum + (i.price * i.quantity));
+                                                    _total = _subtotal + _tax + _tip;
                                                 });
                                             },
                                         )
@@ -319,7 +340,8 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
                                                 final p = double.tryParse(val) ?? 0.0;
                                                 setState(() {
                                                     _items[index] = ParsedItem(name: item.name, price: p, quantity: item.quantity);
-                                                    _total = _items.fold(0, (sum, i) => sum + (i.price * i.quantity));
+                                                    _subtotal = _items.fold(0, (sum, i) => sum + (i.price * i.quantity));
+                                                    _total = _subtotal + _tax + _tip;
                                                 });
                                             },
                                         )
@@ -333,7 +355,8 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
                                         onPressed: () {
                                             setState(() {
                                                 _items.removeAt(index);
-                                                _total = _items.fold(0, (sum, i) => sum + (i.price * i.quantity));
+                                                _subtotal = _items.fold(0, (sum, i) => sum + (i.price * i.quantity));
+                                                _total = _subtotal + _tax + _tip;
                                             });
                                         },
                                     )
@@ -344,6 +367,73 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
                   }),
 
                   const SizedBox(height: 16),
+                  const Divider(),
+                  
+                  // Subtotal Edit
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                       const Text("Subtotal", style: TextStyle(fontSize: 16)),
+                       SizedBox(
+                         width: 100,
+                         child: TextFormField(
+                           initialValue: _subtotal.toStringAsFixed(0),
+                           keyboardType: TextInputType.number,
+                           textAlign: TextAlign.right,
+                           decoration: const InputDecoration(border: InputBorder.none, prefixText: "\$"),
+                           onChanged: (val) => setState(() {
+                               _subtotal = double.tryParse(val) ?? 0.0;
+                               _total = _subtotal + _tax + _tip;
+                           }),
+                         )
+                       )
+                    ],
+                  ),
+                  
+                  // Tax Edit
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                       const Text("Impuestos", style: TextStyle(fontSize: 16, color: Colors.grey)),
+                       SizedBox(
+                         width: 100,
+                         child: TextFormField(
+                           initialValue: _tax.toStringAsFixed(0),
+                           keyboardType: TextInputType.number,
+                           textAlign: TextAlign.right,
+                           style: const TextStyle(color: Colors.grey),
+                           decoration: const InputDecoration(border: InputBorder.none, prefixText: "\$"),
+                           onChanged: (val) => setState(() {
+                               _tax = double.tryParse(val) ?? 0.0;
+                               _total = _subtotal + _tax + _tip;
+                           }),
+                         )
+                       )
+                    ],
+                  ),
+
+                  // Tip Edit
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                       const Text("Propina", style: TextStyle(fontSize: 16, color: Colors.grey)),
+                       SizedBox(
+                         width: 100,
+                         child: TextFormField(
+                           initialValue: _tip.toStringAsFixed(0),
+                           keyboardType: TextInputType.number,
+                           textAlign: TextAlign.right,
+                           style: const TextStyle(color: Colors.grey),
+                           decoration: const InputDecoration(border: InputBorder.none, prefixText: "\$"),
+                           onChanged: (val) => setState(() {
+                               _tip = double.tryParse(val) ?? 0.0;
+                               _total = _subtotal + _tax + _tip;
+                           }),
+                         )
+                       )
+                    ],
+                  ),
+
                   const Divider(),
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,

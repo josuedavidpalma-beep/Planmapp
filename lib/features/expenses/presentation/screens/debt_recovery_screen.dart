@@ -10,7 +10,7 @@ import 'package:planmapp/features/expenses/presentation/widgets/reminder_setting
 import 'package:url_launcher/url_launcher.dart';
 
 class DebtRecoveryScreen extends StatefulWidget {
-  final String planId;
+  final String? planId;
 
   const DebtRecoveryScreen({super.key, required this.planId});
 
@@ -36,13 +36,14 @@ class _DebtRecoveryScreenState extends State<DebtRecoveryScreen> {
       setState(() => _isLoading = true);
       await Future.wait([
           _loadDebts(),
-          _loadSettings()
+          if (widget.planId != null) _loadSettings()
       ]);
       if (mounted) setState(() => _isLoading = false);
   }
 
   Future<void> _loadSettings() async {
-      final plan = await PlanService().getPlanById(widget.planId);
+      if (widget.planId == null) return;
+      final plan = await PlanService().getPlanById(widget.planId!);
       if (plan != null) {
           _reminderFrequency = plan.reminderFrequencyDays; // Using the field we added
           _reminderChannel = plan.reminderChannel;
@@ -50,10 +51,11 @@ class _DebtRecoveryScreenState extends State<DebtRecoveryScreen> {
   }
 
   Future<void> _openSettings() async {
+      if (widget.planId == null) return;
       final result = await showDialog<bool>(
           context: context, 
           builder: (_) => ReminderSettingsDialog(
-              planId: widget.planId, 
+              planId: widget.planId!, 
               initialFrequency: _reminderFrequency,
               initialChannel: _reminderChannel
           )
@@ -136,14 +138,15 @@ class _DebtRecoveryScreenState extends State<DebtRecoveryScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Por Cobrar"),
+        title: Text(widget.planId == null ? "Cobro Global" : "Por Cobrar"),
         centerTitle: true,
         actions: [
-            IconButton(
-                icon: const Icon(Icons.settings),
-                tooltip: "Configurar Cobro Automático",
-                onPressed: _openSettings,
-            )
+            if (widget.planId != null)
+                IconButton(
+                    icon: const Icon(Icons.settings),
+                    tooltip: "Configurar Cobro Automático",
+                    onPressed: _openSettings,
+                )
         ],
       ),
       body: _isLoading 
@@ -183,6 +186,7 @@ class _DebtRecoveryScreenState extends State<DebtRecoveryScreen> {
       final avatarUrl = (!isGuest && profileData != null) ? profileData['avatar_url'] as String? : null;
       final amount = (debt['amount_owed'] as num?)?.toDouble() ?? 0;
       final expenseTitle = debt['expenses']['title'];
+      final planName = widget.planId == null ? (debt['expenses']['plan_id'] != null ? " (Plan)" : " (Herramienta)") : "";
       final status = debt['status'] ?? 'pending';
       
       Color statusColor = status == 'reminded' ? Colors.orange : Colors.red;
@@ -216,7 +220,7 @@ class _DebtRecoveryScreenState extends State<DebtRecoveryScreen> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                               Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                              Text(expenseTitle, style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                              Text("$expenseTitle$planName", style: TextStyle(color: Colors.grey[600], fontSize: 13)),
                               const SizedBox(height: 4),
                               Container(
                                   padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 2),

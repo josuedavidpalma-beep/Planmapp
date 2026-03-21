@@ -1,7 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
-import 'package:intl/intl.dart';
+import 'package:planmapp/features/expenses/presentation/screens/budget_plan_tab.dart';
+import 'package:planmapp/features/expenses/presentation/screens/scan_receipt_screen.dart';
+import 'package:planmapp/features/expenses/presentation/screens/debt_recovery_screen.dart';
+import 'package:planmapp/core/services/plan_service.dart';
+import 'package:image_picker/image_picker.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -11,150 +15,140 @@ class DashboardScreen extends StatefulWidget {
 }
 
 class _DashboardScreenState extends State<DashboardScreen> {
-  bool _isLoading = true;
-  double _totalOwedToMe = 0;
-  double _totalIOwe = 0;
+  bool _isLoading = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _loadFinancialData();
+  Future<void> _openBudgetTool() async {
+      setState(() => _isLoading = true);
+      try {
+          final toolsPlanId = await PlanService().getOrCreateToolsPlan();
+          if (mounted) {
+              Navigator.push(context, MaterialPageRoute(
+                  builder: (context) => Scaffold(
+                      appBar: AppBar(title: const Text("Presupuesto Libre")),
+                      body: BudgetPlanTab(planId: toolsPlanId)
+                  )
+              ));
+          }
+      } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      } finally {
+          if (mounted) setState(() => _isLoading = false);
+      }
   }
 
-  Future<void> _loadFinancialData() async {
-      // TODO: Implement real aggregation query across all plans
-      // For now, simulating data or fetching basic stats if possible.
-      // Real implementation requires complex joins:
-      // - Find all expenses where I am a debtor (BillSplit) -> Add to IOwe
-      // - Find all expenses where I am the payer (Bill) AND have splits not paid -> Add to OwedToMe
+  Future<void> _openScannerTool() async {
+      final ImagePicker picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.camera);
       
-      await Future.delayed(const Duration(seconds: 1)); // Sim network
-
-      if (mounted) {
-          setState(() {
-              _isLoading = false;
-              // Mock Values for Visualization based on User Request
-              _totalOwedToMe = 150000; 
-              _totalIOwe = 45000;
-          });
+      if (image == null) return;
+      
+      setState(() => _isLoading = true);
+      try {
+          final toolsPlanId = await PlanService().getOrCreateToolsPlan();
+          if (mounted) {
+              Navigator.push(context, MaterialPageRoute(
+                  builder: (context) => ScanReceiptScreen(
+                      planId: toolsPlanId, 
+                      imageFile: image,
+                      isImportMode: false,
+                  )
+              ));
+          }
+      } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      } finally {
+          if (mounted) setState(() => _isLoading = false);
       }
+  }
+
+  void _openGlobalDebts() {
+      Navigator.push(context, MaterialPageRoute(
+          builder: (context) => const DebtRecoveryScreen(planId: null) // Global mode
+      ));
   }
 
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Resumen Financiero", style: TextStyle(fontWeight: FontWeight.bold)),
+        title: const Text("Herramientas", style: TextStyle(fontWeight: FontWeight.bold)),
         centerTitle: false,
-        actions: [
-            IconButton(icon: const Icon(Icons.history), onPressed: (){})
-        ],
       ),
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator())
         : ListView(
             padding: const EdgeInsets.all(16),
             children: [
-                // 1. GLOBAL BALANCE CARDS
-                Row(
-                    children: [
-                        Expanded(child: _buildBalanceCard("Por Cobrar", _totalOwedToMe, Colors.green)),
-                        const SizedBox(width: 16),
-                        Expanded(child: _buildBalanceCard("Por Pagar", _totalIOwe, Colors.redAccent)),
-                    ],
-                ),
+                const Text("Tus herramientas para organizarte mejor sin necesidad de armar un plan completo.", style: TextStyle(color: Colors.grey, fontSize: 14)),
                 const SizedBox(height: 24),
                 
-                // 2. NET BALANCE
-                Container(
-                    padding: const EdgeInsets.all(20),
-                    decoration: BoxDecoration(
-                        color: AppTheme.primaryBrand.withOpacity(0.1),
-                        borderRadius: BorderRadius.circular(16),
-                        border: Border.all(color: AppTheme.primaryBrand.withOpacity(0.3))
-                    ),
-                    child: Row(
-                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                        children: [
-                            const Text("Balance Total", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                            Text(
-                                NumberFormat.currency(locale: 'es_CO', symbol: '\$', decimalDigits: 0).format(_totalOwedToMe - _totalIOwe),
-                                style: const TextStyle(fontSize: 20, fontWeight: FontWeight.w900, color: AppTheme.primaryBrand)
-                            )
-                        ],
-                    ),
+                _buildToolCard(
+                    context,
+                    title: "Presupuesto Rápido",
+                    subtitle: "Calcula los gastos de un viaje o fiesta rápidamente y divídelo entre tus amigos.",
+                    icon: Icons.calculate_outlined,
+                    color: Colors.blueAccent,
+                    onTap: _openBudgetTool,
                 ),
-                const SizedBox(height: 32),
-                
-                // 3. RECENT ACTIVITY (Last month)
-                const Text("Actividad Reciente (30 días)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                const SizedBox(height: 16),
-                
-                _buildActivityItem("Asado en mi casa", "Carne y Bebidas", "Tú pagaste", 250000, DateTime.now().subtract(const Duration(days: 2))),
-                _buildActivityItem("Salida a Cine", "Boletas", "Debes a Juan", 25000, DateTime.now().subtract(const Duration(days: 5))),
-                _buildActivityItem("Viaje a Melgar", "Gasolina", "Debes a Miguel", 40000, DateTime.now().subtract(const Duration(days: 12))),
-                
-                const SizedBox(height: 20),
-                Center(child: TextButton(onPressed: (){}, child: const Text("Ver todo el historial")))
+                _buildToolCard(
+                    context,
+                    title: "Dividir Factura con IA",
+                    subtitle: "Toma la foto a un ticket de restaurante y deja que escaneemos y dividamos la cuenta.",
+                    icon: Icons.document_scanner_outlined,
+                    color: Colors.deepPurpleAccent,
+                    onTap: _openScannerTool,
+                ),
+                _buildToolCard(
+                    context,
+                    title: "Cobro Automático Global",
+                    subtitle: "Revisa quién te debe dinero de TODOS tus planes organizados y envíales un recordatorio.",
+                    icon: Icons.request_quote_outlined,
+                    color: Colors.orangeAccent,
+                    onTap: _openGlobalDebts,
+                ),
             ],
         ),
     );
   }
 
-  Widget _buildBalanceCard(String title, double amount, Color color) {
-      return Container(
-          padding: const EdgeInsets.all(16),
-          decoration: BoxDecoration(
-              color: Colors.white,
-              borderRadius: BorderRadius.circular(16),
-              boxShadow: [BoxShadow(color: Colors.grey.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))]
-          ),
-          child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                  Row(
+  Widget _buildToolCard(BuildContext context, {
+      required String title, required String subtitle, required IconData icon, required Color color, required VoidCallback onTap
+  }) {
+      return Card(
+          margin: const EdgeInsets.only(bottom: 16),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20), side: BorderSide(color: Colors.grey.withOpacity(0.1))),
+          elevation: 2,
+          shadowColor: color.withOpacity(0.2),
+          child: InkWell(
+              onTap: onTap,
+              borderRadius: BorderRadius.circular(20),
+              child: Padding(
+                  padding: const EdgeInsets.all(20),
+                  child: Row(
                       children: [
-                          Icon(title == "Por Cobrar" ? Icons.trending_up : Icons.trending_down, color: color, size: 20),
+                          Container(
+                              padding: const EdgeInsets.all(16),
+                              decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle),
+                              child: Icon(icon, color: color, size: 32),
+                          ),
+                          const SizedBox(width: 20),
+                          Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                      Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                      const SizedBox(height: 6),
+                                      Text(subtitle, style: TextStyle(color: Colors.grey[600], fontSize: 12, height: 1.3)),
+                                  ],
+                              )
+                          ),
                           const SizedBox(width: 8),
-                          Text(title, style: TextStyle(color: Colors.grey[600], fontSize: 12, fontWeight: FontWeight.bold)),
+                          const Icon(Icons.arrow_forward_ios, color: Colors.grey, size: 16),
                       ],
                   ),
-                  const SizedBox(height: 12),
-                  Text(
-                      NumberFormat.currency(locale: 'es_CO', symbol: '\$', decimalDigits: 0).format(amount),
-                      style: TextStyle(color: color, fontSize: 18, fontWeight: FontWeight.w900)
-                  )
-              ],
-          ),
-      );
-  }
-
-  Widget _buildActivityItem(String planName, String itemTitle, String status, double amount, DateTime date) {
-      final isDebt = status.contains("Debes");
-      return Card(
-          margin: const EdgeInsets.only(bottom: 12),
-          elevation: 0,
-          color: Colors.grey[50],
-          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.grey.shade200)),
-          child: ListTile(
-              leading: CircleAvatar(
-                  backgroundColor: isDebt ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1),
-                  child: Icon(isDebt ? Icons.arrow_upward : Icons.arrow_downward, color: isDebt ? Colors.red : Colors.green, size: 18),
-              ),
-              title: Text(itemTitle, style: const TextStyle(fontWeight: FontWeight.bold)),
-              subtitle: Text("$planName • ${DateFormat('d MMM').format(date)}"),
-              trailing: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  crossAxisAlignment: CrossAxisAlignment.end,
-                  children: [
-                      Text(
-                          NumberFormat.currency(locale: 'es_CO', symbol: '\$', decimalDigits: 0).format(amount),
-                          style: TextStyle(fontWeight: FontWeight.bold, color: isDebt ? Colors.red : Colors.green)
-                      ),
-                      Text(status, style: const TextStyle(fontSize: 10, color: Colors.grey))
-                  ],
               ),
           ),
       );
   }
 }
+

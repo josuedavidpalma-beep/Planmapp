@@ -133,6 +133,25 @@ class ExpenseRepository {
           }
       }
       
+      // Proportional Tax & Tip Calculation
+      final double subtotal = (expenseData['subtotal'] as num?)?.toDouble() ?? 0.0;
+      final double tax = (expenseData['tax_amount'] as num?)?.toDouble() ?? 0.0;
+      final double tip = (expenseData['tip_amount'] as num?)?.toDouble() ?? 0.0;
+      
+      if (subtotal > 0 && (tax > 0 || tip > 0)) {
+          final taxTipTotal = tax + tip;
+          
+          userDebts.forEach((uid, amount) {
+              final proportion = amount / subtotal;
+              userDebts[uid] = amount + (taxTipTotal * proportion);
+          });
+          
+          guestDebts.forEach((name, amount) {
+              final proportion = amount / subtotal;
+              guestDebts[name] = amount + (taxTipTotal * proportion);
+          });
+      }
+
       // 3. Insert Participant Statuses (Debt)
       final statusInserts = <Map<String, dynamic>>[];
       
@@ -180,18 +199,24 @@ class ExpenseRepository {
   }
 
   // Fetch debts owed TO the current user (where created_by = me)
-  Future<List<Map<String, dynamic>>> getReceivables(String planId) async {
+  // If planId is null, fetches globally across all plans.
+  Future<List<Map<String, dynamic>>> getReceivables(String? planId) async {
       try {
           final currentUid = _supabase.auth.currentUser?.id;
           if (currentUid == null) return [];
           
-          // 1. Get my expenses for this plan
-          final response = await _supabase
+          // 1. Get my expenses 
+          var query = _supabase
               .from('expense_participant_status')
-              .select('*, expenses!inner(title, total_amount, created_by, currency), profiles:user_id(full_name, avatar_url, phone)')
-              .eq('expenses.plan_id', planId)
+              .select('*, expenses!inner(title, total_amount, created_by, currency, plan_id), profiles:user_id(full_name, avatar_url, phone)')
               .eq('expenses.created_by', currentUid)
               .neq('status', 'paid'); // Only show unpaid/pending/reminded
+              
+          if (planId != null) {
+              query = query.eq('expenses.plan_id', planId);
+          }
+          
+          final response = await query;
               
           return List<Map<String, dynamic>>.from(response);
       } catch (e) {
