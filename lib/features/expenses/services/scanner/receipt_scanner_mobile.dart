@@ -2,6 +2,7 @@
 import 'dart:io';
 import 'dart:math';
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:cross_file/cross_file.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:google_mlkit_text_recognition/google_mlkit_text_recognition.dart';
@@ -27,28 +28,15 @@ class ReceiptScannerImplementation implements ReceiptScannerPlatform {
     return await _scanWithLocalMLKit(file);
   }
 
-  // --- Gemini Implementation (Dart SDK / Código Sugerido) ---
+  // --- Gemini Implementation (HTTP POST) ---
   Future<ParsedReceipt> _scanWithGemini(File imageFile) async {
-      print(">>> MOBILE SCANNER: Llamando a Gemini-2.5-Flash (SDK) en API v1");
-      
-      // 1. Configurar modelo con ajustes de seguridad permissivos para OCR
-      final model = GenerativeModel(
-        model: 'gemini-2.5-flash', 
-        apiKey: ApiConfig.geminiApiKey,
-        requestOptions: const RequestOptions(apiVersion: 'v1'),
-        safetySettings: [
-          SafetySetting(HarmCategory.harassment, HarmBlockThreshold.none),
-          SafetySetting(HarmCategory.hateSpeech, HarmBlockThreshold.none),
-        ],
-      );
-
+      print(">>> MOBILE SCANNER: Llamando a Gemini-2.5-Flash via HTTP POST");
+      final apiKey = ApiConfig.geminiApiKey;
       final imageBytes = await imageFile.readAsBytes();
-      
-      // 2. Detectar MIME Type dinámicamente
+      final base64Image = base64Encode(imageBytes);
       final String mimeType = imageFile.path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
 
-      final prompt = Content.multi([
-          TextPart("Analiza esta imagen de una factura/recibo de Colombia. Extrae los ítems consumidos con su precio final, y los valores totales de la cuenta.\n\n"
+      final String promptText = "Analiza esta imagen de una factura/recibo de Colombia. Extrae los ítems consumidos con su precio final, y los valores totales de la cuenta.\n\n"
                         "ROL DEL SISTEMA: Eres un motor OCR de precisión para facturas. Usa la 'ESTRATEGIA DE SUSTRACCIÓN':\n"
                         "1. Detectar números: Identifica primero PRECIO y CANTIDAD. Sustrae esos números de la línea.\n"
                         "2. El sobrante: Lo que queda es la DESCRIPCIÓN del ítem. Si el sobrante es vacío, busca texto en la línea de arriba.\n\n"
@@ -63,17 +51,43 @@ class ReceiptScannerImplementation implements ReceiptScannerPlatform {
                         "Ignora fechas, direcciones o teléfonos.\n\n"
                         "Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura estricta: "
                         "{ \"items\": [{\"name\": \"string\", \"qty\": int, \"price\": double}], \"subtotal\": double, \"tip\": double, \"tax\": double, \"total\": double }\n"
-                        "Si un valor no se encuentra en el papel, infiérelo matemáticamente si es posible o devuélvelo como 0. No uses formato Markdown. Solo el texto JSON."),
-          DataPart(mimeType, imageBytes),
-      ]);
+                        "Si un valor no se encuentra en el papel, infiérelo matemáticamente si es posible o devuélvelo como 0. No uses formato Markdown. Solo el texto JSON.";
 
+      final url = Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey');
+      
       try {
-        final response = await model.generateContent([prompt]);
-        final text = response.text;
+        final httpResponse = await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            "contents": [{
+              "parts": [
+                {"text": promptText},
+                {
+                  "inlineData": {
+                    "mimeType": mimeType,
+                    "data": base64Image
+                  }
+                }
+              ]
+            }],
+            "safetySettings": [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"}
+            ],
+            "generationConfig": { "temperature": 0.1 }
+          })
+        );
+
+        if (httpResponse.statusCode != 200) {
+          throw Exception("HTTP Error: ${httpResponse.statusCode} - ${httpResponse.body}");
+        }
+        
+        final responseData = jsonDecode(httpResponse.body);
+        final text = responseData['candidates']?[0]?['content']?['parts']?[0]?['text'];
         
         if (text == null) throw Exception("La IA no devolvió texto");
 
-        // 3. Limpieza de JSON mejorada
         final startIndex = text.indexOf('{');
         final endIndex = text.lastIndexOf('}');
         if (startIndex == -1 || endIndex == -1) throw Exception("JSON no encontrado en respuesta");
@@ -100,7 +114,7 @@ class ReceiptScannerImplementation implements ReceiptScannerPlatform {
             tax: double.tryParse(data['tax']?.toString() ?? ''),
         );
       } catch (e) {
-        print("Error específico en la llamada a Gemini: $e");
+        print("Error específico en la llamada a Gemini Mobile HTTP: $e");
         rethrow;
       }
   }

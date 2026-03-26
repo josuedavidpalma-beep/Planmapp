@@ -72,19 +72,79 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
     if (accept) {
       final session = Supabase.instance.client.auth.currentSession;
       if (session == null) {
-          // Store pending invite intent? 
-          // For simple MVP: Redirect to Login, expecting user to click link again or manually navigate?
-          // To make it smart: Pass return url
-          context.go('/login');
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text("Inicia sesión para confirmar tu asistencia."))
-          );
+          _showExpressRegistration();
       } else {
           _joinPlan();
       }
     } else {
       context.go('/');
     }
+  }
+
+  void _showExpressRegistration() {
+    showModalBottomSheet(
+      context: context,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+      isScrollControlled: true,
+      builder: (BuildContext ctx) {
+        bool acceptedTerms = false;
+        return StatefulBuilder(
+          builder: (BuildContext context, StateSetter setModalState) {
+            return Padding(
+              padding: EdgeInsets.only(
+                bottom: MediaQuery.of(context).viewInsets.bottom,
+                left: 24, right: 24, top: 24,
+              ),
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text("Completar Registro 🚀", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 16),
+                  const Text("Para sumarte a este plan necesitas una cuenta de Planmapp. Solo toma 1 minuto."),
+                  const SizedBox(height: 24),
+                  Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Checkbox(
+                        value: acceptedTerms,
+                        onChanged: (val) {
+                          setModalState(() {
+                            acceptedTerms = val ?? false;
+                          });
+                        },
+                      ),
+                      const Expanded(
+                        child: Text(
+                          "Acepto el tratamiento de mis datos personales según la Ley 1581 de 2012.",
+                          style: TextStyle(fontSize: 12, color: Colors.grey),
+                        ),
+                      ),
+                    ],
+                  ),
+                  const SizedBox(height: 24),
+                  SizedBox(
+                    width: double.infinity,
+                    child: ElevatedButton(
+                      onPressed: acceptedTerms ? () {
+                        Navigator.pop(context);
+                        context.push('/register');
+                      } : null,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryBrand,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                      ),
+                      child: const Text("Ir a Registro", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                    ),
+                  ),
+                  const SizedBox(height: 32),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
   }
 
   Future<void> _joinPlan() async {

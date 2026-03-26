@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'package:http/http.dart' as http;
 import 'package:cross_file/cross_file.dart';
 import 'package:planmapp/features/expenses/services/receipt_scanner_service.dart';
 import 'receipt_scanner_interface.dart';
@@ -11,25 +12,14 @@ class ReceiptScannerImplementation implements ReceiptScannerPlatform {
     return await _scanWithGeminiDirect(imageFile);
   }
 
-  // --- Gemini Implementation (Dart SDK) ---
   Future<ParsedReceipt> _scanWithGeminiDirect(XFile imageFile) async {
-      print(">>> WEB SCANNER: Llamando a Gemini-2.5-Flash (SDK) en API v1");
-      
-      final model = GenerativeModel(
-        model: 'gemini-2.5-flash', 
-        apiKey: ApiConfig.geminiApiKey,
-        requestOptions: const RequestOptions(apiVersion: 'v1'),
-        safetySettings: [
-          SafetySetting(HarmCategory.harassment, HarmBlockThreshold.none),
-          SafetySetting(HarmCategory.hateSpeech, HarmBlockThreshold.none),
-        ],
-      );
-
+      print(">>> WEB SCANNER: Llamando a Gemini-2.5-Flash via HTTP POST");
+      final apiKey = ApiConfig.geminiApiKey;
       final imageBytes = await imageFile.readAsBytes();
+      final base64Image = base64Encode(imageBytes);
       final String mimeType = imageFile.path.toLowerCase().endsWith('.png') ? 'image/png' : 'image/jpeg';
 
-      final prompt = Content.multi([
-          TextPart("Analiza esta imagen de una factura/recibo de Colombia. Extrae los ítems consumidos con su precio final, y los valores totales de la cuenta.\n\n"
+      final String promptText = "Analiza esta imagen de una factura/recibo de Colombia. Extrae los ítems consumidos con su precio final, y los valores totales de la cuenta.\n\n"
                         "ROL DEL SISTEMA: Eres un motor OCR de precisión para facturas. Usa la 'ESTRATEGIA DE SUSTRACCIÓN':\n"
                         "1. Detectar números: Identifica primero PRECIO y CANTIDAD. Sustrae esos números de la línea.\n"
                         "2. El sobrante: Lo que queda es la DESCRIPCIÓN del ítem. Si el sobrante es vacío, busca texto en la línea de arriba.\n\n"
@@ -44,13 +34,40 @@ class ReceiptScannerImplementation implements ReceiptScannerPlatform {
                         "Ignora fechas, direcciones o teléfonos.\n\n"
                         "Devuelve ÚNICAMENTE un objeto JSON válido con esta estructura estricta: "
                         "{ \"items\": [{\"name\": \"string\", \"qty\": int, \"price\": double}], \"subtotal\": double, \"tip\": double, \"tax\": double, \"total\": double }\n"
-                        "Si un valor no se encuentra en el papel, infiérelo matemáticamente si es posible o devuélvelo como 0. No uses formato Markdown. Solo el texto JSON."),
-          DataPart(mimeType, imageBytes),
-      ]);
+                        "Si un valor no se encuentra en el papel, infiérelo matemáticamente si es posible o devuélvelo como 0. No uses formato Markdown. Solo el texto JSON.";
 
+      final url = Uri.parse('https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=$apiKey');
+      
       try {
-        final response = await model.generateContent([prompt]);
-        final text = response.text;
+        final httpResponse = await http.post(
+          url,
+          headers: {'Content-Type': 'application/json'},
+          body: jsonEncode({
+            "contents": [{
+              "parts": [
+                {"text": promptText},
+                {
+                  "inlineData": {
+                    "mimeType": mimeType,
+                    "data": base64Image
+                  }
+                }
+              ]
+            }],
+            "safetySettings": [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"}
+            ],
+            "generationConfig": { "temperature": 0.1 }
+          })
+        );
+
+        if (httpResponse.statusCode != 200) {
+          throw Exception("HTTP Error: ${httpResponse.statusCode} - ${httpResponse.body}");
+        }
+        
+        final responseData = jsonDecode(httpResponse.body);
+        final text = responseData['candidates']?[0]?['content']?['parts']?[0]?['text'];
         
         if (text == null) throw Exception("La IA no devolvió texto");
 
@@ -80,7 +97,7 @@ class ReceiptScannerImplementation implements ReceiptScannerPlatform {
             tax: double.tryParse(data['tax']?.toString() ?? ''),
         );
       } catch (e) {
-        print("Error específico en la llamada a Gemini Web: $e");
+        print("Error específico en la llamada a Gemini Web HTTP: $e");
         rethrow;
       }
   }
