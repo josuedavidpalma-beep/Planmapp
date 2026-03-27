@@ -46,7 +46,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
       try {
           final toolsPlanId = await PlanService().getOrCreateToolsPlan();
           if (mounted) {
-              Navigator.push(context, MaterialPageRoute(
+              Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
                   builder: (context) => ScanReceiptScreen(
                       planId: toolsPlanId, 
                       imageFile: image,

@@ -8,6 +8,11 @@ import 'package:planmapp/features/explore/services/events_service.dart';
 import 'package:planmapp/features/explore/data/models/event_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:geolocator/geolocator.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+import 'package:planmapp/features/venues/presentation/widgets/instagram_reel_feed.dart';
+import 'package:planmapp/core/presentation/widgets/premium_empty_state.dart';
+import 'package:planmapp/core/presentation/widgets/skeleton_loader.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -20,6 +25,69 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _selectedFilter = "Todo";
   String _selectedCity = "Bogotá";
   final List<String> _cities = ["Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena"];
+  bool _isLocating = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPersistedCity();
+  }
+
+  Future<void> _loadPersistedCity() async {
+      final prefs = await SharedPreferences.getInstance();
+      final savedCity = prefs.getString('home_city');
+      if (savedCity != null && _cities.contains(savedCity)) {
+          setState(() { _selectedCity = savedCity; });
+      } else {
+          _requestAutoLocation();
+      }
+  }
+
+  Future<void> _requestAutoLocation() async {
+      setState(() => _isLocating = true);
+      try {
+          bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
+          if (!serviceEnabled) throw Exception("Ubicación apagada");
+          
+          LocationPermission permission = await Geolocator.checkPermission();
+          if (permission == LocationPermission.denied) {
+              permission = await Geolocator.requestPermission();
+              if (permission == LocationPermission.denied) throw Exception("Permiso denegado");
+          }
+          if (permission == LocationPermission.deniedForever) throw Exception("Permiso denegado permanentemente");
+
+          final pos = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.low);
+          
+          final map = {
+              "Bogotá": [4.711, -74.072],
+              "Medellín": [6.244, -75.581],
+              "Cali": [3.451, -76.532],
+              "Barranquilla": [10.963, -74.796],
+              "Cartagena": [10.391, -75.479],
+          };
+          
+          String nearest = "Bogotá";
+          double minD = double.infinity;
+
+          for (final city in map.keys) {
+              final d = Geolocator.distanceBetween(pos.latitude, pos.longitude, map[city]![0], map[city]![1]);
+              if (d < minD) {
+                  minD = d;
+                  nearest = city;
+              }
+          }
+          
+          if (mounted) {
+              setState(() => _selectedCity = nearest);
+              final prefs = await SharedPreferences.getInstance();
+              prefs.setString('home_city', nearest);
+          }
+      } catch (e) {
+         // Fallback estático en caso de error
+      } finally {
+         if (mounted) setState(() => _isLocating = false);
+      }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -37,7 +105,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           position: PopupMenuPosition.under,
           child: Column(
             children: [
-               const Text("Explorar", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+               Text(_isLocating ? "Ubicando..." : "Explorar", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                Row(
                  mainAxisSize: MainAxisSize.min,
                  children: [
@@ -88,7 +156,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         future: EventsService().getDailyEvents(city: _selectedCity),
         builder: (context, snapshot) {
           if (snapshot.connectionState == ConnectionState.waiting) {
-             return const Center(child: CircularProgressIndicator());
+             return const Padding(
+               padding: EdgeInsets.all(16.0), 
+               child: SkeletonList(count: 3)
+             );
           }
           if (snapshot.hasError) {
              return Center(child: Text("Error cargando eventos: ${snapshot.error}"));
@@ -140,24 +211,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       _buildFilterChip("Rumba"),
                       _buildFilterChip("Aire Libre"),
                       _buildFilterChip("Cultura"),
+                      _buildFilterChip("📸 Reels"),
                     ],
                   ),
                 ),
                  const SizedBox(height: 24),
     
-                // FEED CARDS
-                if (filteredEvents.isEmpty)
-                   const Padding(
-                     padding: EdgeInsets.all(32.0),
-                     child: Center(child: Text("No hay eventos en esta categoría por ahora.", style: TextStyle(color: Colors.grey))),
+                // SWITCHING VISUALIZATION FOR TIKTOK FEED
+                if (_selectedFilter == "📸 Reels")
+                   SizedBox(
+                       height: MediaQuery.of(context).size.height * 0.65, // Adjust vertical fill
+                       child: InstagramEmbedFeed(
+                           instagramUrls: const [
+                              "https://www.instagram.com/reel/DE-R9bSR20Q/",
+                              "https://www.instagram.com/p/DBhCHf7y6I-/",
+                              "https://www.instagram.com/p/DB4f1Q8SiB5/"
+                           ] // Mock URLs para MVP, idealmente vienen de DB para locales
+                       ),
+                   )
+                // CLASIC FEED CARDS
+                else if (filteredEvents.isEmpty)
+                   const PremiumEmptyState(
+                     icon: Icons.search_off_rounded,
+                     title: "Mmm, está muy tranquilo",
+                     subtitle: "No encontramos planes para esta categoría hoy. ¿Por qué no creas tu propio plan?",
                    )
                 else
-                   ...filteredEvents.map((event) => _buildContextCard(
-                      context, 
-                      event.title, 
-                      "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", 
-                      event.imageUrl ?? "https://via.placeholder.com/600",
-                      event
+                   ...filteredEvents.map((event) => _AnimatedPlanCard(
+                      title: event.title, 
+                      subtitle: "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", 
+                      imageUrl: event.imageUrl ?? "https://via.placeholder.com/600",
+                      event: event,
+                      onTap: () => _showPlanPreview(context, event.title, "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", event.imageUrl ?? "https://via.placeholder.com/600", event)
                    )),
 
                 const SizedBox(height: 80), // Bottom padding
@@ -198,61 +283,6 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     );
   }
 
-  Widget _buildContextCard(BuildContext context, String title, String subtitle, String imageUrl, Event event) {
-    return GestureDetector(
-      onTap: () {
-          _showPlanPreview(context, title, subtitle, imageUrl, event);
-      },
-      child: Container(
-        margin: const EdgeInsets.only(bottom: 20),
-        height: 200,
-        decoration: BoxDecoration(
-          borderRadius: BorderRadius.circular(24),
-          image: DecorationImage(
-            image: CachedNetworkImageProvider(imageUrl),
-            fit: BoxFit.cover,
-          ),
-          boxShadow: [
-             BoxShadow(color: Colors.black.withValues(alpha: 0.1), blurRadius: 10, offset: const Offset(0, 5))
-          ]
-        ),
-        child: Stack(
-           children: [
-              Container(
-                decoration: BoxDecoration(
-                  borderRadius: BorderRadius.circular(24),
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [Colors.transparent, Colors.black.withValues(alpha: 0.8)],
-                  ),
-                ),
-              ),
-              Positioned(
-                bottom: 20,
-                left: 20,
-                right: 20,
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                    const SizedBox(height: 4),
-                    Row(
-                      children: [
-                         const Icon(Icons.location_on, color: AppTheme.secondaryBrand, size: 16),
-                         const SizedBox(width: 4),
-                         Expanded(child: Text(subtitle, style: const TextStyle(color: Colors.white70, fontSize: 14), overflow: TextOverflow.ellipsis, maxLines: 1)),
-                      ],
-                    )
-                  ],
-                ),
-              )
-           ],
-        ),
-      ),
-    );
-  }
-  
   void _showPlanPreview(BuildContext context, String title, String subtitle, String imageUrl, Event event) {
       showModalBottomSheet(
           context: context,
@@ -375,5 +405,107 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
           )
       );
+  }
+}
+
+class _AnimatedPlanCard extends StatefulWidget {
+  final String title;
+  final String subtitle;
+  final String imageUrl;
+  final Event event;
+  final VoidCallback onTap;
+
+  const _AnimatedPlanCard({
+    required this.title,
+    required this.subtitle,
+    required this.imageUrl,
+    required this.event,
+    required this.onTap,
+  });
+
+  @override
+  State<_AnimatedPlanCard> createState() => _AnimatedPlanCardState();
+}
+
+class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
+  bool _isPressed = false;
+
+  @override
+  Widget build(BuildContext context) {
+    return GestureDetector(
+      onTapDown: (_) => setState(() => _isPressed = true),
+      onTapUp: (_) {
+        setState(() => _isPressed = false);
+        widget.onTap();
+      },
+      onTapCancel: () => setState(() => _isPressed = false),
+      child: AnimatedScale(
+        scale: _isPressed ? 0.96 : 1.0,
+        duration: const Duration(milliseconds: 150),
+        curve: Curves.easeInOut,
+        child: Container(
+          margin: const EdgeInsets.only(bottom: 20),
+          height: 200,
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(24),
+            boxShadow: [
+               BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 5))
+            ]
+          ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(24),
+            child: Stack(
+               children: [
+                  CachedNetworkImage(
+                    imageUrl: widget.imageUrl, 
+                    fit: BoxFit.cover, 
+                    width: double.infinity, 
+                    height: double.infinity,
+                    placeholder: (context, url) => Container(color: Theme.of(context).cardColor),
+                    errorWidget: (context, url, err) => Container(
+                         decoration: BoxDecoration(
+                           gradient: LinearGradient(
+                             colors: [AppTheme.primaryBrand.withOpacity(0.5), AppTheme.secondaryBrand.withOpacity(0.5)],
+                             begin: Alignment.topLeft,
+                             end: Alignment.bottomRight,
+                           )
+                         ),
+                         child: const Center(child: Icon(Icons.flash_on_rounded, size: 50, color: Colors.white))
+                    ),
+                  ),
+                  Container(
+                    decoration: BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [Colors.transparent, Colors.black.withOpacity(0.8)],
+                      ),
+                    ),
+                  ),
+                Positioned(
+                  bottom: 20,
+                  left: 20,
+                  right: 20,
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(widget.title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Row(
+                        children: [
+                           const Icon(Icons.location_on, color: AppTheme.secondaryBrand, size: 16),
+                           const SizedBox(width: 4),
+                           Expanded(child: Text(widget.subtitle, style: const TextStyle(color: Colors.white70, fontSize: 14), overflow: TextOverflow.ellipsis, maxLines: 1)),
+                        ],
+                      )
+                    ],
+                  ),
+                ) // Missing a closing parenthesis and padding? No, Positioned closes fine.
+               ]
+            ),
+          ),
+        ),
+      ),
+    );
   }
 }

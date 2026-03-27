@@ -6,6 +6,8 @@ import 'package:planmapp/features/expenses/data/models/expense_model.dart';
 import 'package:planmapp/features/expenses/data/repositories/expense_repository.dart';
 import 'package:planmapp/features/plans/services/plan_members_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter/foundation.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class ExpenseSplitScreen extends StatefulWidget {
   final Map<String, dynamic> expenseData;
@@ -45,16 +47,32 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> {
 
   Future<void> _loadMembers() async {
     final planId = widget.expenseData['plan_id'];
+    List<PlanMember> loaded = [];
     if (planId != null) {
-        final members = await _membersService.getMembers(planId);
-        if (mounted) {
-            setState(() => _members = members);
-            if (widget.autoSplitAll) {
-                for (var item in _items) _splitEqually(item.id);
+        loaded = await _membersService.getMembers(planId);
+    }
+    
+    // Ensure the current user (owner) is ALWAYS in the list, even if spontaneous plan or empty members
+    final currentUid = Supabase.instance.client.auth.currentUser?.id;
+    if (currentUid != null) {
+        final hasMe = loaded.any((m) => m.id == currentUid);
+        if (!hasMe) {
+            try {
+                final profile = await Supabase.instance.client.from('profiles').select('full_name').eq('id', currentUid).maybeSingle();
+                loaded.insert(0, PlanMember(id: currentUid, name: profile?['full_name'] ?? 'Yo', isGuest: false));
+            } catch (_) {
+                loaded.insert(0, PlanMember(id: currentUid, name: 'Yo', isGuest: false));
             }
         }
     }
-    if (mounted) setState(() => _isLoading = false);
+    
+    if (mounted) {
+        setState(() => _members = loaded);
+        if (widget.autoSplitAll) {
+            for (var item in _items) _splitEqually(item.id);
+        }
+        setState(() => _isLoading = false);
+    }
   }
 
   void _updateQuantity(String itemId, String? userId, String? guestName, double newQty) {
@@ -192,7 +210,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> {
       showModalBottomSheet(
           context: context,
           isScrollControlled: true,
-          backgroundColor: Colors.white,
+          backgroundColor: const Color(0xFF121212), // Dark mode base
           shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
           builder: (ctx) => _WizardSheet(
               item: item, 
@@ -211,25 +229,45 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> {
   Future<void> _saveExpense() async {
       setState(() => _isSaving = true);
       try {
-          final itemsToSave = _items.map((item) {
-             return item.toMap()..addAll({
-                 'assignments': _assignments[item.id] ?? [],
-             });
-          }).toList();
-
-          await _expenseRepository.createFullExpense(
-              expenseData: widget.expenseData, 
-              itemsData: itemsToSave
-          );
+          final expenseId = widget.expenseData['id'] as String;
+          
+          // 1. Update Item Assignments
+          for (var item in _items) {
+             await _expenseRepository.updateItemAssignments(item.id, _assignments[item.id] ?? []);
+          }
+          
+          // 2. Recalculate debts globally
+          await _expenseRepository.calculateAndUpdateDebts(expenseId);
 
           if (mounted) {
               Navigator.pop(context, true);
-              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Gasto guardado exitosamente")));
+              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cambios guardados exitosamente")));
           }
       } catch (e) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
-      } finally {
-          if (mounted) setState(() => _isSaving = false);
+          if (mounted) {
+            setState(() => _isSaving = false);
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+          }
+      } 
+  }
+
+  Future<void> _shareVacaLink() async {
+      final expenseId = widget.expenseData['id'];
+      if (expenseId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error: No se encontró el ID de la Vaca')));
+          return;
+      }
+      
+      final title = widget.expenseData['title'] ?? 'La Vaca';
+      final base = kIsWeb ? Uri.base.origin : "https://app.planmapp.com";
+      final link = "$base/#/vaca/$expenseId"; // Added hash for Hash Routing support locally
+      final msg = "¡Hey! Ya está lista la Vaca para *$title* 🐮.\n\nEscoge qué consumiste en este link para saber cuánto te toca pagar:\n$link";
+      
+      final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(msg)}");
+      if (await canLaunchUrl(url)) {
+          await launchUrl(url);
+      } else {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo abrir WhatsApp')));
       }
   }
 
@@ -237,7 +275,8 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(title: const Text("Dividir Items"), actions: [
-          IconButton(icon: const Icon(Icons.person_add), onPressed: _addGuestName),
+          IconButton(icon: const Icon(Icons.share, color: Colors.green), onPressed: _shareVacaLink, tooltip: "Compartir Link 🔗"),
+          IconButton(icon: const Icon(Icons.person_add), onPressed: _addGuestName, tooltip: "Añadir Invitado"),
       ]),
       body: _isLoading 
         ? const Center(child: CircularProgressIndicator())
@@ -354,14 +393,15 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> {
                     padding: const EdgeInsets.all(16),
                     decoration: const BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black12)]),
                     child: SafeArea(
-                        child: ElevatedButton(
+                        child: ElevatedButton.icon(
                             onPressed: _isSaving ? null : _saveExpense,
+                            icon: _isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.cloud_done),
+                            label: const Text("Confirmar y Guardar Vaca", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             style: ElevatedButton.styleFrom(
-                                minimumSize: const Size(double.infinity, 50),
+                                minimumSize: const Size(double.infinity, 48),
                                 backgroundColor: AppTheme.primaryBrand,
                                 foregroundColor: Colors.white
                             ),
-                            child: _isSaving ? const CircularProgressIndicator(color: Colors.white) : const Text("Guardar Todo", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                         )
                     )
                 )
@@ -400,7 +440,11 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
       _initValuesFromCurrent();
   }
 
-  // ... (existing code)
+  @override
+  void dispose() {
+      _tabController.dispose();
+      super.dispose();
+  }
 
   void _initValuesFromCurrent() {
       for (var a in widget.currentAssignments) {
@@ -450,16 +494,26 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
       });
       
       widget.onApply(result);
-      Navigator.pop(context);
+      if (mounted && Navigator.canPop(context)) {
+          Navigator.pop(context);
+      }
   }
 
   @override
   Widget build(BuildContext context) {
-      return Padding(
-          padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-          child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
+      return Theme(
+          data: ThemeData.dark().copyWith(
+              colorScheme: const ColorScheme.dark(primary: AppTheme.primaryBrand, surface: Color(0xFF121212)),
+              scaffoldBackgroundColor: const Color(0xFF121212),
+              dialogBackgroundColor: const Color(0xFF2A2A2A),
+              bottomSheetTheme: const BottomSheetThemeData(backgroundColor: Color(0xFF121212)),
+          ),
+          child: Container(
+              color: const Color(0xFF121212),
+              padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
+              child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
                   const SizedBox(height: 16),
                   Text("Dividir: ${widget.item.name}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                   Text(CurrencyInputFormatter.format(widget.item.price), style: const TextStyle(color: Colors.grey)),
@@ -497,15 +551,16 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
                           ],
                       ),
                   ),
-                  Padding(
-                      padding: const EdgeInsets.all(16.0),
-                      child: ElevatedButton(
-                          onPressed: _save,
-                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 48)),
-                          child: const Text("Aplicar División"),
-                      ),
-                  )
-              ],
+                      Padding(
+                          padding: const EdgeInsets.all(16.0),
+                          child: ElevatedButton(
+                              onPressed: _save,
+                              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 48)),
+                              child: const Text("Aplicar División", style: TextStyle(fontWeight: FontWeight.bold)),
+                          ),
+                      )
+                  ],
+              ),
           ),
       );
   }
@@ -557,6 +612,7 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
                                        max: 100, 
                                        onChanged: (v) => setState(() => _tempValues[key] = v),
                                        activeColor: AppTheme.primaryBrand,
+                                       inactiveColor: Colors.grey.withOpacity(0.3),
                                    )
                                ),
                                Text("${val.toInt()}%", style: const TextStyle(fontWeight: FontWeight.bold)),

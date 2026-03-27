@@ -242,10 +242,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       final isSelected = _selectedPreferences.contains(entry.key);
                       return FilterChip(
                         label: Text(entry.key),
-                        avatar: Icon(entry.value, size: 16, color: isSelected ? Colors.white : Colors.black54),
+                        avatar: Icon(entry.value, size: 16, color: isSelected ? Colors.white : AppTheme.bodyTextSoft),
                         selected: isSelected,
                         selectedColor: AppTheme.primaryBrand,
-                        labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black),
+                        labelStyle: TextStyle(color: isSelected ? Colors.white : AppTheme.bodyTextSoft),
                         onSelected: (selected) {
                           setState(() {
                             if (selected) {

@@ -50,33 +50,26 @@ class _MainWrapperScreenState extends State<MainWrapperScreen> {
     // For now, consistent persistence.
 
     return Scaffold(
+      extendBody: true, // Allows content to flow underneath the floating bar
       body: widget.child,
-      floatingActionButton: FloatingActionButton(
-          tooltip: 'Crear Nuevo Plan',
-          elevation: 4,
-          backgroundColor: AppTheme.primaryBrand,
-          shape: const CircleBorder(),
-          onPressed: () => _showPlanCreationSheet(context),
-          child: const Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(Icons.add_rounded, size: 28, color: Colors.white),
-              Text("PLAN IT", style: TextStyle(fontSize: 8, fontWeight: FontWeight.bold, color: Colors.white)),
-            ],
+      bottomNavigationBar: SafeArea(
+        child: Container(
+          margin: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
+          height: 64,
+          decoration: BoxDecoration(
+            color: Theme.of(context).cardColor.withOpacity(0.95),
+            borderRadius: BorderRadius.circular(32),
+            boxShadow: [
+              BoxShadow(
+                color: Colors.black.withOpacity(0.15),
+                blurRadius: 20,
+                offset: const Offset(0, 10),
+              )
+            ]
           ),
-      ),
-      floatingActionButtonLocation: FloatingActionButtonLocation.centerDocked,
-      bottomNavigationBar: BottomAppBar(
-        shape: const CircularNotchedRectangle(),
-        notchMargin: 8.0,
-        color: Theme.of(context).cardColor,
-        elevation: 10,
-        child: SizedBox(
-          height: 60,
           child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceAround,
+            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
-              // Left Side
               _NavBarItem(
                 icon: Icons.explore_outlined, 
                 activeIcon: Icons.explore_rounded,
@@ -87,18 +80,32 @@ class _MainWrapperScreenState extends State<MainWrapperScreen> {
               _NavBarItem(
                 icon: Icons.calendar_today_outlined, 
                 activeIcon: Icons.calendar_today_rounded,
-                label: "Mis Planes", 
+                label: "Planes", 
                 isSelected: currentIndex == 1,
                 onTap: () => _onItemTapped(1, context),
               ),
               
-              const SizedBox(width: 48), // Gap for FAB
+              // Central Floating Button
+              GestureDetector(
+                onTap: () => _showPlanCreationSheet(context),
+                child: Container(
+                  height: 48,
+                  width: 48,
+                  decoration: const BoxDecoration(
+                    color: AppTheme.primaryBrand, 
+                    shape: BoxShape.circle,
+                    boxShadow: [
+                       BoxShadow(color: AppTheme.primaryBrand, blurRadius: 10, offset: Offset(0, 4))
+                    ]
+                  ),
+                  child: const Center(child: Icon(Icons.add_rounded, color: Colors.white, size: 28)),
+                )
+              ),
 
-              // Right Side
               _NavBarItem(
                 icon: Icons.handyman_outlined, 
                 activeIcon: Icons.handyman_rounded,
-                label: "Herramientas", // WAS Social/Finanzas
+                label: "Herram.", 
                 isSelected: currentIndex == 3,
                 onTap: () => _onItemTapped(3, context),
               ),
@@ -138,6 +145,18 @@ class _MainWrapperScreenState extends State<MainWrapperScreen> {
                       
                       _buildPlanOption(
                           context,
+                          icon: Icons.calendar_month_rounded,
+                          color: AppTheme.primaryBrand,
+                          title: "Plan Organizado",
+                          subtitle: "Pon fecha, encuesta y organiza con calma.",
+                          onTap: () {
+                              Navigator.pop(context);
+                              context.push('/create-plan');
+                          }
+                      ),
+                      const SizedBox(height: 12),
+                      _buildPlanOption(
+                          context,
                           icon: Icons.flash_on_rounded,
                           color: Colors.orange,
                           title: "Plan Espontáneo",
@@ -151,18 +170,6 @@ class _MainWrapperScreenState extends State<MainWrapperScreen> {
                                   backgroundColor: Colors.transparent,
                                   builder: (c) => const SpontaneousPlanSheet()
                               );
-                          }
-                      ),
-                      const SizedBox(height: 12),
-                      _buildPlanOption(
-                          context,
-                          icon: Icons.calendar_month_rounded,
-                          color: AppTheme.primaryBrand,
-                          title: "Plan Organizado",
-                          subtitle: "Pon fecha, encuesta y organiza con calma.",
-                          onTap: () {
-                              Navigator.pop(context);
-                              context.push('/create-plan');
                           }
                       ),
                       const SizedBox(height: 24),
@@ -230,11 +237,13 @@ class _NavBarItem extends StatelessWidget {
       onTap: onTap,
       borderRadius: BorderRadius.circular(16),
       child: Padding(
-        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 8),
         child: Column(
           mainAxisSize: MainAxisSize.min,
+          mainAxisAlignment: MainAxisAlignment.center,
           children: [
             Icon(isSelected ? activeIcon : icon, color: color, size: 24),
+            const SizedBox(height: 2),
             Text(label, style: TextStyle(color: color, fontSize: 10, fontWeight: FontWeight.bold)),
           ],
         ),

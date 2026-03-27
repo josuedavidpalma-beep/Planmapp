@@ -61,7 +61,7 @@ class _ManualExpenseFormState extends State<ManualExpenseForm> {
           if (!mounted) return;
           
           // Navigate to Scan Screen in Import Mode
-          final result = await Navigator.push(context, MaterialPageRoute(
+          final result = await Navigator.of(context, rootNavigator: true).push(MaterialPageRoute(
               builder: (context) => ScanReceiptScreen(
                   planId: widget.planId, 
                   imageFile: image,

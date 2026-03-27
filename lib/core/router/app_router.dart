@@ -19,6 +19,8 @@ import 'package:planmapp/features/invite/presentation/screens/invite_screen.dart
 import 'package:planmapp/features/profile/presentation/screens/profile_screen.dart';
 import 'package:planmapp/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:planmapp/features/expenses/presentation/screens/balances_screen.dart';
+import 'package:planmapp/features/expenses/presentation/screens/guest_join_screen.dart';
+import 'package:planmapp/features/expenses/presentation/screens/guest_split_screen.dart';
 import 'package:planmapp/features/landing/presentation/screens/plan_landing_screen.dart'; // NEW landing
 import 'package:planmapp/features/social/presentation/screens/friends_screen.dart';
 
@@ -40,7 +42,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     // 1. PUBLIC CHECK UPDATE
     final isPublic = state.uri.path.startsWith('/join') || 
                      state.uri.path.startsWith('/invite') || 
-                     state.uri.path.startsWith('/pago') || // NEW
+                     state.uri.path.startsWith('/pago') || 
+                     state.uri.path.startsWith('/vaca') || 
                      state.uri.path == '/onboarding-setup';
 
       if (!isLoggedIn && !isLoggingIn && !isPublic) {
@@ -139,7 +142,23 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => PlanLandingScreen(planId: state.pathParameters['id']!),
       ),
-      // NEW GUEST FLOW ROUTE
+      GoRoute(
+        path: '/vaca/:id',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => GuestJoinScreen(expenseId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/vaca/:id/split',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+           final Uri uri = state.uri;
+           return GuestSplitScreen(
+               expenseId: state.pathParameters['id']!,
+               guestName: uri.queryParameters['name'] ?? 'Invitado',
+               guestUid: uri.queryParameters['uid'] ?? 'guest_anon',
+           );
+        }
+      ),
       GoRoute(
         path: '/pago/:id',
         parentNavigatorKey: rootNavigatorKey,

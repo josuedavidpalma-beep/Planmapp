@@ -51,13 +51,34 @@ class ExpenseRepository {
   // Add items to an expense
   Future<void> addExpenseItems(List<Map<String, dynamic>> itemsData) async {
     try {
-      // itemsData should NOT contain 'assignments' key when inserting to expense_items table
-      // We need to strip it if present, but usually the UI handles this.
       if (itemsData.isEmpty) return;
       await _supabase.from('expense_items').insert(itemsData);
     } catch (e) {
       throw Exception('Failed to add expense items: $e');
     }
+  }
+
+  // Create Expense and Items returning the saved state (Pre-Vaca Cold Save)
+  Future<Expense> createDraftExpense({
+    required Map<String, dynamic> expenseData,
+    required List<Map<String, dynamic>> itemsData,
+  }) async {
+      try {
+          final expenseResponse = await _supabase.from('expenses').insert(expenseData).select().single();
+          
+          final expenseId = expenseResponse['id'] as String;
+          final itemsInsert = itemsData.map((e) => {...e, 'expense_id': expenseId}).toList();
+          
+          if (itemsInsert.isNotEmpty) {
+              await _supabase.from('expense_items').insert(itemsInsert);
+          }
+          
+          final fullResponse = await _supabase.from('expenses').select('*, expense_items(*)').eq('id', expenseId).single();
+          return Expense.fromJson(fullResponse);
+      } catch (e) {
+          print("ERROR CREATING DRAFT EXPENSE: $e");
+          throw Exception('Failed to create draft expense: $e');
+      }
   }
 
   // Create full expense with items and assignments
@@ -180,6 +201,69 @@ class ExpenseRepository {
     } catch (e) {
       throw Exception('Failed to create full expense: $e');
     }
+  }
+  
+  // Calculate and Update Debts for an Expense based on actual assignments
+  Future<void> calculateAndUpdateDebts(String expenseId) async {
+      // Fetch expense + items + assignments
+      try {
+          final expRes = await _supabase.from('expenses').select('subtotal, tax_amount, tip_amount').eq('id', expenseId).single();
+          final itemsRes = await _supabase.from('expense_items').select('id, price').eq('expense_id', expenseId);
+          
+          Map<String, double> userDebts = {};
+          Map<String, double> guestDebts = {};
+          
+          for (var item in (itemsRes as List)) {
+              final itemId = item['id'];
+              final itemPrice = (item['price'] as num).toDouble();
+              
+              final assignRes = await _supabase.from('expense_assignments').select().eq('expense_item_id', itemId);
+              final assignments = (assignRes as List).map((a) => AssignmentModel.fromJson(a)).toList();
+              
+              final totalPortions = assignments.fold(0.0, (sum, a) => sum + a.quantity);
+              if (totalPortions > 0) {
+                  final costPerPortion = itemPrice / totalPortions;
+                  for (var a in assignments) {
+                      final debt = costPerPortion * a.quantity;
+                      if (a.userId != null) userDebts[a.userId!] = (userDebts[a.userId!] ?? 0) + debt;
+                      else if (a.guestName != null) guestDebts[a.guestName!] = (guestDebts[a.guestName!] ?? 0) + debt;
+                  }
+              }
+          }
+          
+          final double subtotal = (expRes['subtotal'] as num?)?.toDouble() ?? 0.0;
+          final double tax = (expRes['tax_amount'] as num?)?.toDouble() ?? 0.0;
+          final double tip = (expRes['tip_amount'] as num?)?.toDouble() ?? 0.0;
+          
+          if (subtotal > 0 && (tax > 0 || tip > 0)) {
+              final taxTipTotal = tax + tip;
+              userDebts.forEach((uid, amount) {
+                  final proportion = amount / subtotal;
+                  userDebts[uid] = amount + (taxTipTotal * proportion);
+              });
+              guestDebts.forEach((name, amount) {
+                  final proportion = amount / subtotal;
+                  guestDebts[name] = amount + (taxTipTotal * proportion);
+              });
+          }
+          
+          // Delete old statuses and insert new
+          await _supabase.from('expense_participant_status').delete().eq('expense_id', expenseId);
+          
+          final statusInserts = <Map<String, dynamic>>[];
+          userDebts.forEach((uid, amount) {
+              statusInserts.add({'expense_id': expenseId, 'user_id': uid, 'amount_owed': amount, 'is_paid': false});
+          });
+          guestDebts.forEach((name, amount) {
+               statusInserts.add({'expense_id': expenseId, 'guest_name': name, 'amount_owed': amount, 'is_paid': false});
+          });
+          
+          if (statusInserts.isNotEmpty) {
+              await _supabase.from('expense_participant_status').insert(statusInserts);
+          }
+      } catch (e) {
+         print("Error recalculating debts: $e");
+      }
   }
   
   // Update item assignment (Granular)

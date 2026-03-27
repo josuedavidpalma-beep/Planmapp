@@ -65,12 +65,11 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
        showDialog(barrierDismissible: false, context: context, builder: (_) => const Center(child: CircularProgressIndicator()));
        
        try {
-           // 2. Insert Plan
-           final userId = Supabase.instance.client.auth.currentUser!.id;
-           // Using direct insert or generic service? Let's use generic PlanService if possible, or direct for control.
-           // Since we need 'spontaneous' type (if schema supports it, or just use 'casual').
-           // The schema might not have 'type' column, let's assume 'casual' is fine or check schema.
-           // Schema has: name, description, location_name, event_date, payment_mode
+           final session = Supabase.instance.client.auth.currentSession;
+           if (session == null) {
+               throw Exception("Debes iniciar sesión para crear un plan.");
+           }
+           final userId = session.user.id;
            
            final title = "Plan Espontáneo en ${place['name']}";
            final desc = "Mood: ${widget.category}\nLugar: ${place['name']} (${place['tag']})\n${place['desc']}";
@@ -81,7 +80,7 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                'location_name': place['name'],
                'event_date': DateTime.now().toIso8601String(), // NOW!
                'payment_mode': 'individual',
-               'created_by': userId,
+               'creator_id': userId,
                'status': 'active' // or confirmed?
            };
 
@@ -93,20 +92,22 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                'plan_id': planId,
                'user_id': userId,
                'role': 'admin',
-               'status': 'confirmed' // Auto confirm creator
+               'status': 'confirmed' 
            });
 
            if (mounted) {
-               Navigator.pop(context); // Pop loading
-               Navigator.pop(context); // Pop Sheet
+               Navigator.of(context, rootNavigator: true).pop(); // Cerramos el dialog de carga de forma segura
+               Navigator.pop(context); // Pop Sheet actual
                
                // Navigate to Detail
                Navigator.push(context, MaterialPageRoute(builder: (_) => PlanDetailScreen(planId: planId)));
            }
 
        } catch (e) {
-           Navigator.pop(context); // Pop loading
-           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error creando plan: $e")));
+           if (mounted) {
+               Navigator.of(context, rootNavigator: true).pop(); // Pop loading
+               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error creando plan: $e")));
+           }
        }
   }
 

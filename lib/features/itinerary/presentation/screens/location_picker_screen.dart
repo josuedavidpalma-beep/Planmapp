@@ -96,16 +96,22 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   ),
                   children: [
                       TileLayer(
-                          urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                          urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', 
                           userAgentPackageName: 'com.planmapp.app',
+                          subdomains: const ['a', 'b', 'c', 'd'],
                       ),
                       MarkerLayer(
                           markers: [
                               Marker(
                                   point: _pickedLocation,
-                                  width: 40,
-                                  height: 40,
-                                  child: const Icon(Icons.location_on, color: Colors.red, size: 40),
+                                  width: 60,
+                                  height: 60,
+                                  child: Container(
+                                    decoration: const BoxDecoration(
+                                      shape: BoxShape.circle,
+                                    ),
+                                    child: const Icon(Icons.location_on, color: AppTheme.primaryGlow, size: 40)
+                                  ),
                               )
                           ],
                       ),

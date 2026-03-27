@@ -39,8 +39,8 @@ dependencies:
   intl: ^0.20.2
   timeago: ^3.6.1
   equatable: ^2.0.5
-  share_plus: ^10.1.4
-  url_launcher: ^6.3.1
+  share_plus: ^12.0.1
+  url_launcher: ^6.3.2
   flutter_contacts: ^1.1.9+1
   permission_handler: ^11.3.1
   
@@ -48,13 +48,14 @@ dependencies:
   flutter_map: ^6.1.0
   latlong2: ^0.9.0
   geolocator: ^13.0.2 # For live location tracking
-  geocoding: ^3.0.0 # For reverse geocoding addresses
+  geocoding: ^4.0.0 # For reverse geocoding addresses
   # flutter_google_places: ^0.3.0 # For Places Autocomplete
   # google_maps_webservice: ^0.0.20-nullsafety.5 # Required by flutter_google_places
   
   # Games
   flutter_fortune_wheel: ^1.2.0
   rxdart: ^0.27.7
+  webview_flutter: ^4.13.1
 
 dev_dependencies:
   flutter_test:

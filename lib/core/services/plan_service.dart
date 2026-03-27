@@ -44,23 +44,55 @@ class PlanService {
   }
 
 
-  Future<List<Plan>> getPlans() async {
+  Future<List<Plan>> getPlans({bool archived = false, bool deleted = false}) async {
     try {
-      final response = await _supabase
-          .from('plans')
-          .select()
-          // Filter: Show Drafts (null) OR Future Plans (>= yesterday)
-          // We use yesterday to give a grace period before disappearing
-          .or('event_date.is.null,event_date.gte.${DateTime.now().subtract(const Duration(days: 1)).toIso8601String()}')
-          .neq('title', '__PLANMAPP_TOOLS_MODE__') // Filter out the internal tools plan
-          .order('created_at', ascending: false);
+      var query = _supabase.from('plans').select();
+
+      if (deleted) {
+          query = query.not('deleted_at', 'is', null);
+      } else if (archived) {
+          query = query.filter('deleted_at', 'is', null).not('archived_at', 'is', null);
+      } else {
+          query = query.filter('deleted_at', 'is', null).filter('archived_at', 'is', null);
+      }
       
-      return (response as List)
-          .map((item) => Plan.fromJson(item))
-          .toList();
+      final response = await query
+          .or('event_date.is.null,event_date.gte.${DateTime.now().subtract(const Duration(days: 1)).toIso8601String()}')
+          .neq('title', '__PLANMAPP_TOOLS_MODE__')
+          .order('created_at', ascending: false);
+          
+      return (response as List).map((item) => Plan.fromJson(item)).toList();
     } catch (e) {
       throw Exception('Error al cargar planes: $e');
     }
+  }
+
+  Future<void> softDeletePlan(String planId) async {
+       try {
+           await _supabase.from('plans').update({
+               'deleted_at': DateTime.now().toIso8601String()
+           }).eq('id', planId);
+           listUpdateNotifier.value++;
+       } catch (e) { throw Exception("Error al mover a papelera: $e"); }
+  }
+
+  Future<void> archivePlan(String planId) async {
+       try {
+           await _supabase.from('plans').update({
+               'archived_at': DateTime.now().toIso8601String()
+           }).eq('id', planId);
+           listUpdateNotifier.value++;
+       } catch (e) { throw Exception("Error al archivar: $e"); }
+  }
+
+  Future<void> restorePlan(String planId) async {
+       try {
+           await _supabase.from('plans').update({
+               'deleted_at': null,
+               'archived_at': null
+           }).eq('id', planId);
+           listUpdateNotifier.value++;
+       } catch (e) { throw Exception("Error al restaurar: $e"); }
   }
 
   Future<Plan?> getPlanById(String id) async {

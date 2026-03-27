@@ -10,6 +10,7 @@ import 'package:planmapp/features/plans/services/plan_members_service.dart';
 import 'package:planmapp/core/presentation/widgets/skeleton_helper.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:planmapp/core/presentation/widgets/premium_empty_state.dart';
 
 class MyPlansScreen extends ConsumerStatefulWidget {
   const MyPlansScreen({super.key});
@@ -117,12 +118,7 @@ class _MyPlansScreenState extends ConsumerState<MyPlansScreen> {
         ],
       ),
       body: Container(
-        decoration: const BoxDecoration(
-          gradient: LinearGradient(
-             begin: Alignment.topCenter, end: Alignment.bottomRight,
-             colors: [AppTheme.primaryBrand, AppTheme.secondaryBrand]
-          )
-        ),
+        color: AppTheme.darkBackground,
         child: SafeArea(
           child: Column(
             children: [
@@ -185,17 +181,16 @@ class _MyPlansScreenState extends ConsumerState<MyPlansScreen> {
   Widget _buildEmptyState() {
      return Center(
         child: Column(
-           mainAxisAlignment: MainAxisAlignment.center,
            children: [
-              Container(
-                padding: const EdgeInsets.all(24),
-                decoration: BoxDecoration(color: Colors.grey[100], shape: BoxShape.circle),
-                child: Icon(Icons.map_outlined, size: 60, color: Colors.grey[400]),
+              const Expanded(
+                child: PremiumEmptyState(
+                  icon: Icons.rocket_launch_rounded, // Better visual metaphor
+                  title: "Aún no hay expediciones",
+                  subtitle: "Tus futuros planes, vacas y deudas organizadas aparecerán aquí mágicamente.",
+                )
               ),
-              const SizedBox(height: 24),
-              Text("No tienes planes activos", style: TextStyle(fontSize: 18, color: Colors.grey[800], fontWeight: FontWeight.bold)),
-              const SizedBox(height: 8),
-              const Text("¡Crea uno o únete para empezar!", style: TextStyle(color: Colors.grey)),
+              _buildArchiveAndTrashSection(context),
+              const SizedBox(height: 16),
            ],
         )
      );
@@ -204,9 +199,13 @@ class _MyPlansScreenState extends ConsumerState<MyPlansScreen> {
   Widget _buildPlanList(BuildContext context, List<Plan> plans) {
     return ListView.separated(
       padding: const EdgeInsets.fromLTRB(20, 24, 20, 100), // Extra bottom padding for FAB
-      itemCount: plans.length,
+      itemCount: plans.length + 1,
       separatorBuilder: (_,__) => const SizedBox(height: 16),
       itemBuilder: (context, index) {
+        if (index == plans.length) {
+            return _buildArchiveAndTrashSection(context);
+        }
+        
         final plan = plans[index];
         return _PlanCard(
             plan: plan, 
@@ -217,6 +216,88 @@ class _MyPlansScreenState extends ConsumerState<MyPlansScreen> {
             .fade(duration: 400.ms);
       },
     );
+  }
+
+  Widget _buildArchiveAndTrashSection(BuildContext context) {
+      return Padding(
+          padding: const EdgeInsets.symmetric(vertical: 24),
+          child: Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                   TextButton.icon(
+                       onPressed: () => _showSpecialPlans(context, isArchive: true),
+                       icon: const Icon(Icons.archive_outlined, color: Colors.grey),
+                       label: const Text("Archivo", style: TextStyle(color: Colors.grey)),
+                   ),
+                   TextButton.icon(
+                       onPressed: () => _showSpecialPlans(context, isArchive: false),
+                       icon: const Icon(Icons.delete_outline, color: Colors.grey),
+                       label: const Text("Papelera", style: TextStyle(color: Colors.grey)),
+                   ),
+              ]
+          )
+      );
+  }
+
+  void _showSpecialPlans(BuildContext context, {required bool isArchive}) {
+      showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (c) => Container(
+              height: MediaQuery.of(context).size.height * 0.75,
+              padding: const EdgeInsets.all(24),
+              decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor, borderRadius: const BorderRadius.vertical(top: Radius.circular(30))),
+              child: Column(
+                  children: [
+                      Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+                      const SizedBox(height: 24),
+                      Row(
+                          children: [
+                              Icon(isArchive ? Icons.archive : Icons.delete, color: isArchive ? Colors.blue : Colors.red),
+                              const SizedBox(width: 12),
+                              Text(isArchive ? "Archivo de Planes" : "Papelera", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                          ]
+                      ),
+                      const SizedBox(height: 8),
+                      Text(
+                          isArchive ? "Se eliminan definitivamente a los 7 días." : "Se eliminan definitivamente a las 24 horas.", 
+                          style: TextStyle(color: Colors.grey[600], fontSize: 13)
+                      ),
+                      const SizedBox(height: 24),
+                      Expanded(
+                          child: FutureBuilder<List<Plan>>(
+                              future: PlanService().getPlans(archived: isArchive, deleted: !isArchive),
+                              builder: (context, snapshot) {
+                                  if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                                  if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("No hay elementos aquí."));
+                                  return ListView.separated(
+                                      itemCount: snapshot.data!.length,
+                                      separatorBuilder: (_,__) => const SizedBox(height: 12),
+                                      itemBuilder: (context, idx) {
+                                           final p = snapshot.data![idx];
+                                           return ListTile(
+                                                title: Text(p.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                                subtitle: Text(p.locationName),
+                                                trailing: IconButton(
+                                                    icon: const Icon(Icons.restore),
+                                                    tooltip: "Restaurar",
+                                                    onPressed: () async {
+                                                        await PlanService().restorePlan(p.id);
+                                                        if (context.mounted) Navigator.pop(context);
+                                                        _loadPlans();
+                                                    }
+                                                )
+                                           );
+                                      }
+                                  );
+                              }
+                          )
+                      )
+                  ]
+              )
+          )
+      );
   }
 }
 
@@ -297,21 +378,32 @@ class _PlanCard extends StatelessWidget {
                         icon: Icon(Icons.more_horiz, color: Colors.grey[400]),
                         shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         onSelected: (value) async {
-                             if (value == 'delete' || value == 'leave') {
-                                 _handleAction(context, isCreator);
+                             if (value == 'delete') {
+                                 final confirm = await _showSimpleConfirm(context, "Mover a Papelera", "El plan se eliminará permanentemente en 24 horas y puedes restaurarlo.");
+                                 if (confirm) {
+                                     await PlanService().softDeletePlan(plan.id);
+                                     onRefresh();
+                                 }
+                             } else if (value == 'archive') {
+                                 final confirm = await _showSimpleConfirm(context, "Archivar Plan", "Se guardará en el Archivo y se borrará definitivamente en 7 días.");
+                                 if (confirm) {
+                                     await PlanService().archivePlan(plan.id);
+                                     onRefresh();
+                                 }
+                             } else if (value == 'leave') {
+                                  _handleAction(context, false);
+                             } else if (value == 'hard_delete') {
+                                  _handleAction(context, true);
                              }
                         },
                         itemBuilder: (context) => [
-                           PopupMenuItem(
-                             value: isCreator ? 'delete' : 'leave',
-                             child: Row(
-                               children: [
-                                 Icon(isCreator ? Icons.delete_outline : Icons.exit_to_app, color: Colors.red, size: 20),
-                                 const SizedBox(width: 12),
-                                 Text(isCreator ? "Eliminar Plan" : "Salir del Plan", style: const TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
-                               ],
-                             ),
-                           )
+                           if (isCreator) ...[
+                               PopupMenuItem(value: 'archive', child: Row(children: const [Icon(Icons.archive_outlined, size: 20), SizedBox(width: 12), Text("Archivar")])),
+                               PopupMenuItem(value: 'delete', child: Row(children: const [Icon(Icons.delete_outline, color: Colors.orange, size: 20), SizedBox(width: 12), Text("A Papelera", style: const TextStyle(color: Colors.orange))])),
+                               const PopupMenuDivider(),
+                               PopupMenuItem(value: 'hard_delete', child: Row(children: const [Icon(Icons.delete_forever, color: Colors.red, size: 20), SizedBox(width: 12), Text("Eliminar Definitivo", style: const TextStyle(color: Colors.red))])),
+                           ] else
+                               PopupMenuItem(value: 'leave', child: Row(children: const [Icon(Icons.exit_to_app, color: Colors.red, size: 20), SizedBox(width: 12), Text("Salir del Plan", style: const TextStyle(color: Colors.red))])),
                         ],
                      )
                   ],
@@ -397,6 +489,17 @@ class _PlanCard extends StatelessWidget {
     );
   }
 
+  Future<bool> _showSimpleConfirm(BuildContext context, String title, String msg) async {
+      return await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+          title: Text(title),
+          content: Text(msg),
+          actions: [
+              TextButton(onPressed: ()=>Navigator.pop(c, false), child: const Text("Cancelar")),
+              TextButton(onPressed: ()=>Navigator.pop(c, true), child: const Text("Confirmar", style: TextStyle(fontWeight: FontWeight.bold))),
+          ],
+      )) ?? false;
+  }
+
   Future<void> _handleAction(BuildContext context, bool isCreatorIgnored) async {
        // Check real role from DB to be safe
        final realRole = await PlanMembersService().getMyRole(plan.id);
@@ -407,7 +510,7 @@ class _PlanCard extends StatelessWidget {
        final confirm = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
           title: Text(isRealAdmin ? "¿Eliminar este plan?" : "¿Salir del plan?"),
           content: Text(isRealAdmin 
-            ? "Esta acción no se puede deshacer. Se borrarán todos los datos, chats y gastos." 
+            ? "Esta acción NO se puede deshacer. Se borrarán todos los datos, chats y gastos." 
             : "Ya no tendrás acceso al chat ni a los gastos compartidos."),
           actions: [
               TextButton(onPressed: ()=>Navigator.pop(c, false), child: const Text("Cancelar")),
@@ -419,7 +522,7 @@ class _PlanCard extends StatelessWidget {
           try {
               if (isRealAdmin) {
                   await PlanService().deletePlan(plan.id);
-                  if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Plan eliminado")));
+                  if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Plan eliminado definitivamente")));
               } else {
                   await PlanMembersService().leavePlan(plan.id);
                   if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Saliste del plan")));

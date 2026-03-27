@@ -163,7 +163,7 @@ class WelcomeScreen extends StatelessWidget {
       isScrollControlled: true,
       isDismissible: false, // Force interaction
       enableDrag: false,    // Force interaction
-      backgroundColor: Colors.white,
+      backgroundColor: AppTheme.surfaceDark,
       shape: const RoundedRectangleBorder(
         borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
       ),
@@ -184,7 +184,7 @@ class WelcomeScreen extends StatelessWidget {
                       "Términos y Privacidad",
                       style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.bold,
-                        color: AppTheme.primaryBrand
+                        color: Colors.white
                       ),
                     ),
                     const SizedBox(height: 20),
@@ -253,9 +253,9 @@ class WelcomeScreen extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+        Text(title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)),
         const SizedBox(height: 8),
-        Text(content, style: const TextStyle(color: Colors.black87, height: 1.5)),
+        Text(content, style: const TextStyle(color: AppTheme.bodyTextSoft, height: 1.5)),
       ],
     );
   }

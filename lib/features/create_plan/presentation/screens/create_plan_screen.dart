@@ -13,8 +13,8 @@ import 'package:planmapp/core/services/poll_service.dart';
 import 'package:planmapp/features/itinerary/services/itinerary_service.dart';
 import 'package:planmapp/features/itinerary/domain/models/activity.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-
-import 'package:geocoding/geocoding.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 
 class CreatePlanScreen extends StatefulWidget {
   final String? initialTitle;
@@ -538,13 +538,26 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
                                                 _locationController.text = "${result.latitude.toStringAsFixed(5)}, ${result.longitude.toStringAsFixed(5)}"; 
                                             });
                                             try {
-                                                List<Placemark> placemarks = await placemarkFromCoordinates(result.latitude, result.longitude);
-                                                if (placemarks.isNotEmpty) {
-                                                    final place = placemarks.first;
-                                                    final address = "${place.street ?? ''}, ${place.locality ?? ''}".trim(); 
-                                                    setState(() => _locationController.text = address.isEmpty ? "Ubicación seleccionada" : address);
+                                                final url = Uri.parse("https://nominatim.openstreetmap.org/reverse?format=json&lat=${result.latitude}&lon=${result.longitude}");
+                                                final response = await http.get(url, headers: {'User-Agent': 'PlanmappApp/1.0'});
+                                                if (response.statusCode == 200) {
+                                                    final data = jsonDecode(response.body);
+                                                    if (data['address'] != null) {
+                                                        final addressObj = data['address'];
+                                                        final street = addressObj['road'] ?? addressObj['pedestrian'] ?? '';
+                                                        final houseNumber = addressObj['house_number'] ?? '';
+                                                        final city = addressObj['city'] ?? addressObj['town'] ?? addressObj['village'] ?? '';
+                                                        
+                                                        String finalAddress = "$street $houseNumber".trim();
+                                                        if (finalAddress.isEmpty) finalAddress = data['display_name'] ?? "Ubicación seleccionada";
+                                                        else if (city.isNotEmpty) finalAddress += ", $city";
+
+                                                        setState(() => _locationController.text = finalAddress);
+                                                    }
                                                 }
-                                            } catch (_) {}
+                                            } catch (e) {
+                                                print("Geocoding Error: $e");
+                                            }
                                         }
                                    },
                                    borderRadius: BorderRadius.circular(16),

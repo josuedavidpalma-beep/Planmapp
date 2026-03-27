@@ -4,11 +4,20 @@ import 'package:flutter/foundation.dart'; // For kIsWeb
 import 'package:flutter/material.dart';
 import 'package:cross_file/cross_file.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
+import 'package:planmapp/core/utils/currency_formatter.dart';
 import 'package:planmapp/features/expenses/data/repositories/expense_repository.dart';
 import 'package:planmapp/features/expenses/services/receipt_scanner_service.dart';
 import 'package:planmapp/features/expenses/data/models/expense_model.dart';
 import 'package:planmapp/features/expenses/presentation/screens/expense_split_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'dart:convert';
+
+class CollectionMethodInput {
+  String method;
+  TextEditingController controller;
+  CollectionMethodInput(this.method, String initial) : controller = TextEditingController(text: initial);
+  Map<String, dynamic> toJson() => {'method': method, 'account': controller.text};
+}
 
 class ScanReceiptScreen extends StatefulWidget {
   final String planId;
@@ -34,7 +43,8 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
   double _subtotal = 0.0;
   double _tax = 0.0;
   double _tip = 0.0;
-  String _paymentMethod = "Efectivo";
+  
+  final List<CollectionMethodInput> _collectionMethods = [CollectionMethodInput("Nequi", "")];
   
   // Loading Animation
   int _loadingIndex = 0;
@@ -158,6 +168,8 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
   @override
   void dispose() {
     _scannerService.dispose();
+    _titleController.dispose();
+    for (var m in _collectionMethods) { m.controller.dispose(); }
     _timer.cancel();
     super.dispose();
   }
@@ -171,39 +183,54 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
     final currentUid = Supabase.instance.client.auth.currentUser?.id;
     if (currentUid == null) return;
 
-    // Convert parsed items to ExpenseItems
-    final expenseItems = _items.map((e) => ExpenseItem(
-        id: 'scan_${e.name}', // Temp ID
-        expenseId: 'temp',
-        name: e.name,
-        price: e.price,
-        quantity: e.quantity
-    )).toList();
-
-    final expenseData = {
-        'plan_id': widget.planId,
-        'created_by': currentUid,
-        'title': _titleController.text,
-        'total_amount': _total,
-        'subtotal': _subtotal,
-        'tax_amount': _tax,
-        'tip_amount': _tip,
-        'currency': 'COP',
-        'payment_method': _paymentMethod,
-    };
-    
-    // Navigate to Split Screen
-    // We replace the current route so back button goes to Add Screen or Plan Detail
-    Navigator.push(context, MaterialPageRoute(
-        builder: (context) => ExpenseSplitScreen(
-            expenseData: expenseData,
-            initialItems: expenseItems
-        )
-    )).then((saved) {
-        if (saved == true && mounted) {
-            Navigator.of(context)..pop()..pop(); // Close Scan and Add Screen
+    // Validate transfer data
+    for (var m in _collectionMethods) {
+        if (m.controller.text.trim().isEmpty) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Faltan los datos de transferencia en: ${m.method}. Elimina el método si no lo usarás.')));
+            return;
         }
-    });
+    }
+
+    setState(() => _isScanning = true); // Loading state
+
+    try {
+        final repo = ExpenseRepository(Supabase.instance.client);
+        final paymentMethodsJson = jsonEncode(_collectionMethods.map((m) => m.toJson()).toList());
+        
+        final expenseData = {
+            'plan_id': widget.planId,
+            'created_by': currentUid,
+            'title': _titleController.text,
+            'total_amount': _total,
+            'subtotal': _subtotal,
+            'tax_amount': _tax,
+            'tip_amount': _tip,
+            'currency': 'COP',
+            'payment_method': paymentMethodsJson,
+        };
+        
+        final itemsData = _items.map((e) => {
+            'name': e.name,
+            'price': e.price,
+            'quantity': e.quantity,
+        }).toList();
+
+        final savedExpense = await repo.createDraftExpense(expenseData: expenseData, itemsData: itemsData);
+
+        if (mounted) {
+            Navigator.pushReplacement(context, MaterialPageRoute(
+                builder: (context) => ExpenseSplitScreen(
+                    expenseData: savedExpense.toJson(),
+                    initialItems: savedExpense.items ?? [],
+                )
+            ));
+        }
+    } catch (e) {
+        if (mounted) {
+           setState(() => _isScanning = false); 
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error guardando el borrador: $e")));
+        }
+    }
   }
 
   void _handleMainAction() {
@@ -265,14 +292,61 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
                       ),
                   ),
                   const SizedBox(height: 16),
-                  
-                  DropdownButtonFormField<String>(
-                     value: _paymentMethod,
-                     decoration: const InputDecoration(labelText: "Medio de Pago", border: OutlineInputBorder()),
-                     items: ["Efectivo", "Nequi/Daviplata", "Tarjeta Crédito", "Transferencia", "Otro"]
-                        .map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
-                     onChanged: (v) => setState(() => _paymentMethod = v!),
-                 ),
+                  const Text("Medios de Recaudo", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                  const SizedBox(height: 8),
+                  ..._collectionMethods.asMap().entries.map((entry) {
+                      final index = entry.key;
+                      final item = entry.value;
+                      return Padding(
+                         padding: const EdgeInsets.only(bottom: 12),
+                         child: Row(
+                            children: [
+                               Expanded(
+                                  flex: 2,
+                                  child: DropdownButtonFormField<String>(
+                                      value: item.method,
+                                      decoration: const InputDecoration(labelText: "Método", border: OutlineInputBorder(), isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 12)),
+                                      items: ["Nequi", "DaviPlata", "Transferencia Bancaria", "Breve", "Llave", "Efectivo"]
+                                         .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis))).toList(),
+                                      onChanged: (v) => setState(() => item.method = v!),
+                                  )
+                               ),
+                               if (item.method != "Efectivo") ...[
+                                   const SizedBox(width: 8),
+                                   Expanded(
+                                      flex: 3,
+                                      child: TextField(
+                                          controller: item.controller,
+                                          keyboardType: TextInputType.number,
+                                          decoration: const InputDecoration(
+                                              labelText: "Número/Cuenta",
+                                              hintText: "Ej. 30012...",
+                                              border: OutlineInputBorder(),
+                                              isDense: true,
+                                              contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 12)
+                                          ),
+                                      )
+                                   )
+                               ],
+                               if (_collectionMethods.length > 1) ...[
+                                   IconButton(
+                                       icon: const Icon(Icons.remove_circle_outline, color: Colors.red),
+                                       padding: EdgeInsets.zero,
+                                       onPressed: () => setState(() {
+                                           item.controller.dispose();
+                                           _collectionMethods.removeAt(index);
+                                       })
+                                   )
+                               ]
+                            ]
+                         )
+                      );
+                  }),
+                  TextButton.icon(
+                      onPressed: () => setState(() => _collectionMethods.add(CollectionMethodInput("DaviPlata", ""))),
+                      icon: const Icon(Icons.add),
+                      label: const Text("Añadir otro método de recaudo")
+                  ),
 
                   const SizedBox(height: 24),
                   const Text("Ítems Detectados", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
@@ -374,23 +448,10 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                        const Text("Subtotal", style: TextStyle(fontSize: 16)),
-                       SizedBox(
-                         width: 100,
-                         child: TextFormField(
-                           initialValue: _subtotal.toStringAsFixed(0),
-                           keyboardType: TextInputType.number,
-                           textAlign: TextAlign.right,
-                           decoration: const InputDecoration(border: InputBorder.none, prefixText: "\$"),
-                           onChanged: (val) => setState(() {
-                               _subtotal = double.tryParse(val) ?? 0.0;
-                               _total = _subtotal + _tax + _tip;
-                           }),
-                         )
-                       )
+                       Text(CurrencyInputFormatter.format(_subtotal), style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                     ],
                   ),
-                  
-                  // Tax Edit
+                  const SizedBox(height: 8),                // Tax Edit
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
@@ -457,7 +518,7 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
                           textStyle: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
                           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                         ),
-                        child: Text(widget.isImportMode ? "Confirmar Importación" : "Siguiente: Repartir"),
+                        child: Text(widget.isImportMode ? "Confirmar Importación" : "Siguiente"),
                       ),
                     ),
                 ],
