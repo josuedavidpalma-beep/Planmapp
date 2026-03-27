@@ -241,5 +241,29 @@ def main():
 
     print(f"\nFinished. Total events processed: {total_processed}")
 
+from flask import Flask, jsonify
+import threading
+
+app = Flask(__name__)
+
+@app.route('/')
+def home():
+    return jsonify({
+        "status": "online",
+        "message": "PlanMaps Scraper Web Service is running."
+    }), 200
+
+@app.route('/scrape', methods=['GET', 'POST'])
+def trigger_scrape():
+    # Run the scraper in a background thread to prevent HTTP timeouts
+    thread = threading.Thread(target=main)
+    thread.start()
+    return jsonify({
+        "status": "started",
+        "message": "Scraping process triggered in the background."
+    }), 202
+
 if __name__ == "__main__":
-    main()
+    # If run locally or on Render, check for PORT env variable
+    port = int(os.environ.get("PORT", 10000))
+    app.run(host="0.0.0.0", port=port)

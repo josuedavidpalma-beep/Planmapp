@@ -21,6 +21,8 @@ dependencies:
   supabase_flutter: ^2.12.0
   shared_preferences: ^2.2.2
   uuid: ^4.3.3
+  firebase_core: ^2.27.0
+  firebase_messaging: ^14.7.19
 
   # UI & Assets
   google_fonts: ^6.1.0
