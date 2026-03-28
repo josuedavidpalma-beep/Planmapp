@@ -84,9 +84,9 @@ def extract_content_with_gemini(html_content, source_url, city_name, is_national
 
     genai.configure(api_key=GEMINI_API_KEY)
     try:
-        model = genai.GenerativeModel('gemini-1.5-flash-latest')
+        model = genai.GenerativeModel('gemini-1.5-flash')
     except:
-        model = genai.GenerativeModel('gemini-pro')
+        model = genai.GenerativeModel('gemini-1.5-pro')
 
     soup = BeautifulSoup(html_content, 'html.parser')
     text_content = soup.get_text(separator=' ', strip=True)[:20000]
