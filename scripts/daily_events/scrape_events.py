@@ -248,6 +248,10 @@ def main():
         
         count = process_city(city_name, urls)
         total_processed += count
+        
+        # Free Tier Rate Limiting Prevention
+        print(f"Waiting 15 seconds to respect Gemini API rate limits...")
+        time.sleep(15)
 
     print(f"\nFinished. Total events processed: {total_processed}")
 
