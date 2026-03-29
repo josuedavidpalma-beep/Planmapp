@@ -1,7 +1,6 @@
 import os
 import requests
 from bs4 import BeautifulSoup
-import google.generativeai as genai
 from supabase import create_client, Client
 from datetime import datetime, timedelta
 import json
@@ -82,12 +81,6 @@ def extract_content_with_gemini(html_content, source_url, city_name, is_national
         print("Error: GEMINI_API_KEY not set.")
         return None
 
-    genai.configure(api_key=GEMINI_API_KEY)
-    try:
-        model = genai.GenerativeModel('gemini-1.5-flash')
-    except:
-        model = genai.GenerativeModel('gemini-1.5-pro')
-
     soup = BeautifulSoup(html_content, 'html.parser')
     text_content = soup.get_text(separator=' ', strip=True)[:20000]
 
@@ -114,8 +107,25 @@ def extract_content_with_gemini(html_content, source_url, city_name, is_national
     """
 
     try:
-        response = model.generate_content(prompt)
-        cleaned_text = response.text.replace('```json', '').replace('```', '').strip()
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+        
+        payload = {
+            "contents": [{"parts": [{"text": prompt}]}],
+            "safetySettings": [
+                {"category": "HARM_CATEGORY_HARASSMENT", "threshold": "BLOCK_NONE"},
+                {"category": "HARM_CATEGORY_HATE_SPEECH", "threshold": "BLOCK_NONE"}
+            ]
+        }
+        
+        http_response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+        if http_response.status_code != 200:
+            print(f"Error HTTP {http_response.status_code}: {http_response.text}")
+            return None
+            
+        json_data = http_response.json()
+        raw_text = json_data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
+        
+        cleaned_text = raw_text.replace('```json', '').replace('```', '').strip()
         
         # Handle potential single object vs list
         if cleaned_text.startswith('{'):
