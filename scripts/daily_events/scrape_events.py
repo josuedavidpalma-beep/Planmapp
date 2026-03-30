@@ -107,7 +107,7 @@ def extract_content_with_gemini(html_content, source_url, city_name, is_national
     """
 
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
         
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
