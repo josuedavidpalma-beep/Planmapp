@@ -301,7 +301,24 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     children: [
                         ClipRRect(
                             borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-                            child: CachedNetworkImage(imageUrl: imageUrl, height: 200, width: double.infinity, fit: BoxFit.cover),
+                            child: CachedNetworkImage(
+                                imageUrl: imageUrl.startsWith('http') ? imageUrl : 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800', 
+                                height: 200, 
+                                width: double.infinity, 
+                                fit: BoxFit.cover,
+                                errorWidget: (context, url, err) => Container(
+                                    height: 200,
+                                    width: double.infinity,
+                                    decoration: BoxDecoration(
+                                      gradient: LinearGradient(
+                                        colors: [AppTheme.primaryBrand.withOpacity(0.5), AppTheme.secondaryBrand.withOpacity(0.5)],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                      )
+                                    ),
+                                    child: const Center(child: Icon(Icons.flash_on_rounded, size: 50, color: Colors.white))
+                                ),
+                            ),
                         ),
                         Padding(
                             padding: const EdgeInsets.all(24.0),
@@ -457,7 +474,7 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
             child: Stack(
                children: [
                   CachedNetworkImage(
-                    imageUrl: widget.imageUrl, 
+                    imageUrl: widget.imageUrl.startsWith('http') ? widget.imageUrl : 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800', 
                     fit: BoxFit.cover, 
                     width: double.infinity, 
                     height: double.infinity,

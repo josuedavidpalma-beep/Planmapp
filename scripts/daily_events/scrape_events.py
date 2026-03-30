@@ -81,8 +81,29 @@ def extract_content_with_gemini(html_content, source_url, city_name, is_national
         print("Error: GEMINI_API_KEY not set.")
         return None
 
+    from urllib.parse import urljoin
     soup = BeautifulSoup(html_content, 'html.parser')
-    text_content = soup.get_text(separator=' ', strip=True)[:20000]
+    
+    # Remove useless elements
+    for script in soup(["script", "style", "nav", "footer", "header"]):
+        script.extract()
+        
+    # Append URLs to links and images
+    for a in soup.find_all('a', href=True):
+        href = a['href']
+        if href.startswith('http'):
+            if a.string: a.string = f"{a.string} (URL: {href})"
+        elif href.startswith('/'):
+            if a.string: a.string = f"{a.string} (URL: {urljoin(source_url, href)})"
+            
+    for img in soup.find_all('img', src=True):
+        src = img['src']
+        if src.startswith('http'):
+            img.replace_with(f" [Image: {src}] ")
+        elif src.startswith('/'):
+            img.replace_with(f" [Image: {urljoin(source_url, src)}] ")
+
+    text_content = soup.get_text(separator=' ', strip=True)[:45000] # Increased context limit for Gemini Flash
 
     instruction = f"Extract events for {city_name}."
     if is_national_fallback:
@@ -94,13 +115,16 @@ def extract_content_with_gemini(html_content, source_url, city_name, is_national
     Return a STRICT JSON ARRAY of objects (min 1, max 5 most relevant).
     Field Mapping:
     - title: (String) Name of event
-    - date_start: (String) ISO 8601 or YYYY-MM-DD HH:MM
+    - start_date: (String) ISO YYYY-MM-DD or Date description
+    - end_date: (String, Optional) YYYY-MM-DD (or null)
     - city: (String) "{city_name}"
+    - address: (String, Optional) Complete physical address
     - location_name: (String) Venue name
     - description: (String) Brief summary (Max 3 lines, Spanish)
     - category: (String) One of: "music", "culture", "outdoors", "party", "food", "other"
-    - image_url: (String) URL to poster image. If none found, return null.
-    - event_link: (String) Detailed link to the event.
+    - image_url: (String) Absolute URL to poster image starting with http. Extracted from [Image: ...] tags next to the event. If none, return null.
+    - source_url: (String) Absolute URL to the event page or registration. Extracted from (URL: ...) tags.
+    - contact_info: (String, Optional) Phone, email, or instagram handle.
     
     Source Text:
     {text_content}
@@ -139,14 +163,15 @@ def extract_content_with_gemini(html_content, source_url, city_name, is_national
             normalized = {
                 "title": e.get('title'),
                 "description": e.get('description'),
-                "date": e.get('date_start'), # Mapped date_start -> date
-                "location": e.get('location_name'), # Mapped location_name -> location
+                "date": e.get('start_date'), 
+                "end_date": e.get('end_date'),
+                "location": e.get('location_name'),
+                "address": e.get('address'),
                 "category": e.get('category', 'other'),
-                "image_url": e.get('image_url') if e.get('image_url') else DEFAULT_IMAGES.get(e.get('category'), DEFAULT_IMAGES['other']),
-                "source_url": e.get('event_link', source_url), # Mapped event_link -> source_url
+                "image_url": e.get('image_url') or DEFAULT_IMAGES.get(e.get('category', 'other'), DEFAULT_IMAGES['other']),
+                "source_url": e.get('source_url') or source_url, 
                 "city": city_name,
-                "address": e.get('location_name'), # Default address to location name if missing
-                "contact_info": "" 
+                "contact_info": e.get('contact_info')
             }
             valid_events.append(normalized)
             
