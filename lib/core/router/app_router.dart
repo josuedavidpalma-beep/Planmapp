@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:firebase_analytics/firebase_analytics.dart';
 import 'package:planmapp/core/providers/auth_provider.dart';
 import 'package:planmapp/features/auth/presentation/screens/login_screen.dart';
 import 'package:planmapp/features/auth/presentation/screens/register_screen.dart';
@@ -33,6 +34,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   return GoRouter(
     navigatorKey: rootNavigatorKey,
     initialLocation: '/',
+    observers: [
+      FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
+    ],
     refreshListenable: _StreamRouterRefresh(Supabase.instance.client.auth.onAuthStateChange),
     redirect: (context, state) {
       final session = Supabase.instance.client.auth.currentSession;

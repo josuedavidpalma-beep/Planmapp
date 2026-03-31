@@ -7,9 +7,20 @@ import 'package:flutter_localizations/flutter_localizations.dart';
 import 'package:intl/intl.dart';
 import 'package:intl/date_symbol_data_local.dart'; // Import this
 import 'package:planmapp/core/config/supabase_config.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:planmapp/firebase_options.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint("Firebase init error: $e");
+  }
+
   await SupabaseConfig.initialize();
   await initializeDateFormatting('es_CO', null); // Initialize Locale Data
   Intl.defaultLocale = 'es_CO';
