@@ -20,7 +20,7 @@ class ExpenseSplitScreen extends StatefulWidget {
   State<ExpenseSplitScreen> createState() => _ExpenseSplitScreenState();
 }
 
-class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> {
+class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTickerProviderStateMixin {
   final _membersService = PlanMembersService();
   late ExpenseRepository _expenseRepository;
   
@@ -31,10 +31,16 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> {
 
   final Map<String, List<AssignmentModel>> _assignments = {};
   final List<String> _tempGuests = [];
+  late TabController _tabController;
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 2, vsync: this);
+    _tabController.addListener(() {
+      setState(() {});
+    });
+    
     _expenseRepository = ExpenseRepository(Supabase.instance.client);
     _items = widget.initialItems;
     
@@ -271,19 +277,99 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> {
       }
   }
 
+  void _addItemManual() async {
+      final nameCtrl = TextEditingController();
+      final priceCtrl = TextEditingController();
+      final qtyCtrl = TextEditingController(text: '1');
+      
+      await showDialog(
+          context: context,
+          builder: (context) => AlertDialog(
+              title: const Text("Agregar Ítem"),
+              content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                      TextField(controller: nameCtrl, decoration: const InputDecoration(labelText: "Nombre (ej. Cerveza)")),
+                      TextField(controller: priceCtrl, decoration: const InputDecoration(labelText: "Precio Unitario"), keyboardType: TextInputType.number),
+                      TextField(controller: qtyCtrl, decoration: const InputDecoration(labelText: "Cantidad"), keyboardType: TextInputType.number),
+                  ],
+              ),
+              actions: [
+                  TextButton(onPressed: ()=>Navigator.pop(context), child: const Text("Cancelar")),
+                  ElevatedButton(
+                      onPressed: () async {
+                          if(nameCtrl.text.isEmpty || priceCtrl.text.isEmpty) return;
+                          
+                          final price = double.tryParse(priceCtrl.text) ?? 0;
+                          final qty = int.tryParse(qtyCtrl.text) ?? 1;
+                          
+                          setState(() => _isSaving = true);
+                          Navigator.pop(context);
+                          
+                          try {
+                              // Insert directly into the DB and fetch it back to get the ID
+                              final res = await Supabase.instance.client.from('expense_items').insert({
+                                  'expense_id': widget.expenseData['id'],
+                                  'name': nameCtrl.text,
+                                  'price': price * qty, // Total price for the line
+                                  'quantity': qty,
+                              }).select().single();
+                              
+                              final newItem = ExpenseItem.fromJson(res);
+                              
+                              if (mounted) {
+                                  setState(() {
+                                      _items.add(newItem);
+                                      _assignments[newItem.id] = [];
+                                      _isSaving = false;
+                                  });
+                              }
+                          } catch (e) {
+                              if (mounted) {
+                                  setState(() => _isSaving = false);
+                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error agregando ítem: $e")));
+                              }
+                          }
+                      },
+                      child: const Text("Agregar")
+                  )
+              ],
+          )
+      );
+  }
+
+  @override
+  void dispose() {
+      _tabController.dispose();
+      super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Dividir Items"), actions: [
-          IconButton(icon: const Icon(Icons.share, color: Colors.green), onPressed: _shareVacaLink, tooltip: "Compartir Link 🔗"),
-          IconButton(icon: const Icon(Icons.person_add), onPressed: _addGuestName, tooltip: "Añadir Invitado"),
-      ]),
-      body: _isLoading 
-        ? const Center(child: CircularProgressIndicator())
-        : Column(
-            children: [
-                Expanded(
-                    child: ListView.builder(
+        appBar: AppBar(
+          title: const Text("Dividir Items"), 
+          actions: [
+              IconButton(icon: const Icon(Icons.share, color: Colors.green), onPressed: _shareVacaLink, tooltip: "Compartir Link 🔗"),
+              IconButton(icon: const Icon(Icons.person_add), onPressed: _addGuestName, tooltip: "Añadir Invitado"),
+          ],
+          bottom: TabBar(
+            controller: _tabController,
+            tabs: const [
+              Tab(text: "Ítems"),
+              Tab(text: "Resumen"),
+            ],
+          ),
+        ),
+        body: _isLoading 
+          ? const Center(child: CircularProgressIndicator())
+          : TabBarView(
+              controller: _tabController,
+              children: [
+                Column(
+                  children: [
+                      Expanded(
+                          child: ListView.builder(
                         padding: const EdgeInsets.all(16),
                         itemCount: _items.length,
                         itemBuilder: (ctx, i) {
@@ -405,9 +491,103 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> {
                         )
                     )
                 )
-            ],
-        ),
+              ],
+          ),
+          _buildSummaryTab(),
+        ]),
+        floatingActionButton: _tabController.index == 0 
+           ? FloatingActionButton(
+                onPressed: _addItemManual,
+                child: const Icon(Icons.add),
+             )
+           : null,
     );
+  }
+
+  Widget _buildSummaryTab() {
+     Map<String, double> debts = {};
+     
+     for (var item in _items) {
+         final assigns = _assignments[item.id] ?? [];
+         final totalAssignedQty = assigns.fold(0.0, (sum, a) => sum + a.quantity);
+         
+         if (totalAssignedQty > 0) {
+             final pricePerQty = item.price / item.quantity;
+             for (var a in assigns) {
+                 final personKey = a.userId ?? a.guestName ?? 'Anónimo';
+                 final itemCost = a.quantity * pricePerQty;
+                 debts[personKey] = (debts[personKey] ?? 0.0) + itemCost;
+             }
+         }
+     }
+     
+     final subtotal = (widget.expenseData['subtotal'] as num?)?.toDouble() ?? 0.0;
+     final tax = (widget.expenseData['tax_amount'] as num?)?.toDouble() ?? 0.0;
+     final tip = (widget.expenseData['tip_amount'] as num?)?.toDouble() ?? 0.0;
+     
+     if (subtotal > 0 && (tax > 0 || tip > 0)) {
+         final extraMultiplier = (tax + tip) / subtotal;
+         final keys = debts.keys.toList();
+         for (var k in keys) {
+             debts[k] = debts[k]! * (1 + extraMultiplier);
+         }
+     }
+     
+     final totalAccount = subtotal + tax + tip;
+     
+     return ListView(
+         padding: const EdgeInsets.all(16),
+         children: [
+             Card(
+                 color: AppTheme.primaryBrand,
+                 child: Padding(
+                     padding: const EdgeInsets.all(16),
+                     child: Column(
+                         children: [
+                             const Text("Total Cuenta", style: TextStyle(color: Colors.white70)),
+                             Text(CurrencyInputFormatter.format(totalAccount), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+                             const Divider(color: Colors.white24),
+                             Row(
+                                 mainAxisAlignment: MainAxisAlignment.spaceAround,
+                                 children: [
+                                     Column(children: [const Text("Items", style: TextStyle(color: Colors.white70, fontSize: 12)), Text(CurrencyInputFormatter.format(subtotal), style: const TextStyle(color: Colors.white))]),
+                                     Column(children: [const Text("Propina", style: TextStyle(color: Colors.white70, fontSize: 12)), Text(CurrencyInputFormatter.format(tip), style: const TextStyle(color: Colors.white))]),
+                                     Column(children: [const Text("Impuesto", style: TextStyle(color: Colors.white70, fontSize: 12)), Text(CurrencyInputFormatter.format(tax), style: const TextStyle(color: Colors.white))]),
+                                 ],
+                             )
+                         ],
+                     ),
+                 ),
+             ),
+             const SizedBox(height: 24),
+             if (debts.isEmpty) const Text("Aún no se ha asignado ningún ítem a nadie.", style: TextStyle(color: Colors.grey)),
+             if (debts.isNotEmpty) ...[
+                 const Text("Quién debe cuánto (estimado)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                 const SizedBox(height: 12),
+                 ...debts.entries.map((entry) {
+                     final key = entry.key;
+                     final amount = entry.value;
+                     String name = key;
+                     String? avatar;
+                     
+                     final member = _members.cast<PlanMember?>().firstWhere((m) => m?.id == key, orElse: () => null);
+                     if (member != null) {
+                         name = member.name;
+                         avatar = member.avatarUrl;
+                     } else if (key.startsWith('guest_')) {
+                         name = key.replaceFirst('guest_', '') + " (Inv)";
+                     }
+                     
+                     return ListTile(
+                         contentPadding: EdgeInsets.zero,
+                         leading: CircleAvatar(backgroundImage: avatar != null ? NetworkImage(avatar) : null, child: avatar == null ? Text(name[0].toUpperCase()) : null),
+                         title: Text(name),
+                         trailing: Text(CurrencyInputFormatter.format(amount), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                     );
+                 })
+             ]
+         ],
+     );
   }
 }
 
@@ -511,56 +691,57 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
           child: Container(
               color: const Color(0xFF121212),
               padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom),
-              child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                  const SizedBox(height: 16),
-                  Text("Dividir: ${widget.item.name}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                  Text(CurrencyInputFormatter.format(widget.item.price), style: const TextStyle(color: Colors.grey)),
-                  const SizedBox(height: 16),
-                  TabBar(
-                      controller: _tabController,
-                      labelColor: AppTheme.primaryBrand,
-                      indicatorColor: AppTheme.primaryBrand,
-                      isScrollable: true, // Allow more tabs
-                      onTap: (index) {
-                          setState(() {
-                              final newValues = <String, double>{};
-                              // Reset values when switching tabs to avoid confusion
-                              // In a real app we might try to convert, but for simplicity we reset.
-                              _tempValues.clear();
-                              _tempValues.addAll(newValues);
-                          });
-                      },
-                      tabs: const [
-                          Tab(text: "Selección"), // New 0
-                          Tab(text: "Unidades"), // Old 0 -> 1
-                          Tab(text: "%"), // Old 1 -> 2
-                          Tab(text: "\$"), // Old 2 -> 3
-                      ]
-                  ),
-                  SizedBox(
-                      height: 300,
-                      child: TabBarView(
+              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.9), // Prevent overflowing top
+              child: SingleChildScrollView(
+                  child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                      const SizedBox(height: 16),
+                      Text("Dividir: ${widget.item.name}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      Text(CurrencyInputFormatter.format(widget.item.price), style: const TextStyle(color: Colors.grey)),
+                      const SizedBox(height: 16),
+                      TabBar(
                           controller: _tabController,
-                          children: [
-                              _buildList(mode: -1), // Checkbox mode
-                              _buildList(mode: 0),
-                              _buildList(mode: 1),
-                              _buildList(mode: 2),
-                          ],
+                          labelColor: AppTheme.primaryBrand,
+                          indicatorColor: AppTheme.primaryBrand,
+                          isScrollable: true, // Allow more tabs
+                          onTap: (index) {
+                              setState(() {
+                                  final newValues = <String, double>{};
+                                  _tempValues.clear();
+                                  _tempValues.addAll(newValues);
+                              });
+                          },
+                          tabs: const [
+                              Tab(text: "Selección"),
+                              Tab(text: "Unidades"),
+                              Tab(text: "%"),
+                              Tab(text: "\$"),
+                          ]
                       ),
-                  ),
-                      Padding(
-                          padding: const EdgeInsets.all(16.0),
-                          child: ElevatedButton(
-                              onPressed: _save,
-                              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 48)),
-                              child: const Text("Aplicar División", style: TextStyle(fontWeight: FontWeight.bold)),
+                      SizedBox(
+                          height: 300,
+                          child: TabBarView(
+                              controller: _tabController,
+                              children: [
+                                  _buildList(mode: -1), // Checkbox mode
+                                  _buildList(mode: 0),
+                                  _buildList(mode: 1),
+                                  _buildList(mode: 2),
+                              ],
                           ),
-                      )
-                  ],
-              ),
+                      ),
+                          Padding(
+                              padding: const EdgeInsets.all(16.0),
+                              child: ElevatedButton(
+                                  onPressed: _save,
+                                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 48)),
+                                  child: const Text("Aplicar División", style: TextStyle(fontWeight: FontWeight.bold)),
+                              ),
+                          )
+                      ],
+                  ),
+              )
           ),
       );
   }

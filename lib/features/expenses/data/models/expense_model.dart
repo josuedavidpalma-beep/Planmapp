@@ -16,6 +16,7 @@ class Expense extends Equatable {
   final double? tipAmount; 
   final String? category; // New field
   final String? emoji; // New field
+  final String? status; // Added to support draft expenses
   final DateTime createdAt;
   final List<ExpenseItem>? items;
   final List<ParticipantStatus>? participantStatuses;
@@ -35,6 +36,7 @@ class Expense extends Equatable {
     this.tipAmount,
     this.category,
     this.emoji,
+    this.status,
     required this.createdAt,
     this.items,
     this.participantStatuses,
@@ -56,6 +58,7 @@ class Expense extends Equatable {
       tipAmount: (json['tip_amount'] as num?)?.toDouble(),
       category: json['category'] as String?,
       emoji: json['emoji'] as String?,
+      status: json['status'] as String?,
       createdAt: DateTime.parse(json['created_at'] as String),
       items: (json['expense_items'] as List<dynamic>?)
           ?.map((item) => ExpenseItem.fromJson(item as Map<String, dynamic>))
@@ -82,6 +85,7 @@ class Expense extends Equatable {
       'tip_amount': tipAmount,
       'category': category,
       'emoji': emoji,
+      'status': status,
       'created_at': createdAt.toIso8601String(),
     };
   }
@@ -100,11 +104,12 @@ class Expense extends Equatable {
       'tip_amount': tipAmount,
       'category': category,
       'emoji': emoji,
+      'status': status,
     };
   }
 
   @override
-  List<Object?> get props => [id, planId, createdBy, title, totalAmount, currency, receiptImageUrl, paymentMethod, subtotal, taxAmount, tipAmount, category, emoji, createdAt, items, participantStatuses];
+  List<Object?> get props => [id, planId, createdBy, title, totalAmount, currency, receiptImageUrl, paymentMethod, subtotal, taxAmount, tipAmount, category, emoji, status, createdAt, items, participantStatuses];
 }
 
 class ParticipantStatus extends Equatable {

@@ -101,6 +101,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _deleteAccount() async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text("⚠️ Eliminar Cuenta"),
+        content: const Text("¿Estás seguro de que quieres eliminar tu cuenta y todos tus datos personales?\n\nEsta acción es irreversible, borrará tu perfil, historial de vacas y abandonarás tus planes activos."),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        actions: [
+          TextButton(onPressed: () => Navigator.pop(ctx, false), child: const Text("Cancelar", style: TextStyle(color: Colors.grey))),
+          ElevatedButton(
+            onPressed: () => Navigator.pop(ctx, true), 
+            style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+            child: const Text("Sí, Eliminar Todo")
+          ),
+        ],
+      )
+    );
+
+    if (confirm != true) return;
+
+    setState(() => _isLoading = true);
+    try {
+      // Call the secure RPC function created in Supabase to delete auth user
+      await Supabase.instance.client.rpc('delete_user_account');
+      await Supabase.instance.client.auth.signOut();
+      if (mounted) {
+        context.go('/onboarding');
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Cuenta eliminada exitosamente. Lamentamos verte partir.')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al eliminar cuenta: $e')));
+        setState(() => _isLoading = false);
+      }
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
@@ -299,6 +336,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           });
                       },
                       secondary: const Icon(Icons.language),
+                  ),
+                  const SizedBox(height: 24),
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.warning_amber_rounded, color: Colors.red),
+                    title: const Text("Zona de Peligro", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                    subtitle: const Text("Eliminar mi cuenta y todos mis datos de forma permanente"),
+                    onTap: _deleteAccount,
                   ),
                   const SizedBox(height: 40),
                 ],

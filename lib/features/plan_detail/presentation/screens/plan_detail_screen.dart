@@ -1141,8 +1141,8 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
               margin: const EdgeInsets.only(bottom: 8),
               padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
               decoration: BoxDecoration(
-                  color: Colors.white,
-                  border: Border.all(color: Colors.grey.shade200),
+                  color: Theme.of(context).cardColor,
+                  border: Border.all(color: Colors.grey.withOpacity(0.2)),
                   borderRadius: BorderRadius.circular(12),
               ),
               child: Row(
@@ -1171,7 +1171,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
                               style: TextStyle(
                                   fontSize: 15,
                                   decoration: isClaimed ? TextDecoration.lineThrough : null,
-                                  color: isClaimed ? Colors.grey : Colors.black87
+                                  color: isClaimed ? Colors.grey : Theme.of(context).textTheme.bodyLarge?.color
                               )
                           )
                       ),
@@ -1212,10 +1212,10 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
       child: Container(
         height: 44,
         decoration: BoxDecoration(
-          color: isMyVote ? AppTheme.primaryBrand.withOpacity(0.05) : AppTheme.lightBackground,
+          color: isMyVote ? AppTheme.primaryBrand.withOpacity(0.05) : Theme.of(context).cardColor,
           borderRadius: BorderRadius.circular(12),
           border: Border.all(
-            color: isMyVote ? AppTheme.primaryBrand : Colors.grey.shade300,
+            color: isMyVote ? AppTheme.primaryBrand : Colors.grey.withOpacity(0.2),
             width: isMyVote ? 2 : 1,
           ),
         ),
@@ -1240,7 +1240,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
                       option.text, 
                       style: TextStyle(
                         fontWeight: isMyVote ? FontWeight.bold : FontWeight.w500,
-                        color: isMyVote ? AppTheme.primaryBrand : Colors.black87,
+                        color: isMyVote ? AppTheme.primaryBrand : Theme.of(context).textTheme.bodyLarge?.color,
                       )
                     )
                   ),

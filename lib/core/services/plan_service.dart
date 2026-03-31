@@ -57,7 +57,6 @@ class PlanService {
       }
       
       final response = await query
-          .or('event_date.is.null,event_date.gte.${DateTime.now().subtract(const Duration(days: 1)).toIso8601String()}')
           .neq('title', '__PLANMAPP_TOOLS_MODE__')
           .order('created_at', ascending: false);
           

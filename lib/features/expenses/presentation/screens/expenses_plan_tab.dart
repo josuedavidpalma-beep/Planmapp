@@ -3,10 +3,12 @@ import 'package:go_router/go_router.dart';
 import 'package:planmapp/core/utils/currency_formatter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:flutter/services.dart'; // For Clipboard
+import 'package:image_picker/image_picker.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
-import 'package:planmapp/features/expenses/domain/models/bill_model.dart';
-import 'package:planmapp/features/expenses/domain/services/bill_service.dart';
-import 'package:planmapp/features/expenses/presentation/screens/bill_detail_screen.dart';
+import 'package:planmapp/features/expenses/data/models/expense_model.dart';
+import 'package:planmapp/features/expenses/data/repositories/expense_repository.dart';
+import 'package:planmapp/features/expenses/presentation/screens/expense_split_screen.dart';
+import 'package:planmapp/features/expenses/presentation/screens/scan_receipt_screen.dart';
 import 'package:planmapp/core/widgets/auth_guard.dart';
 import 'package:planmapp/features/games/presentation/widgets/wheel_spin_dialog.dart'; // NEW
 // import 'package:planmapp/features/games/presentation/screens/games_hub_screen.dart'; // REMOVED
@@ -26,14 +28,15 @@ class ExpensesPlanTab extends StatefulWidget {
 }
 
 class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
-  final BillService _billService = BillService();
+  late final ExpenseRepository _expenseRepository;
   bool _isLoading = true;
-  List<Bill> _bills = [];
+  List<Expense> _expenses = [];
   String? _paymentMode; // Loaded from plan
 
   @override
   void initState() {
     super.initState();
+    _expenseRepository = ExpenseRepository(Supabase.instance.client);
     _loadData();
   }
 
@@ -53,10 +56,10 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
 
   Future<void> _loadBills() async {
     try {
-      final bills = await _billService.getBillsForPlan(widget.planId);
+      final expenses = await _expenseRepository.getExpensesForPlan(widget.planId);
       if (mounted) {
         setState(() {
-          _bills = bills;
+          _expenses = expenses;
           _isLoading = false;
         });
       }
@@ -70,6 +73,56 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
   Future<void> _createNewBill({String? initialTitle}) async {
       if (!await AuthGuard.ensureAuthenticated(context)) return;
       
+      final ImagePicker picker = ImagePicker();
+
+      final source = await showModalBottomSheet<ImageSource>(
+          context: context,
+          builder: (ctx) => SafeArea(
+              child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                      const ListTile(title: Text("¿Cómo registrarás el gasto?", style: TextStyle(fontWeight: FontWeight.bold))),
+                      ListTile(
+                          leading: const Icon(Icons.camera_alt),
+                          title: const Text("Tomar foto a la factura"),
+                          onTap: () => Navigator.pop(ctx, ImageSource.camera),
+                      ),
+                      ListTile(
+                          leading: const Icon(Icons.photo_library),
+                          title: const Text("Subir foto de la galería"),
+                          onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+                      ),
+                      ListTile(
+                          leading: const Icon(Icons.edit),
+                          title: const Text("Ingresar datos manualmente"),
+                          onTap: () => Navigator.pop(ctx, null), // null means manual
+                      ),
+                  ]
+              )
+          )
+      );
+      
+      // If user tapped outside
+      if (source == null && !mounted) return;
+
+      // Escáner (Camera / Gallery)
+      if (source != null) {
+          final XFile? image = await picker.pickImage(source: source);
+          if (image == null) return;
+          
+          if (mounted) {
+              Navigator.push(context, MaterialPageRoute(
+                  builder: (context) => ScanReceiptScreen(
+                      planId: widget.planId,
+                      imageFile: image,
+                      isImportMode: false,
+                  )
+              )).then((_) => _loadBills());
+          }
+          return;
+      }
+      
+      // Modo Manual
       final titleController = TextEditingController(text: initialTitle);
       final confirm = await showDialog<bool>(context: context, builder: (context) => AlertDialog(
           title: const Text("Nueva Cuenta"),
@@ -88,15 +141,30 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
            try {
                final currentUser = Supabase.instance.client.auth.currentUser!.id;
                final String title = titleController.text.isEmpty ? "Cuenta" : titleController.text;
-               final newBill = await _billService.createBill(widget.planId, currentUser, title);
+               
+               // Create a draft Expense
+               final newExpense = await _expenseRepository.createDraftExpense(
+                   expenseData: {
+                       'plan_id': widget.planId,
+                       'title': title,
+                       'created_by': currentUser,
+                       'total_amount': 0,
+                       'currency': 'COP',
+                       'status': 'draft'
+                   },
+                   itemsData: []
+               );
                
                if (mounted) {
-                   Navigator.push(context, MaterialPageRoute(builder: (_) => BillDetailScreen(billId: newBill.id, planId: widget.planId))).then((_) => _loadBills());
+                   Navigator.push(context, MaterialPageRoute(builder: (_) => ExpenseSplitScreen(
+                       expenseData: newExpense.toJson(),
+                       initialItems: [],
+                   ))).then((_) => _loadBills());
                }
            } catch(e) {
                if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
            }
-          }
+      }
   }
 
   void _sharePaymentLink() {
@@ -114,7 +182,7 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
   @override
   Widget build(BuildContext context) {
     // Total Summary logic
-    final double totalPlan = _bills.fold(0.0, (sum, item) => sum + item.totalAmount);
+    final double totalPlan = _expenses.fold(0.0, (sum, item) => sum + item.totalAmount);
 
     return CustomScrollView(
         slivers: [
@@ -127,7 +195,7 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
                        children: [
                          // SMART SUGGESTION FOR SPLIT BILL (DIVIDIR CUENTA)
                          // "Vaca" (pool) is now handled in Budget Tab, so here we focus on "Dividir"
-                         if (_paymentMode == 'split' && _bills.isEmpty)
+                         if (_paymentMode == 'split' && _expenses.isEmpty)
                              Container(
                                  margin: const EdgeInsets.only(bottom: 16),
                                  padding: const EdgeInsets.all(16),
@@ -175,7 +243,7 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
                                      children: [
                                          const Text("Cuentas Claras", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                                          if (totalPlan > 0)
-                                            Text("${_bills.length} cuentas • ${CurrencyInputFormatter.format(totalPlan)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
+                                            Text("${_expenses.length} cuentas • ${CurrencyInputFormatter.format(totalPlan)}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.grey, fontSize: 12)),
                                      ],
                                  ),
                                  Row(
@@ -211,7 +279,7 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
              // List
               if (_isLoading) 
                  const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
-              else if (_bills.isEmpty)
+              else if (_expenses.isEmpty)
                  SliverFillRemaining(
                      hasScrollBody: false,
                      child: DancingEmptyState(
@@ -226,31 +294,33 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
                  SliverList(
                      delegate: SliverChildBuilderDelegate(
                          (context, index) {
-                             final bill = _bills[index];
+                             final expense = _expenses[index];
                              return Padding(
                                  padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 4),
                                  child: Card(
                                     elevation: 2,
                                     child: ListTile(
-                                        title: Text(bill.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                        subtitle: Text(bill.status == 'draft' ? 'Borrador' : 'Confirmada', style: TextStyle(color: bill.status == 'draft' ? Colors.orange : Colors.green)),
+                                        title: Text(expense.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                        subtitle: Text(expense.status == 'draft' ? 'Borrador' : 'Confirmada', style: TextStyle(color: expense.status == 'draft' ? Colors.orange : Colors.green)),
                                         trailing: Column(
                                             mainAxisAlignment: MainAxisAlignment.center,
                                             crossAxisAlignment: CrossAxisAlignment.end,
                                             children: [
-                                                Text(CurrencyInputFormatter.format(bill.totalAmount), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                                Text(CurrencyInputFormatter.format(expense.totalAmount), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                                                 const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey)
                                             ],
                                         ),
                                         onTap: () {
-                                            Navigator.push(context, MaterialPageRoute(builder: (_) => BillDetailScreen(billId: bill.id, planId: widget.planId)))
-                                                .then((_) => _loadBills());
+                                            Navigator.push(context, MaterialPageRoute(builder: (_) => ExpenseSplitScreen(
+                                                expenseData: expense.toJson(),
+                                                initialItems: expense.items ?? [],
+                                            ))).then((_) => _loadBills());
                                         },
                                     ),
                                  ).animate().slideX(),
                              );
                          },
-                         childCount: _bills.length,
+                         childCount: _expenses.length,
                      ),
                  ),
              
