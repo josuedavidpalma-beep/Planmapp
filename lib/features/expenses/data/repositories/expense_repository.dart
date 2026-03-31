@@ -282,31 +282,85 @@ class ExpenseRepository {
     }
   }
 
-  // Fetch debts owed TO the current user (where created_by = me)
-  // If planId is null, fetches globally across all plans.
+  // Fetch debts owed TO the current user (Receivables)
   Future<List<Map<String, dynamic>>> getReceivables(String? planId) async {
       try {
           final currentUid = _supabase.auth.currentUser?.id;
           if (currentUid == null) return [];
           
-          // 1. Get my expenses 
           var query = _supabase
               .from('expense_participant_status')
               .select('*, expenses!inner(title, total_amount, created_by, currency, plan_id), profiles:user_id(full_name, avatar_url, phone)')
               .eq('expenses.created_by', currentUid)
-              .neq('status', 'paid'); // Only show unpaid/pending/reminded
+              .neq('status', 'paid');
               
           if (planId != null) {
               query = query.eq('expenses.plan_id', planId);
           }
           
           final response = await query;
-              
           return List<Map<String, dynamic>>.from(response);
       } catch (e) {
           print("ERROR FETCHING RECEIVABLES: $e");
           return [];
       }
+  }
+
+  // Fetch debts the current user owes (Payables)
+  Future<List<Map<String, dynamic>>> getPayables(String? planId) async {
+      try {
+          final currentUid = _supabase.auth.currentUser?.id;
+          if (currentUid == null) return [];
+          
+          var query = _supabase
+              .from('expense_participant_status')
+              .select('*, expenses!inner(title, total_amount, created_by, currency, plan_id, profiles!expenses_created_by_fkey(full_name, avatar_url, phone))')
+              .eq('user_id', currentUid)
+              .neq('expenses.created_by', currentUid)
+              .neq('status', 'paid');
+              
+          if (planId != null) {
+              query = query.eq('expenses.plan_id', planId);
+          }
+          
+          final response = await query;
+          return List<Map<String, dynamic>>.from(response);
+      } catch (e) {
+          print("ERROR FETCHING PAYABLES: $e");
+          return [];
+      }
+  }
+
+  // Report a payment as a debtor
+  Future<void> reportPayment(String expenseId) async {
+       try {
+           final currentUid = _supabase.auth.currentUser?.id;
+           if (currentUid == null) throw Exception("No estás autenticado");
+           
+           await _supabase.from('expense_participant_status')
+               .update({'status': 'reported'})
+               .eq('expense_id', expenseId)
+               .eq('user_id', currentUid);
+       } catch (e) {
+           throw Exception("Error reportando pago: $e");
+       }
+  }
+
+  // Deny a payment as a creditor
+  Future<void> denyPayment(String expenseId, String? userId, String? guestName) async {
+       try {
+           final query = _supabase.from('expense_participant_status')
+               .update({'status': 'pending'})
+               .eq('expense_id', expenseId);
+               
+           if (userId != null) {
+               await query.eq('user_id', userId);
+           } else if (guestName != null) {
+               await query.eq('guest_name', guestName);
+           }
+       } catch (e) {
+           throw Exception("Error denegando pago: $e");
+       }
   }
 
   // Mark a specific debt as paid

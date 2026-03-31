@@ -9,9 +9,9 @@ import 'package:planmapp/features/expenses/data/models/expense_model.dart';
 import 'package:planmapp/features/expenses/data/repositories/expense_repository.dart';
 import 'package:planmapp/features/expenses/presentation/screens/expense_split_screen.dart';
 import 'package:planmapp/features/expenses/presentation/screens/scan_receipt_screen.dart';
+import 'package:planmapp/features/expenses/presentation/screens/debts_dashboard_screen.dart';
 import 'package:planmapp/core/widgets/auth_guard.dart';
-import 'package:planmapp/features/games/presentation/widgets/wheel_spin_dialog.dart'; // NEW
-// import 'package:planmapp/features/games/presentation/screens/games_hub_screen.dart'; // REMOVED
+import 'package:planmapp/features/games/presentation/widgets/wheel_spin_dialog.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:planmapp/core/presentation/widgets/dancing_empty_state.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -257,6 +257,11 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
                                            icon: const Icon(Icons.casino_rounded, color: Colors.purple),
                                            onPressed: _openWheel,
                                            tooltip: "¿Quién Paga?",
+                                       ),
+                                       IconButton(
+                                           icon: const Icon(Icons.account_balance_wallet, color: Colors.orange),
+                                           onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DebtsDashboardScreen(planId: widget.planId))),
+                                           tooltip: "Estado de Pagos",
                                        ),
                                        TextButton.icon(
                                            onPressed: () => context.push('/plan/${widget.planId}/balances'),

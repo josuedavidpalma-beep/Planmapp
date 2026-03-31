@@ -3,7 +3,7 @@ import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/features/expenses/presentation/screens/budget_plan_tab.dart';
 import 'package:planmapp/features/expenses/presentation/screens/scan_receipt_screen.dart';
-import 'package:planmapp/features/expenses/presentation/screens/debt_recovery_screen.dart';
+import 'package:planmapp/features/expenses/presentation/screens/debts_dashboard_screen.dart';
 import 'package:planmapp/core/services/plan_service.dart';
 import 'package:image_picker/image_picker.dart';
 
@@ -63,7 +63,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
 
   void _openGlobalDebts() {
       Navigator.push(context, MaterialPageRoute(
-          builder: (context) => const DebtRecoveryScreen(planId: null) // Global mode
+          builder: (context) => const DebtsDashboardScreen(planId: null) // Global mode
       ));
   }
 
