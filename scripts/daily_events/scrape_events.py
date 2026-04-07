@@ -18,20 +18,20 @@ SOURCE_DICTIONARY = {
         "secondary": "https://www.tuboleta.com"
     },
     "Barranquilla": {
-        "primary": "https://baqucultura.com/",
+        "primary": "https://www.barranquilla.gov.co/eventos",
         "secondary": "https://www.elheraldo.co/entretenimiento"
     },
     "Cartagena": {
-        "primary": "https://www.donde.com.co/es/cartagena/agenda",
+        "primary": "https://www.cartagena.gov.co/eventos",
         "secondary": "https://www.eluniversal.com.co/cultural"
     },
     "Santa Marta": {
-        "primary": "https://www.santamarta.gov.co/agenda-eventos",
-        "secondary": "https://www.hoydiariodelmagdalena.com.co/"
+        "primary": "https://www.santamarta.gov.co/sala-prensa/noticias",
+        "secondary": "https://santamartacultural.com"
     },
     "Riohacha": {
         "primary": "https://www.laguajira.gov.co/atencion-al-ciudadano/agenda-de-eventos",
-        "secondary": None # No secondary provided
+        "secondary": None
     },
     "Cali": {
         "primary": "https://www.cali.gov.co/cultura/publicaciones/154517/agenda-cultural-de-cali/",
@@ -63,15 +63,33 @@ DEFAULT_IMAGES = {
 
 def fetch_page_content(url):
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/91.0.4472.124 Safari/537.36'}
-        response = requests.get(url, headers=headers, timeout=15)
+        headers = {
+            'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36',
+            'Accept-Language': 'es-ES,es;q=0.9,en;q=0.8',
+            'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,*/*;q=0.8',
+            'Sec-Fetch-Dest': 'document',
+            'Sec-Fetch-Mode': 'navigate',
+            'Sec-Fetch-Site': 'none'
+        }
+        # Disable SSL verification for known problematic sites
+        verify_ssl = True
+        if "donde.com.co" in url or "hoydiariodelmagdalena" in url or "santamarta.gov.co" in url:
+            verify_ssl = False
         
+        response = requests.get(url, headers=headers, timeout=20, verify=verify_ssl)
+        
+        # Check for 404 or common error titles in HTML
         if response.status_code == 404:
-            print(f"[ALERT] 404 Not Found for {url}. The structure might have changed.")
+            print(f"[ALERT] 404 Not Found for {url}.")
             return None
             
+        content = response.text
+        if "404 Not Found" in content or "Página no encontrada" in content:
+            print(f"[ALERT] Error-like content detected in {url}. Skipping Gemini.")
+            return None
+
         response.raise_for_status()
-        return response.text
+        return content
     except Exception as e:
         print(f"Error fetching URL {url}: {e}")
         return None
@@ -112,7 +130,9 @@ def extract_content_with_gemini(html_content, source_url, city_name, is_national
     prompt = f"""
     You are an event extraction agent. {instruction}
     
-    Return a STRICT JSON ARRAY of objects (min 1, max 5 most relevant).
+    CRITICAL: If the text says '404', 'Not Found', 'Página no encontrada' or seems to be an error page, return an empty array [].
+    
+    Return a STRICT JSON ARRAY of objects (min 1, max 2 most relevant).
     Field Mapping:
     - title: (String) Name of event
     - start_date: (String) ISO YYYY-MM-DD or Date description
@@ -131,8 +151,7 @@ def extract_content_with_gemini(html_content, source_url, city_name, is_national
     """
 
     try:
-        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key={GEMINI_API_KEY}"
-        
+        url = f"https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key={GEMINI_API_KEY}"
         payload = {
             "contents": [{"parts": [{"text": prompt}]}],
             "safetySettings": [
@@ -141,12 +160,40 @@ def extract_content_with_gemini(html_content, source_url, city_name, is_national
             ]
         }
         
-        http_response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
-        if http_response.status_code != 200:
-            print(f"Error HTTP {http_response.status_code}: {http_response.text}")
-            return None
-            
-        json_data = http_response.json()
+        json_data = {}
+        max_retries = 3
+        base_delay = 5
+        
+        for attempt in range(max_retries):
+            try:
+                http_response = requests.post(url, json=payload, headers={"Content-Type": "application/json"})
+                if http_response.status_code == 429:
+                    # Parse retryDelay from Google JSON or fallback to Exponential Backoff
+                    retry_delay_str = http_response.json().get('error', {}).get('details', [{}])[0].get('retryDelay', '')
+                    if retry_delay_str and retry_delay_str.endswith('s'):
+                        wait_time = float(retry_delay_str[:-1]) + 2
+                    else:
+                        wait_time = base_delay * (2 ** attempt)
+                        
+                    print(f"[429 Rate Limit] Gemini API Limit reached. Backoff {wait_time}s... (Attempt {attempt+1}/{max_retries})")
+                    time.sleep(wait_time)
+                    continue
+                    
+                if http_response.status_code != 200:
+                    print(f"Error HTTP {http_response.status_code}: {http_response.text}")
+                    return []
+                    
+                json_data = http_response.json()
+                break # Success!
+                
+            except Exception as e:
+                print(f"Exception during Gemini Request: {e}")
+                if attempt == max_retries - 1: return []
+                time.sleep(base_delay)
+        else:
+            print("Max API retries exceeded for Gemini.")
+            return []
+
         raw_text = json_data.get('candidates', [{}])[0].get('content', {}).get('parts', [{}])[0].get('text', '')
         
         cleaned_text = raw_text.replace('```json', '').replace('```', '').strip()
@@ -159,6 +206,11 @@ def extract_content_with_gemini(html_content, source_url, city_name, is_national
         
         valid_events = []
         for e in events:
+            import urllib.parse
+            title = e.get('title', 'diversion')
+            encoded_title = urllib.parse.quote(f"Cartel espectacular para evento de {title} en {city_name} Colombia")
+            pollinations_url = f"https://image.pollinations.ai/prompt/{encoded_title}?width=800&height=600&nologo=true"
+
             # Map Python dict keys to Supabase columns (normalization)
             normalized = {
                 "title": e.get('title'),
@@ -168,7 +220,7 @@ def extract_content_with_gemini(html_content, source_url, city_name, is_national
                 "location": e.get('location_name'),
                 "address": e.get('address'),
                 "category": e.get('category', 'other'),
-                "image_url": e.get('image_url') or DEFAULT_IMAGES.get(e.get('category', 'other'), DEFAULT_IMAGES['other']),
+                "image_url": e.get('image_url') or pollinations_url,
                 "source_url": e.get('source_url') or source_url, 
                 "city": city_name,
                 "contact_info": e.get('contact_info')
@@ -219,40 +271,40 @@ def upload_to_supabase(event_data):
 def process_city(city_name, urls):
     print(f"\n--- Processing {city_name} ---")
     events_found = 0
+    combined_html = ""
     
-    # 1. Try Primary
+    # 1. Fetch Primary & Secondary and Batch them together
     if urls.get('primary'):
-        print(f"Trying Primary: {urls['primary']}")
+        print(f"Fetching Primary: {urls['primary']}")
         html = fetch_page_content(urls['primary'])
-        if html:
-            events = extract_content_with_gemini(html, urls['primary'], city_name)
-            if events:
-                print(f"Found {len(events)} events from Primary.")
-                for e in events:
-                    upload_to_supabase(e)
-                    events_found += 1
+        if html: combined_html += f"\n--- Source: {urls['primary']} ---\n{html}"
     
-    # 2. Try Secondary if needed (or minimal results)
-    if events_found < 3 and urls.get('secondary'):
-        print(f"Trying Secondary: {urls['secondary']}")
+    if urls.get('secondary'):
+        print(f"Fetching Secondary: {urls['secondary']}")
         html = fetch_page_content(urls['secondary'])
-        if html:
-            events = extract_content_with_gemini(html, urls['secondary'], city_name)
-            if events:
-                 print(f"Found {len(events)} events from Secondary.")
-                 for e in events:
-                    upload_to_supabase(e)
-                    events_found += 1
+        if html: combined_html += f"\n--- Source: {urls['secondary']} ---\n{html}"
+        
+    # 2. Extract context via Gemini using Batch Payload (1 request instead of 2)
+    if combined_html:
+        source_url = urls.get('primary') or urls.get('secondary')
+        events = extract_content_with_gemini(combined_html, source_url, city_name)
+        if events:
+            print(f"Found {len(events)} events from Local sources in batched request.")
+            for e in events:
+                upload_to_supabase(e)
+                events_found += 1
+                if events_found >= 4: break # Max limit per batch to avoid flooding
 
     # 3. Fallback to National if 0 events found
     if events_found == 0:
         print(f"No events found locally. Falling back to National Sources for {city_name}...")
         
-        # Try Eventbrite (National Primary)
-        nat_url = NATIONAL_SOURCES['primary'] # e.g. Eventbrite
-        # Note: In a real scraper, we might construct a search query URL like eventbrite.co/d/{city}/events
-        # For now, we scrape the main national page and ask Gemini to filter by City Name.
+        # Try Eventbrite (National Primary) dynamically mapped to the specific City
+        # Eventbrite uses hyphenation for spaces in URLs
+        formatted_city = city_name.lower().replace(' ', '-')
+        nat_url = f"https://www.eventbrite.co/d/colombia--{formatted_city}/events/"
         
+        print(f"Querying custom National Fallback: {nat_url}")
         html = fetch_page_content(nat_url)
         if html:
             events = extract_content_with_gemini(html, nat_url, city_name, is_national_fallback=True)
@@ -284,6 +336,7 @@ from flask import Flask, jsonify
 import threading
 
 app = Flask(__name__)
+scrape_lock = threading.Lock()
 
 @app.route('/')
 def home():
@@ -294,12 +347,25 @@ def home():
 
 @app.route('/scrape', methods=['GET', 'POST'])
 def trigger_scrape():
+    # Attempt to acquire lock without blocking to prevent concurrent scraping crashes
+    if not scrape_lock.acquire(blocking=False):
+        return jsonify({
+            "status": "conflict",
+            "message": "Scraper is already running. Please wait for it to finish."
+        }), 409
+
+    def run_with_lock():
+        try:
+            main()
+        finally:
+            scrape_lock.release()
+
     # Run the scraper in a background thread to prevent HTTP timeouts
-    thread = threading.Thread(target=main)
+    thread = threading.Thread(target=run_with_lock)
     thread.start()
     return jsonify({
         "status": "started",
-        "message": "Scraping process triggered in the background."
+        "message": "Scraping process triggered in the background. Concurrency locked."
     }), 202
 
 if __name__ == "__main__":
