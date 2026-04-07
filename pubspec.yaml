@@ -59,6 +59,7 @@ dependencies:
   flutter_fortune_wheel: ^1.2.0
   rxdart: ^0.27.7
   webview_flutter: ^4.13.1
+  flutter_secure_storage: ^10.0.0
 
 dev_dependencies:
   flutter_test:

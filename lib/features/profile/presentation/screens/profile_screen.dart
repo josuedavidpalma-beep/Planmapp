@@ -20,6 +20,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   DateTime? _birthday;
   String _selectedCountryCode = '+57';
   List<String> _selectedPreferences = [];
+  List<Map<String, dynamic>> _paymentMethods = [];
 
   final List<String> _countryCodes = ['+57', '+1', '+52', '+54', '+56', '+51', '+55', '+593', '+507', '+506'];
   final Map<String, IconData> _prefOptions = {
@@ -48,9 +49,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           .from('profiles')
           .select()
           .eq('id', userId)
-          .single();
+          .maybeSingle();
 
-      if (mounted) {
+      if (mounted && data != null) {
         setState(() {
           _nameController.text = data['display_name'] ?? data['full_name'] ?? "";
           _phoneController.text = data['phone'] ?? "";
@@ -62,6 +63,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
           if (data['preferences'] != null) {
             _selectedPreferences = List<String>.from(data['preferences']);
+          }
+          if (data['payment_methods'] != null) {
+              _paymentMethods = List<Map<String, dynamic>>.from(data['payment_methods'].map((i) => Map<String, dynamic>.from(i)));
           }
           _isLoading = false;
         });
@@ -86,6 +90,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'country_code': _selectedCountryCode,
         'birthday': _birthday?.toIso8601String(),
         'preferences': _selectedPreferences,
+        'payment_methods': _paymentMethods,
         'updated_at': DateTime.now().toIso8601String(),
       });
       if (mounted) {
@@ -136,6 +141,105 @@ class _ProfileScreenState extends State<ProfileScreen> {
         setState(() => _isLoading = false);
       }
     }
+  }
+
+  void _managePaymentMethods() {
+      showModalBottomSheet(
+          context: context,
+          useRootNavigator: true,
+          isScrollControlled: true,
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          builder: (ctx) {
+              return StatefulBuilder(builder: (c, setSheetState) {
+                  return Padding(
+                      padding: EdgeInsets.fromLTRB(20, 20, 20, MediaQuery.of(ctx).viewInsets.bottom + 20),
+                      child: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          crossAxisAlignment: CrossAxisAlignment.stretch,
+                          children: [
+                              const Text("Mis Medios de Pago", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                              const Text("Aquí te transferirán cuando te deban.", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                              const SizedBox(height: 16),
+                              if (_paymentMethods.isEmpty)
+                                  const Padding(
+                                      padding: EdgeInsets.symmetric(vertical: 20),
+                                      child: Center(child: Text("No tienes medios de pago configurados.")),
+                                  ),
+                              ..._paymentMethods.asMap().entries.map((entry) {
+                                  final i = entry.key;
+                                  final pm = entry.value;
+                                  return ListTile(
+                                      contentPadding: EdgeInsets.zero,
+                                      leading: const Icon(Icons.account_balance_wallet, color: AppTheme.primaryBrand),
+                                      title: Text(pm['type'] ?? 'Banco'),
+                                      subtitle: Text(pm['details'] ?? ''),
+                                      trailing: IconButton(
+                                          icon: const Icon(Icons.delete, color: Colors.red),
+                                          onPressed: () {
+                                              setSheetState(() => _paymentMethods.removeAt(i));
+                                              setState((){});
+                                          },
+                                      ),
+                                  );
+                              }),
+                              const Divider(),
+                              TextButton.icon(
+                                  onPressed: () async {
+                                      final result = await _addPaymentMethodForm(c);
+                                      if (result != null) {
+                                          setSheetState(() => _paymentMethods.add(result));
+                                          setState((){});
+                                      }
+                                  },
+                                  icon: const Icon(Icons.add),
+                                  label: const Text("Agregar Nequi / Cuenta Bancaria")
+                              ),
+                              const SizedBox(height: 16),
+                              ElevatedButton(
+                                  onPressed: () {
+                                      Navigator.pop(ctx);
+                                      _saveProfile(); // Auto-save after completing
+                                  },
+                                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white),
+                                  child: const Text("Guardar Medios de Pago")
+                              )
+                          ],
+                      ),
+                  );
+              });
+          }
+      );
+  }
+
+  Future<Map<String, dynamic>?> _addPaymentMethodForm(BuildContext parentContext) async {
+      final typeCtrl = TextEditingController();
+      final detailsCtrl = TextEditingController();
+      
+      return showDialog<Map<String, dynamic>>(
+          context: parentContext,
+          builder: (ctx) => AlertDialog(
+              title: const Text("Nuevo Medio de Pago"),
+              content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                      TextField(controller: typeCtrl, decoration: const InputDecoration(labelText: "App o Banco (Ej. Nequi)")),
+                      const SizedBox(height: 12),
+                      TextField(controller: detailsCtrl, decoration: const InputDecoration(labelText: "Número, Cédula o Cuenta")),
+                  ],
+              ),
+              actions: [
+                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
+                  ElevatedButton(
+                      onPressed: () {
+                          if (typeCtrl.text.isNotEmpty && detailsCtrl.text.isNotEmpty) {
+                              Navigator.pop(ctx, {'type': typeCtrl.text, 'details': detailsCtrl.text});
+                          }
+                      },
+                      child: const Text("Agregar")
+                  ),
+              ],
+          )
+      );
   }
 
   @override
@@ -193,6 +297,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     subtitle: const Text("Gestionar amistades y solicitudes"),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                     onTap: () => context.push('/friends'),
+                  ),
+                  const Divider(),
+                  
+                  // Payment Methods Section
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
+                      child: const Icon(Icons.monetization_on, color: Colors.green),
+                    ),
+                    title: const Text("Mis Medios de Pago", style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: const Text("Nequi, DaviPlata, Cuentas Bancarias"),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: _managePaymentMethods,
                   ),
                   const Divider(),
                   const SizedBox(height: 16),
@@ -345,7 +464,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     subtitle: const Text("Eliminar mi cuenta y todos mis datos de forma permanente"),
                     onTap: _deleteAccount,
                   ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 120),
                 ],
               ),
             ),
