@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:planmapp/core/theme/theme_provider.dart';
 import 'package:planmapp/features/notifications/services/notification_service.dart';
@@ -12,6 +13,7 @@ import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:planmapp/features/venues/presentation/widgets/instagram_reel_feed.dart';
 import 'package:planmapp/core/presentation/widgets/premium_empty_state.dart';
+import 'package:planmapp/core/presentation/widgets/guest_barrier.dart';
 import 'package:planmapp/core/presentation/widgets/skeleton_loader.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -26,11 +28,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _selectedCity = "Bogotá";
   final List<String> _cities = ["Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena"];
   bool _isLocating = false;
+  String _userName = "";
 
   @override
   void initState() {
     super.initState();
     _loadPersistedCity();
+    _fetchUserName();
+  }
+
+  Future<void> _fetchUserName() async {
+      try {
+          final uid = Supabase.instance.client.auth.currentUser?.id;
+          if (uid != null) {
+              final data = await Supabase.instance.client.from('profiles').select('full_name, display_name').eq('id', uid).single();
+              final name = data['display_name'] ?? data['full_name'] ?? "";
+              if (mounted && name.isNotEmpty) {
+                  setState(() => _userName = name.split(" ")[0]);
+              }
+          }
+      } catch (e) {
+          // Fallback to empty
+      }
   }
 
   Future<void> _loadPersistedCity() async {
@@ -190,9 +209,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 // HEADING
-                const Text(
-                  "Hola, Josué 👋",
-                  style: TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+                Text(
+                  _userName.isNotEmpty ? "Hola, $_userName 👋" : "Hola 👋",
+                  style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
                 ),
                 Text(
                   "¿Qué sale hoy en $_selectedCity?",
@@ -360,7 +379,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
                                       const SizedBox(height: 12),
                                       if (event.description != null)
-                                          Text(event.description!, style: const TextStyle(fontSize: 14, height: 1.5)),
+                                          Text(event.description!, style: const TextStyle(fontSize: 14, height: 1.5), maxLines: 3, overflow: TextOverflow.ellipsis),
                                       const SizedBox(height: 24),
 
                                       SizedBox(
@@ -378,12 +397,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                       }
                                                   } catch (_) {}
 
-                                                  context.push('/create-plan', extra: {
-                                                      'initialTitle': title,
-                                                      'initialAddress': event.address ?? event.location,
-                                                      'initialDate': parsedDate
-                                                  }); 
-                                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Creando plan: $title")));
+                                                  GuestBarrier.protect(context, () {
+                                                      context.push('/create-plan', extra: {
+                                                          'initialTitle': title,
+                                                          'initialAddress': event.address ?? event.location,
+                                                          'initialDate': parsedDate
+                                                      }); 
+                                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Creando plan: $title")));
+                                                  });
                                               }, 
                                               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white),
                                               child: const Text("¡Me apunto! Crear Plan"),

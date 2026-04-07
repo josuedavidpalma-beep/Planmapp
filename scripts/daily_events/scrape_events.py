@@ -52,13 +52,37 @@ SOURCE_DICTIONARY = {
 }
 
 NATIONAL_SOURCES = SOURCE_DICTIONARY["Nacional"]
-DEFAULT_IMAGES = {
-    "music": "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80&w=800",
-    "culture": "https://images.unsplash.com/photo-1533174072545-e8d4aa97edf9?auto=format&fit=crop&q=80&w=800",
-    "food": "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=800",
-    "party": "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800",
-    "outdoors": "https://images.unsplash.com/photo-1502086223501-681a91cc44e7?auto=format&fit=crop&q=80&w=800",
-    "other": "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800"
+CATEGORY_IMAGES = {
+    "music": [
+        "https://images.unsplash.com/photo-1540039155732-d674d6e3f0be?auto=format&fit=crop&q=80&w=800",
+        "https://images.unsplash.com/photo-1459749411175-04bf5292ceea?auto=format&fit=crop&q=80&w=800",
+        "https://images.unsplash.com/photo-1470229722913-7c092bce8e4e?auto=format&fit=crop&q=80&w=800"
+    ],
+    "culture": [
+        "https://images.unsplash.com/photo-1533174072545-e8d4aa97edf9?auto=format&fit=crop&q=80&w=800",
+        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&q=80&w=800",
+        "https://images.unsplash.com/photo-1518998053901-5348d3961a04?auto=format&fit=crop&q=80&w=800"
+    ],
+    "food": [
+        "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=800",
+        "https://images.unsplash.com/photo-1414235077428-33898ed1e814?auto=format&fit=crop&q=80&w=800",
+        "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&q=80&w=800"
+    ],
+    "party": [
+        "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800",
+        "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&q=80&w=800",
+        "https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&q=80&w=800"
+    ],
+    "outdoors": [
+        "https://images.unsplash.com/photo-1502086223501-681a91cc44e7?auto=format&fit=crop&q=80&w=800",
+        "https://images.unsplash.com/photo-1444491741275-3747c53c99b4?auto=format&fit=crop&q=80&w=800",
+        "https://images.unsplash.com/photo-1501555088652-021faa106b9b?auto=format&fit=crop&q=80&w=800"
+    ],
+    "other": [
+        "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80&w=800",
+        "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800",
+        "https://images.unsplash.com/photo-1528605248644-14db040f7315?auto=format&fit=crop&q=80&w=800"
+    ]
 }
 
 def fetch_page_content(url):
@@ -206,10 +230,10 @@ def extract_content_with_gemini(html_content, source_url, city_name, is_national
         
         valid_events = []
         for e in events:
-            import urllib.parse
-            title = e.get('title', 'diversion')
-            encoded_title = urllib.parse.quote(f"Cartel espectacular para evento de {title} en {city_name} Colombia")
-            pollinations_url = f"https://image.pollinations.ai/prompt/{encoded_title}?width=800&height=600&nologo=true"
+            import random
+            category = e.get('category', 'other')
+            if category not in CATEGORY_IMAGES: category = 'other'
+            selected_image = random.choice(CATEGORY_IMAGES[category])
 
             # Map Python dict keys to Supabase columns (normalization)
             normalized = {
@@ -219,8 +243,8 @@ def extract_content_with_gemini(html_content, source_url, city_name, is_national
                 "end_date": e.get('end_date'),
                 "location": e.get('location_name'),
                 "address": e.get('address'),
-                "category": e.get('category', 'other'),
-                "image_url": e.get('image_url') or pollinations_url,
+                "category": category,
+                "image_url": e.get('image_url') or selected_image,
                 "source_url": e.get('source_url') or source_url, 
                 "city": city_name,
                 "contact_info": e.get('contact_info')
