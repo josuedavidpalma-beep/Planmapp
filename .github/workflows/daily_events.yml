@@ -17,10 +17,12 @@ jobs:
           python-version: '3.10'
       
       - name: Install dependencies
-        run: pip install -r requirements.txt
+        # Aquí añadimos "scripts/" porque ahí está tu archivo
+        run: pip install -r scripts/requirements.txt
       
       - name: Run Scraper
-        run: python tu_script_de_busqueda.py # CAMBIA ESTO por el nombre de tu archivo Python
+        # Aquí también añadimos "scripts/" para que encuentre el script
+        run: python scripts/scrape_events.py
 
       - name: Save Results
         run: |
