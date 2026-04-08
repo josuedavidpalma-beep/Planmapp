@@ -2,8 +2,6 @@ name: Deploy Planmapp
 on:
   push:
     branches: [ main ]
-env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true # Quita las advertencias de Node
 
 permissions:
   contents: read
@@ -19,7 +17,7 @@ jobs:
         with:
           channel: 'stable'
       - run: flutter pub get
-      - run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+      - run: flutter build web --release
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -32,4 +30,5 @@ jobs:
       name: github-pages
     steps:
       - name: Deploy to GitHub Pages
+        id: deployment
         uses: actions/deploy-pages@v4
