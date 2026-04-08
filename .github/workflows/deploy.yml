@@ -13,11 +13,21 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+      
       - uses: subosito/flutter-action@v2
         with:
           channel: 'stable'
+
+      # 🔥 ESTE ES EL PASO QUE APAGA EL INCENDIO
+      - name: Create API Config
+        run: |
+          mkdir -p lib/core/config
+          echo "class ApiConfig { static const String geminiApiKey = '${{ secrets.GEMINI_API_KEY }}'; }" > lib/core/config/api_config.dart
+
+      - run: flutter clean
       - run: flutter pub get
-      - run: flutter build web --release
+      - run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
@@ -28,6 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
     steps:
       - name: Deploy to GitHub Pages
         id: deployment
