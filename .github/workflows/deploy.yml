@@ -18,7 +18,7 @@ jobs:
         with:
           channel: 'stable'
 
-      # 🔥 ESTE ES EL PASO QUE APAGA EL INCENDIO
+      # Paso para crear el archivo que le falta a tu backup
       - name: Create API Config
         run: |
           mkdir -p lib/core/config
