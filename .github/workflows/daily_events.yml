@@ -20,7 +20,7 @@ jobs:
         # Aquí añadimos "scripts/" porque ahí está tu archivo
         run: pip install -r scripts/requirements.txt
       
-      - name: Run Scraper
+      - name: Run scripts/scrape_events.py
         # Aquí también añadimos "scripts/" para que encuentre el script
         run: python scripts/scrape_events.py
 
