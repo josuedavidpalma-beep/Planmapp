@@ -25,7 +25,7 @@ jobs:
           printf 'class ApiConfig {\n  static const String geminiApiKey = "%s";\n  static const String supabaseUrl = "%s";\n  static const String supabaseAnonKey = "%s";\n}\n' \
             "${{ secrets.GEMINI_API_KEY }}" \
             "${{ secrets.SUPABASE_URL }}" \
-            "${{ secrets.SUPABASE_KEY }}" \
+            "sb_publishable_fq738FQkpkE1ppEkJlwqGQ_YQf58fYU" \
             > lib/core/config/api_config.dart
           echo "✅ api_config.dart generated successfully"
           cat lib/core/config/api_config.dart
