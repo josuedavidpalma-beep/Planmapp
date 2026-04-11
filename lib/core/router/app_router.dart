@@ -38,7 +38,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       FirebaseAnalyticsObserver(analytics: FirebaseAnalytics.instance),
     ],
     refreshListenable: _StreamRouterRefresh(Supabase.instance.client.auth.onAuthStateChange),
-    redirect: (context, state) {
+    redirect: (context, state) async {
       final session = Supabase.instance.client.auth.currentSession;
       final isLoggedIn = session != null;
       
@@ -58,6 +58,20 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         // Allow the register screen to manually navigate to onboarding-setup on success
         if (state.uri.path == '/register') return null;
         return '/'; // Already logged in
+      }
+
+      // If logged in but no nickname → send to onboarding-setup (first time)
+      if (isLoggedIn && !isPublic && state.uri.path != '/onboarding-setup') {
+        try {
+          final uid = session.user.id;
+          final profile = await Supabase.instance.client
+              .from('profiles')
+              .select('nickname')
+              .eq('id', uid)
+              .maybeSingle();
+          final hasNickname = profile != null && (profile['nickname'] as String?)?.isNotEmpty == true;
+          if (!hasNickname) return '/onboarding-setup';
+        } catch (_) {}
       }
 
       return null;
