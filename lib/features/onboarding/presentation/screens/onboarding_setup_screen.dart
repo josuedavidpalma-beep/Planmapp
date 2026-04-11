@@ -222,7 +222,7 @@ class _OnboardingSetupScreenState extends State<OnboardingSetupScreen> {
               hintStyle: const TextStyle(color: Colors.white30),
               prefixIcon: const Icon(Icons.person_outline, color: Colors.white38),
               filled: true,
-              fillColor: Colors.white08,
+              fillColor: Colors.white.withOpacity(0.08),
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide.none,
@@ -262,7 +262,7 @@ class _OnboardingSetupScreenState extends State<OnboardingSetupScreen> {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
               decoration: BoxDecoration(
-                color: Colors.white08,
+                color: Colors.white.withOpacity(0.08),
                 borderRadius: BorderRadius.circular(14),
                 border: Border.all(color: Colors.white12),
               ),
