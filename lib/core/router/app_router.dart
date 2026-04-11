@@ -61,7 +61,9 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       }
 
       // If logged in but no nickname → send to onboarding-setup (first time)
-      if (isLoggedIn && !isPublic && state.uri.path != '/onboarding-setup') {
+      // BUT: anonymous/guest users skip this - they don't need a profile
+      final isAnonymous = session.user.isAnonymous ?? false;
+      if (isLoggedIn && !isAnonymous && !isPublic && state.uri.path != '/onboarding-setup') {
         try {
           final uid = session.user.id;
           final profile = await Supabase.instance.client
