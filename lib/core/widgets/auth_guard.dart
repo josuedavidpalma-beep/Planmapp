@@ -40,7 +40,7 @@ class AuthGuard extends StatelessWidget {
   
   // Static helper for cleaner usage in callbacks
   // STATIC FLAG FOR TESTING
-  static bool isTestMode = true;
+  static bool isTestMode = false;
 
   static Future<bool> ensureAuthenticated(BuildContext context) async {
       if (isTestMode) return true; // BYPASS FOR TESTING
@@ -104,7 +104,7 @@ class AuthGuard extends StatelessWidget {
                                   ),
                                   onPressed: () {
                                       Navigator.pop(c);
-                                      context.go('/welcome'); 
+                                      context.go('/onboarding'); 
                                   }, 
                                   child: const Text("Crear mi cuenta gratis", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
                               ),

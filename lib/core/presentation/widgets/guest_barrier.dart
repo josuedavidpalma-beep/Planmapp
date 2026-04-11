@@ -55,7 +55,7 @@ class GuestBarrier {
                   onPressed: () {
                     context.pop(); // Close modal
                     // Navigate to auth (login clears the guest session)
-                    context.go('/register');
+                    context.go('/onboarding');
                   },
                   child: const Text("Crear mi Cuenta Ahora"),
                 ),
