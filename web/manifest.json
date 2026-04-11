@@ -1,11 +1,11 @@
 {
-    "name": "Planmapp: Planes Épicos",
+    "name": "Planmapp",
     "short_name": "Planmapp",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0F111A",
-    "theme_color": "#00E5FF",
-    "description": "Organiza planes épicos con amigos y divide gastos sin caos.",
+    "theme_color": "#0F111A",
+    "description": "La app para organizar tus planes sin dramas. Crea el parche, divide los gastos y lánzate.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

@@ -1,7 +1,16 @@
 
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/features/notifications/data/models/notification_model.dart';
 import 'package:rxdart/rxdart.dart';
+
+final notificationServiceProvider = Provider<NotificationService>((ref) {
+  return NotificationService();
+});
+
+final notificationsStreamProvider = StreamProvider<List<NotificationModel>>((ref) {
+  return ref.watch(notificationServiceProvider).getNotificationsStream();
+});
 
 class NotificationService {
   final SupabaseClient _supabase = Supabase.instance.client;

@@ -1,0 +1,242 @@
+import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
+import 'package:planmapp/core/theme/app_theme.dart';
+import 'package:planmapp/features/itinerary/domain/models/activity.dart';
+import 'package:planmapp/features/itinerary/services/itinerary_service.dart';
+import 'package:planmapp/features/itinerary/presentation/screens/location_picker_screen.dart';
+import 'package:latlong2/latlong.dart';
+import 'package:planmapp/features/plans/domain/models/plan_model.dart';
+import 'package:planmapp/core/services/plan_service.dart';
+
+class AddActivityScreen extends StatefulWidget {
+  final String planId;
+  final Activity? activityToEdit; // If null, create new
+
+  const AddActivityScreen({super.key, required this.planId, this.activityToEdit});
+
+  @override
+  State<AddActivityScreen> createState() => _AddActivityScreenState();
+}
+
+class _AddActivityScreenState extends State<AddActivityScreen> {
+  final _formKey = GlobalKey<FormState>();
+  late TextEditingController _titleCtrl;
+  late TextEditingController _descCtrl;
+  late TextEditingController _locationNameCtrl;
+  
+  late DateTime _startTime;
+  DateTime? _endTime;
+  LatLng? _selectedLocation;
+  ActivityCategory _selectedCategory = ActivityCategory.other;
+  
+  bool _isLoading = false;
+
+  @override
+  void initState() {
+      super.initState();
+      final edit = widget.activityToEdit;
+      _titleCtrl = TextEditingController(text: edit?.title ?? '');
+      _descCtrl = TextEditingController(text: edit?.description ?? '');
+      _locationNameCtrl = TextEditingController(text: edit?.locationName ?? '');
+      
+      _startTime = edit?.startTime ?? DateTime.now().add(const Duration(hours: 1));
+      _endTime = edit?.endTime;
+      _selectedLocation = edit?.location;
+      if (edit != null) _selectedCategory = edit.category;
+  }
+
+  @override
+  void dispose() {
+      _titleCtrl.dispose();
+      _descCtrl.dispose();
+      _locationNameCtrl.dispose();
+      super.dispose();
+  }
+
+  Future<void> _pickDateTime(bool isStart) async {
+    final initialDate = isStart ? _startTime : (_endTime ?? _startTime);
+    final date = await showDatePicker(
+        context: context,
+        initialDate: initialDate,
+        firstDate: DateTime(2020),
+        lastDate: DateTime(2030),
+    );
+    if (date == null) return;
+
+    if (!mounted) return;
+    final time = await showTimePicker(
+        context: context,
+        initialTime: TimeOfDay.fromDateTime(initialDate),
+    );
+    if (time == null) return;
+
+    final result = DateTime(date.year, date.month, date.day, time.hour, time.minute);
+    setState(() {
+        if (isStart) {
+            _startTime = result;
+            if (_endTime != null && _endTime!.isBefore(_startTime)) {
+                _endTime = _startTime.add(const Duration(hours: 1));
+            }
+        } else {
+            _endTime = result;
+        }
+    });
+  }
+
+  Future<void> _pickLocation() async {
+      final result = await Navigator.push<LatLng>(
+          context,
+          MaterialPageRoute(builder: (_) => const LocationPickerScreen()),
+      );
+      if (result != null) {
+          setState(() {
+              _selectedLocation = result;
+              if (_locationNameCtrl.text.isEmpty) {
+                  _locationNameCtrl.text = "Ubicación seleccionada";
+              }
+          });
+      }
+  }
+
+  Future<void> _save() async {
+      if (!_formKey.currentState!.validate()) return;
+      setState(() => _isLoading = true);
+
+      try {
+          final activity = Activity(
+              id: widget.activityToEdit?.id ?? '', // Preserve ID if editing
+              planId: widget.planId,
+              title: _titleCtrl.text,
+              description: _descCtrl.text.isEmpty ? null : _descCtrl.text,
+              locationName: _locationNameCtrl.text.isEmpty ? null : _locationNameCtrl.text,
+              location: _selectedLocation,
+              startTime: _startTime,
+              endTime: _endTime,
+              category: _selectedCategory,
+          );
+
+          if (widget.activityToEdit != null) {
+               await ItineraryService().updateActivity(activity); 
+          } else {
+               await ItineraryService().createActivity(activity);
+          }
+          
+          if (mounted) Navigator.pop(context, true);
+      } catch (e) {
+          if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+              setState(() => _isLoading = false);
+          }
+      }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final isEdit = widget.activityToEdit != null;
+    return Scaffold(
+        appBar: AppBar(title: Text(isEdit ? "Editar Actividad" : "Nueva Actividad")),
+        body: Form(
+            key: _formKey,
+            child: ListView(
+                padding: const EdgeInsets.all(16),
+                children: [
+                    TextFormField(
+                        controller: _titleCtrl,
+                        decoration: const InputDecoration(labelText: "Título", border: OutlineInputBorder()),
+                        validator: (v) => v!.isEmpty ? "Ingresa un título" : null,
+                    ),
+                    const SizedBox(height: 16),
+                    TextFormField(
+                        controller: _descCtrl,
+                        decoration: const InputDecoration(labelText: "Descripción (Opcional)", border: OutlineInputBorder()),
+                        maxLines: 3,
+                    ),
+                    const SizedBox(height: 16),
+                    
+                    // Category Dropdown
+                    DropdownButtonFormField<ActivityCategory>(
+                        value: _selectedCategory,
+                        decoration: const InputDecoration(labelText: "Categoría", border: OutlineInputBorder()),
+                        items: ActivityCategory.values.map((c) => DropdownMenuItem(value: c, child: Text(_categoryName(c)))).toList(),
+                        onChanged: (v) => setState(() => _selectedCategory = v!),
+                    ),
+                    const SizedBox(height: 24),
+                    
+                    const Text("Fecha y Hora", style: TextStyle(fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 8),
+                    Row(
+                        children: [
+                            Expanded(child: _buildTimePicker("Inicio", _startTime, true)),
+                            const SizedBox(width: 8),
+                            Expanded(child: _buildTimePicker("Fin", _endTime, false)),
+                        ],
+                    ),
+                    const SizedBox(height: 24),
+
+                    const Text("Ubicación", style: TextStyle(fontWeight: FontWeight.bold)),
+                     const SizedBox(height: 8),
+                     Row(
+                         children: [
+                             Expanded(
+                                 child: TextFormField(
+                                    controller: _locationNameCtrl,
+                                    decoration: const InputDecoration(labelText: "Nombre del lugar", prefixIcon: Icon(Icons.place)),
+                                 ),
+                             ),
+                             const SizedBox(width: 8),
+                             ElevatedButton.icon(
+                                 onPressed: _pickLocation,
+                                 icon: const Icon(Icons.map),
+                                 label: const Text("Mapa"),
+                                 style: ElevatedButton.styleFrom(padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 16)),
+                             )
+                         ],
+                     ),
+                     if (_selectedLocation != null)
+                         Padding(
+                             padding: const EdgeInsets.only(top: 8),
+                             child: Text("Coordenadas: ${_selectedLocation!.latitude.toStringAsFixed(4)}, ${_selectedLocation!.longitude.toStringAsFixed(4)}", style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                         ),
+
+                     const SizedBox(height: 40),
+                     SizedBox(
+                         height: 50,
+                         child: ElevatedButton(
+                             onPressed: _isLoading ? null : _save,
+                             style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white),
+                             child: _isLoading ? const CircularProgressIndicator(color: Colors.white) : Text(isEdit ? "Guardar Cambios" : "Crear Actividad"),
+                         ),
+                     )
+                ],
+            ),
+        ),
+    );
+  }
+
+  Widget _buildTimePicker(String label, DateTime? date, bool isStart) {
+      return InkWell(
+          onTap: () => _pickDateTime(isStart),
+          child: InputDecorator(
+              decoration: InputDecoration(
+                  labelText: label,
+                  border: const OutlineInputBorder(),
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+              ),
+              child: Text(
+                  date != null ? DateFormat('MMM d, HH:mm').format(date) : "Opcional",
+                  style: TextStyle(color: date != null ? Colors.black : Colors.grey),
+              ),
+          ),
+      );
+  }
+
+  String _categoryName(ActivityCategory c) {
+      switch (c) {
+          case ActivityCategory.transport: return "Transporte";
+          case ActivityCategory.food: return "Comida";
+          case ActivityCategory.lodging: return "Hospedaje";
+          case ActivityCategory.activity: return "Actividad";
+          case ActivityCategory.other: return "Otro";
+      }
+  }
+}

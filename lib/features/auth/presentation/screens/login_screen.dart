@@ -6,6 +6,7 @@ import 'package:planmapp/core/services/auth_service.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -17,15 +18,52 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _phoneController = TextEditingController();
+  final _phonePasswordController = TextEditingController();
+  
   bool _isLoading = false;
+  bool _rememberMe = false;
+  final _storage = const FlutterSecureStorage();
 
-  Future<void> _login() async {
+  @override
+  void initState() {
+    super.initState();
+    _loadSecureCredentials();
+  }
+
+  Future<void> _loadSecureCredentials() async {
+      try {
+          final email = await _storage.read(key: 'remember_email');
+          final password = await _storage.read(key: 'remember_password');
+          
+          if (email != null && password != null && mounted) {
+              setState(() {
+                  _emailController.text = email;
+                  _passwordController.text = password;
+                  _rememberMe = true;
+              });
+          }
+      } catch (e) {
+          // Fail silently
+      }
+  }
+
+  Future<void> _loginEmail() async {
     setState(() => _isLoading = true);
     try {
       await AuthService().signInWithEmail(
         _emailController.text.trim(),
         _passwordController.text.trim(),
       );
+
+      if (_rememberMe) {
+          await _storage.write(key: 'remember_email', value: _emailController.text.trim());
+          await _storage.write(key: 'remember_password', value: _passwordController.text.trim());
+      } else {
+          await _storage.delete(key: 'remember_email');
+          await _storage.delete(key: 'remember_password');
+      }
+
     } on AuthException catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.message), backgroundColor: Colors.red));
     } catch (e) {
@@ -35,14 +73,19 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  void _showComingSoon() {
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Acceso por teléfono próximamente (Fase Beta)')),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
-    // Determine screen brightness or force dark mode style logic as requested
     return Scaffold(
       backgroundColor: Colors.black, // Fallback
       body: Stack(
         children: [
-          // 1. BACKGROUND GRADIENT (Mysterious)
+          // 1. BACKGROUND GRADIENT
           Positioned.fill(
               child: Container(
                   decoration: const BoxDecoration(
@@ -77,7 +120,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
               right: -50,
               child: Container(
                   width: 250, height: 250,
-                  // Removed invalid 'filter' property, using BoxShadow for glow
                   decoration: BoxDecoration(
                       shape: BoxShape.circle, 
                       color: AppTheme.secondaryBrand.withOpacity(0.3),
@@ -90,95 +132,170 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                   // LOGO / BRANDING
-                   const Icon(Icons.rocket_launch_rounded, size: 64, color: AppTheme.primaryBrand)
-                        .animate().fade().scale(),
-                   const SizedBox(height: 16),
-                   Text(
-                     "Planmapp", 
-                     style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)
-                   ).animate().fade().slideY(begin: 0.2, end: 0),
-                   Text(
-                     "Tu mundo, tus planes.", 
-                     style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16)
-                   ).animate().fade(delay: 200.ms),
-                   
-                   const SizedBox(height: 48),
+              child: DefaultTabController(
+                length: 2,
+                child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                     // LOGO / BRANDING
+                     const Icon(Icons.rocket_launch_rounded, size: 64, color: AppTheme.primaryBrand)
+                          .animate().fade().scale(),
+                     const SizedBox(height: 16),
+                     Text(
+                       "Planmapp", 
+                       style: Theme.of(context).textTheme.displaySmall?.copyWith(fontWeight: FontWeight.bold, color: Colors.white, letterSpacing: 1.5)
+                     ).animate().fade().slideY(begin: 0.2, end: 0),
+                     Text(
+                       "Bienvenido de vuelta", 
+                       style: TextStyle(color: Colors.white.withOpacity(0.6), fontSize: 16)
+                     ).animate().fade(delay: 200.ms),
+                     
+                     const SizedBox(height: 48),
 
-                   // GLASS CARD FORM
-                   ClipRRect(
-                       borderRadius: BorderRadius.circular(24),
-                       child: BackdropFilter(
-                           filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                           child: Container(
-                               padding: const EdgeInsets.all(32),
-                               decoration: BoxDecoration(
-                                   color: Colors.white.withOpacity(0.05),
-                                   borderRadius: BorderRadius.circular(24),
-                                   border: Border.all(color: Colors.white.withOpacity(0.1), width: 1)
-                               ),
-                               child: Column(
-                                   children: [
-                                       TextField(
-                                          controller: _emailController,
-                                          style: const TextStyle(color: Colors.white),
-                                          decoration: const InputDecoration(
-                                              labelText: "Correo Electrónico", 
-                                              prefixIcon: Icon(Icons.email_outlined),
-                                          ),
-                                       ),
-                                       const SizedBox(height: 16),
-                                       TextField(
-                                          controller: _passwordController,
-                                          style: const TextStyle(color: Colors.white),
-                                          decoration: const InputDecoration(
-                                              labelText: "Contraseña", 
-                                              prefixIcon: Icon(Icons.lock_outlined)
-                                          ),
-                                          obscureText: true,
-                                       ),
-                                       const SizedBox(height: 12),
-                                       Align(
-                                         alignment: Alignment.centerRight,
-                                         child: TextButton(
-                                           onPressed: () => context.push('/forgot-password'),
-                                           child: Text("¿Olvidaste tu contraseña?", style: TextStyle(color: AppTheme.primaryBrand.withOpacity(0.8))),
+                     // GLASS CARD FORM
+                     ClipRRect(
+                         borderRadius: BorderRadius.circular(24),
+                         child: BackdropFilter(
+                             filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                             child: Container(
+                                 padding: const EdgeInsets.all(24),
+                                 decoration: BoxDecoration(
+                                     color: Colors.white.withOpacity(0.05),
+                                     borderRadius: BorderRadius.circular(24),
+                                     border: Border.all(color: Colors.white.withOpacity(0.1), width: 1)
+                                 ),
+                                 child: Column(
+                                     children: [
+                                         TabBar(
+                                           dividerColor: Colors.transparent,
+                                           indicatorColor: AppTheme.primaryBrand,
+                                           labelColor: AppTheme.primaryBrand,
+                                           unselectedLabelColor: Colors.white60,
+                                           tabs: const [
+                                             Tab(text: "Correo"),
+                                             Tab(text: "Teléfono"),
+                                           ],
                                          ),
-                                       ),
-                                       const SizedBox(height: 24),
-                                       SizedBox(
-                                         width: double.infinity,
-                                         child: ElevatedButton(
-                                           onPressed: _isLoading ? null : _login,
-                                           // Style is now handled globally in theme, but verifying override just in case
-                                           child: _isLoading 
-                                              ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) 
-                                              : const Text("Entrar"),
-                                         ),
-                                       ),
-                                   ],
-                               ),
-                           ),
-                       ),
-                   ).animate().fade(delay: 400.ms).slideY(begin: 0.2, end: 0),
+                                         const SizedBox(height: 24),
+                                         SizedBox(
+                                           height: 310, // Increased height for tabs
+                                           child: TabBarView(
+                                             children: [
+                                               // TAB 1: EMAIL
+                                               Column(
+                                                 children: [
+                                                   TextField(
+                                                      controller: _emailController,
+                                                      style: const TextStyle(color: Colors.white),
+                                                      decoration: const InputDecoration(
+                                                          labelText: "Correo Electrónico", 
+                                                          prefixIcon: Icon(Icons.email_outlined),
+                                                      ),
+                                                   ),
+                                                   const SizedBox(height: 16),
+                                                   TextField(
+                                                      controller: _passwordController,
+                                                      style: const TextStyle(color: Colors.white),
+                                                      decoration: const InputDecoration(
+                                                          labelText: "Contraseña", 
+                                                          prefixIcon: Icon(Icons.lock_outlined)
+                                                      ),
+                                                      obscureText: true,
+                                                   ),
+                                                   Row(
+                                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                       children: [
+                                                           Row(
+                                                               children: [
+                                                                   SizedBox(
+                                                                       width: 24, height: 24,
+                                                                       child: Checkbox(
+                                                                           value: _rememberMe,
+                                                                           activeColor: AppTheme.primaryBrand,
+                                                                           side: const BorderSide(color: Colors.white60),
+                                                                           onChanged: (val) {
+                                                                               setState(() => _rememberMe = val ?? false);
+                                                                           }
+                                                                       )
+                                                                   ),
+                                                                   const SizedBox(width: 8),
+                                                                   const Text("Recordar datos", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                                                               ]
+                                                           ),
+                                                           TextButton(
+                                                             onPressed: () => context.push('/forgot-password'),
+                                                             child: Text("¿Olvidaste tu contraseña?", style: TextStyle(color: AppTheme.primaryBrand.withOpacity(0.8), fontSize: 12)),
+                                                           ),
+                                                       ]
+                                                   ),
+                                                   const SizedBox(height: 16),
+                                                   SizedBox(
+                                                     width: double.infinity,
+                                                     child: ElevatedButton(
+                                                       onPressed: _isLoading ? null : _loginEmail,
+                                                       child: _isLoading 
+                                                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) 
+                                                          : const Text("Entrar"),
+                                                     ),
+                                                   ),
+                                                 ],
+                                               ),
+                                               // TAB 2: PHONE
+                                               Column(
+                                                 children: [
+                                                   TextField(
+                                                      controller: _phoneController,
+                                                      style: const TextStyle(color: Colors.white),
+                                                      keyboardType: TextInputType.phone,
+                                                      decoration: const InputDecoration(
+                                                          labelText: "Número de Teléfono", 
+                                                          prefixIcon: Icon(Icons.phone_iphone),
+                                                      ),
+                                                   ),
+                                                   const SizedBox(height: 16),
+                                                   TextField(
+                                                      controller: _phonePasswordController,
+                                                      style: const TextStyle(color: Colors.white),
+                                                      decoration: const InputDecoration(
+                                                          labelText: "Contraseña", 
+                                                          prefixIcon: Icon(Icons.lock_outlined)
+                                                      ),
+                                                      obscureText: true,
+                                                   ),
+                                                   const SizedBox(height: 48),
+                                                   SizedBox(
+                                                     width: double.infinity,
+                                                     child: ElevatedButton(
+                                                       onPressed: _isLoading ? null : _showComingSoon,
+                                                       child: const Text("Entrar"),
+                                                     ),
+                                                   ),
+                                                 ],
+                                               ),
+                                             ],
+                                           ),
+                                         )
+                                     ],
+                                 ),
+                             ),
+                         ),
+                     ).animate().fade(delay: 400.ms).slideY(begin: 0.2, end: 0),
 
-                   const SizedBox(height: 24),
-                   TextButton(
-                      onPressed: () => context.go('/register'),
-                      child: RichText(
-                          text: TextSpan(
-                              text: "¿No tienes cuenta? ",
-                              style: TextStyle(color: Colors.white.withOpacity(0.6)),
-                              children: const [
-                                  TextSpan(text: "Regístrate gratis", style: TextStyle(color: AppTheme.primaryBrand, fontWeight: FontWeight.bold))
-                              ]
-                          )
-                      ),
-                   ).animate().fade(delay: 600.ms),
-                ],
+                     const SizedBox(height: 24),
+                     TextButton(
+                        onPressed: () => context.go('/register'),
+                        child: RichText(
+                            text: TextSpan(
+                                text: "¿No tienes cuenta? ",
+                                style: TextStyle(color: Colors.white.withOpacity(0.6)),
+                                children: const [
+                                    TextSpan(text: "Regístrate gratis", style: TextStyle(color: AppTheme.primaryBrand, fontWeight: FontWeight.bold))
+                                ]
+                            )
+                        ),
+                     ).animate().fade(delay: 600.ms),
+                  ],
+                ),
               ),
             ),
           ),

@@ -1,6 +1,8 @@
 
-// ... imports
+import 'package:flutter/material.dart';
+import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:planmapp/features/social/services/contacts_service.dart';
+import 'package:planmapp/features/social/services/friendship_service.dart';
 
 class _ContactsTab extends StatefulWidget {
   final ContactsService contactsService;

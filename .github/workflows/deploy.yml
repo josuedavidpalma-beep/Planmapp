@@ -20,9 +20,19 @@ jobs:
 
       # Paso para crear el archivo que le falta a tu backup
       - name: Create API Config
+        env:
+          GEMINI_KEY: ${{ secrets.GEMINI_API_KEY }}
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_ANON_KEY: ${{ secrets.SUPABASE_ANON_KEY }}
         run: |
           mkdir -p lib/core/config
-          echo "class ApiConfig { static const String geminiApiKey = '${{ secrets.GEMINI_API_KEY }}'; }" > lib/core/config/api_config.dart
+          cat > lib/core/config/api_config.dart << EOF
+          class ApiConfig {
+            static const String geminiApiKey = '${GEMINI_KEY}';
+            static const String supabaseUrl = '${SUPABASE_URL}';
+            static const String supabaseAnonKey = '${SUPABASE_ANON_KEY}';
+          }
+          EOF
 
       - run: flutter clean
       - run: flutter pub get
