@@ -1,151 +1,331 @@
+"""
+PLANMAPP RESEARCH AGENT v2.0
+==============================
+Motor: Tavily (búsqueda web) + Gemini 1.5 Flash (extracción/limpieza) + Google Places (geocoding)
+Cron: Diario a las 10:00 UTC (05:00 Colombia)
+Fuentes: Web abierta via Tavily – busca eventos, restaurantes, cultura y rumba por ciudad
+"""
+
 import os
-import requests
-from bs4 import BeautifulSoup
-import google.generativeai as genai
-from supabase import create_client, Client
-from datetime import datetime, timedelta
 import json
 import time
-from flask import Flask, jsonify
 import threading
+from datetime import datetime, timedelta
 
-# --- CONFIGURATION ---
-GEMINI_API_KEY = os.environ.get("GEMINI_API_KEY")
-SUPABASE_URL = os.environ.get("SUPABASE_URL")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY")
+import google.generativeai as genai
+from supabase import create_client, Client
+from flask import Flask, jsonify
 
-# --- SOURCE DICTIONARY (Mejorado: Ciudades del backup + Enlaces de Main) ---
-SOURCE_DICTIONARY = {
-    "Nacional": {
-        "primary": "https://www.eventbrite.co/d/colombia/events/",
-        "secondary": "https://www.tuboleta.com"
-    },
-    "Barranquilla": {
-        "primary": "https://baqucultura.com/calendario/", 
-        "secondary": "https://www.elheraldo.co/entretenimiento" 
-    },
-    "Cartagena": {
-        "primary": "https://www.donde.com.co/es/cartagena/agenda",
-        "secondary": "https://www.eluniversal.com.co/cultural"
-    },
-    "Santa Marta": {
-        "primary": "https://www.santamarta.gov.co/agenda-eventos",
-        "secondary": "https://www.hoydiariodelmagdalena.com.co/category/sociales/"
-    },
-    "Cali": {
-        "primary": "https://www.cali.gov.co/cultura/publicaciones/154517/agenda-cultural-de-cali/",
-        "secondary": "https://elpais.com.co/entretenimiento"
-    },
-    "Medellín": {
-        "primary": "https://www.medellin.gov.co/es/eventos/",
-        "secondary": None
-    }
+# ─── Librerías opcionales (no fallan si no están instaladas) ──────────────────
+try:
+    from tavily import TavilyClient
+    HAS_TAVILY = True
+except ImportError:
+    HAS_TAVILY = False
+    print("⚠️  tavily-python no instalado. Instala: pip install tavily-python")
+
+try:
+    import requests as _requests
+    HAS_REQUESTS = True
+except ImportError:
+    HAS_REQUESTS = False
+
+# ─── Configuración ─────────────────────────────────────────────────────────────
+TAVILY_API_KEY        = os.environ.get("TAVILY_API_KEY")
+GEMINI_API_KEY        = os.environ.get("GEMINI_API_KEY")
+SUPABASE_URL          = os.environ.get("SUPABASE_URL")
+SUPABASE_KEY          = os.environ.get("SUPABASE_KEY")          # service_role key
+GOOGLE_PLACES_API_KEY = os.environ.get("GOOGLE_PLACES_API_KEY")
+
+# ─── Ciudades y categorías objetivo ────────────────────────────────────────────
+CITIES = ["Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena", "Santa Marta"]
+
+CATEGORIES = [
+    {"key": "food",     "label": "Gastronomía",  "query_hint": "restaurantes especiales, happy hour, 2x1 comida, cenas románticas"},
+    {"key": "party",    "label": "Rumba",         "query_hint": "bares de moda, fiestas, eventos nocturnos, música en vivo"},
+    {"key": "culture",  "label": "Cultura",       "query_hint": "museos, exposiciones, teatro, cine, festivales culturales"},
+    {"key": "outdoors", "label": "Aire libre",    "query_hint": "senderismo, playas, parques, deportes acuáticos, naturaleza"},
+]
+
+# Imágenes de respaldo por categoría (Unsplash)
+FALLBACK_IMAGES = {
+    "food":     "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=800",
+    "party":    "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800",
+    "culture":  "https://images.unsplash.com/photo-1533174072545-e8d4aa97edf9?auto=format&fit=crop&q=80&w=800",
+    "outdoors": "https://images.unsplash.com/photo-1502086223501-681a91cc44e7?auto=format&fit=crop&q=80&w=800",
+    "music":    "https://images.unsplash.com/photo-1540039155732-d674d6e3f0be?auto=format&fit=crop&q=80&w=800",
+    "other":    "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80&w=800",
 }
 
-CATEGORY_IMAGES = {
-    "music": ["https://images.unsplash.com/photo-1540039155732-d674d6e3f0be?auto=format&fit=crop&q=80&w=800"],
-    "culture": ["https://images.unsplash.com/photo-1533174072545-e8d4aa97edf9?auto=format&fit=crop&q=80&w=800"],
-    "food": ["https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=800"],
-    "party": ["https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800"],
-    "outdoors": ["https://images.unsplash.com/photo-1502086223501-681a91cc44e7?auto=format&fit=crop&q=80&w=800"],
-    "other": ["https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80&w=800"]
-}
+# ─── Paso 1: Búsqueda con Tavily ───────────────────────────────────────────────
+def search_with_tavily(city: str, category: dict) -> list[dict]:
+    """Usa Tavily para buscar eventos/lugares reales en la web."""
+    if not HAS_TAVILY or not TAVILY_API_KEY:
+        print(f"  [TAVILY] API Key no configurada. Saltando.")
+        return []
 
-def fetch_page_content(url):
+    client = TavilyClient(api_key=TAVILY_API_KEY)
+    today = datetime.now().strftime("%B %Y")  # ej. "April 2026"
+    query = (
+        f"planes y eventos {category['label']} en {city} Colombia {today}. "
+        f"{category['query_hint']}"
+    )
+    print(f"  [TAVILY] Buscando: {query[:80]}...")
     try:
-        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36'}
-        verify_ssl = False if any(x in url for x in ["donde.com.co", "hoydiariodelmagdalena", "santamarta.gov.co"]) else True
-        response = requests.get(url, headers=headers, timeout=20, verify=verify_ssl)
-        if response.status_code == 404: return None
-        return response.text
+        response = client.search(
+            query=query,
+            search_depth="advanced",
+            max_results=7,
+            include_raw_content=False,
+        )
+        return response.get("results", [])
     except Exception as e:
-        print(f"Error fetching URL {url}: {e}")
-        return None
+        print(f"  [TAVILY] Error: {e}")
+        return []
 
-def extract_content_with_gemini(html_content, source_url, city_name):
-    if not GEMINI_API_KEY: return []
+
+# ─── Paso 2: Extracción con Gemini ─────────────────────────────────────────────
+def extract_events_with_gemini(results: list[dict], city: str, category: dict) -> list[dict]:
+    """Usa Gemini para limpiar los snippets de Tavily y extraer eventos estructurados."""
+    if not GEMINI_API_KEY or not results:
+        return []
+
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel('gemini-1.5-flash')
-    
-    soup = BeautifulSoup(html_content, 'html.parser')
-    for script in soup(["script", "style", "nav", "footer"]): script.extract()
-    text_content = soup.get_text(separator=' ', strip=True)[:30000]
+    model = genai.GenerativeModel("gemini-1.5-flash")
 
+    # Formatear los snippets de Tavily para el prompt
+    snippets_text = ""
+    for i, r in enumerate(results):
+        snippets_text += f"\n--- Resultado {i+1} ---\n"
+        snippets_text += f"URL: {r.get('url', '')}\n"
+        snippets_text += f"Título: {r.get('title', '')}\n"
+        snippets_text += f"Contenido: {r.get('content', '')[:500]}\n"
+
+    today_str = datetime.now().strftime("%Y-%m-%d")
     prompt = f"""
-    Eres un agente experto en encontrar PLANES y PROMOCIONES en {city_name}.
-    Prioridad: 2x1, Happy Hour, Descuentos, Comida y Fútbol (solo como plan en bares).
-    Ignora: Noticias de crímenes, política o resultados deportivos.
-    Return STRICT JSON ARRAY (max 5). 
-    Fields: title, date_start, location_name, description, category, image_url, event_link.
-    Source: {text_content}
-    """
+Eres un agente experto en planes y eventos para la app Planmapp en Colombia.
+Analiza los siguientes resultados de búsqueda sobre la categoría "{category['label']}" en {city}.
+
+INSTRUCCIONES:
+- Extrae máximo 4 eventos/planes/lugares reales y concretos
+- Si hay Happy Hour, 2x1, descuentos o promociones: priorízalos
+- Ignora noticias de política, crímenes o deportes puros
+- Si el evento ya pasó (antes de {today_str}), ignóralo
+- Si no hay fecha clara, usa null para date_start
+
+Devuelve ÚNICAMENTE un JSON array válido (sin markdown, sin explicación):
+[
+  {{
+    "title": "Nombre del evento/lugar",
+    "description": "Descripción atractiva de máximo 120 caracteres",
+    "date_start": "YYYY-MM-DD o null",
+    "location_name": "Nombre del lugar o barrio",
+    "address": "Dirección si está disponible o null",
+    "category": "{category['key']}",
+    "source_url": "URL del resultado",
+    "image_url": null
+  }}
+]
+
+Resultados a analizar:
+{snippets_text}
+"""
 
     try:
         response = model.generate_content(prompt)
-        cleaned_text = response.text.replace('```json', '').replace('```', '').strip()
-        events = json.loads(cleaned_text)
-        valid_events = []
-        for e in events:
-            import random
-            cat = e.get('category', 'other')
-            valid_events.append({
-                "title": e.get('title'),
-                "description": e.get('description'),
-                "date": e.get('date_start') or datetime.now().strftime("%Y-%m-%d"),
-                "location": e.get('location_name'),
-                "category": cat,
-                "image_url": e.get('image_url') or random.choice(CATEGORY_IMAGES.get(cat, CATEGORY_IMAGES['other'])),
-                "source_url": e.get('event_link') or source_url,
-                "city": city_name,
-                "address": e.get('location_name'),
-                "contact_info": ""
-            })
-        return valid_events
+        raw = response.text.strip()
+        # Limpiar posibles bloques de código markdown
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        events = json.loads(raw.strip())
+        if not isinstance(events, list):
+            return []
+        return events
     except Exception as e:
-        print(f"Error Gemini: {e}")
+        print(f"  [GEMINI] Error al extraer: {e}")
         return []
 
-def upload_to_supabase(event_data):
-    if not SUPABASE_URL or not SUPABASE_KEY: return
-    supabase: Client = create_client(SUPABASE_URL, SUPABASE_KEY)
+
+# ─── Paso 3: Geocodificación con Google Places ─────────────────────────────────
+def geocode_with_google_places(location_name: str, address: str, city: str) -> dict | None:
+    """Busca coordenadas, rating y foto con Google Places Text Search."""
+    if not GOOGLE_PLACES_API_KEY or not HAS_REQUESTS:
+        return None
+
+    query = f"{address or location_name}, {city}, Colombia"
+    url = "https://maps.googleapis.com/maps/api/place/textsearch/json"
+    params = {
+        "query": query,
+        "key": GOOGLE_PLACES_API_KEY,
+        "language": "es",
+        "region": "co",
+    }
+
     try:
-        existing = supabase.table('events').select("*").eq('title', event_data['title']).execute()
-        if not existing.data:
-            supabase.table('events').insert(event_data).execute()
-            print(f"Subido: {event_data['title']}")
-    except Exception as e: print(f"Error Supabase: {e}")
+        resp = _requests.get(url, params=params, timeout=10)
+        data = resp.json()
+        if data.get("status") != "OK" or not data.get("results"):
+            return None
 
-def process_city(city_name, urls):
-    print(f"\n--- Buscando en {city_name} ---")
-    html = fetch_page_content(urls['primary'])
-    if html:
-        events = extract_content_with_gemini(html, urls['primary'], city_name)
-        for e in events: upload_to_supabase(e)
-        return len(events)
-    return 0
+        place = data["results"][0]
+        loc = place.get("geometry", {}).get("location", {})
+        photo_ref = None
+        if place.get("photos"):
+            photo_ref = place["photos"][0].get("photo_reference")
 
-def main_scrape():
-    for city, urls in SOURCE_DICTIONARY.items():
-        if city == "Nacional": continue
-        process_city(city, urls)
-        time.sleep(5) # Evita bloqueos de API
+        image_url = None
+        if photo_ref:
+            image_url = (
+                f"https://maps.googleapis.com/maps/api/place/photo"
+                f"?maxwidth=800&photo_reference={photo_ref}&key={GOOGLE_PLACES_API_KEY}"
+            )
 
-# --- WEB SERVICE (De tu Backup para Render) ---
+        return {
+            "google_place_id": place.get("place_id"),
+            "latitude": loc.get("lat"),
+            "longitude": loc.get("lng"),
+            "rating_google": place.get("rating"),
+            "user_ratings_total": place.get("user_ratings_total"),
+            "google_image_url": image_url,
+        }
+    except Exception as e:
+        print(f"  [PLACES] Error geocodificando '{query}': {e}")
+        return None
+
+
+# ─── Paso 4: Upsert a Supabase ────────────────────────────────────────────────
+def upsert_event(supabase: Client, event: dict, city: str, category: dict, geo: dict | None):
+    """Inserta o actualiza un evento en Supabase usando source_url como clave única."""
+    if not event.get("title") or not event.get("source_url"):
+        return
+
+    # Construir imagen final (Places > Fallback de Unsplash)
+    image_url = (
+        (geo.get("google_image_url") if geo else None)
+        or event.get("image_url")
+        or FALLBACK_IMAGES.get(category["key"], FALLBACK_IMAGES["other"])
+    )
+
+    record = {
+        "title":            event["title"],
+        "description":      event.get("description"),
+        "date":             event.get("date_start"),
+        "location":         event.get("location_name"),
+        "address":          event.get("address"),
+        "category":         category["key"],
+        "image_url":        image_url,
+        "source_url":       event["source_url"],
+        "city":             city,
+        "contact_info":     "",
+        # Campos de geocodificación (null si no hay Places)
+        "google_place_id":      geo.get("google_place_id") if geo else None,
+        "latitude":             geo.get("latitude") if geo else None,
+        "longitude":            geo.get("longitude") if geo else None,
+        "rating_google":        geo.get("rating_google") if geo else None,
+        "user_ratings_total":   geo.get("user_ratings_total") if geo else None,
+    }
+
+    try:
+        supabase.table("events").upsert(record, on_conflict="source_url").execute()
+        print(f"  ✅ Guardado: {event['title'][:60]}")
+    except Exception as e:
+        print(f"  ❌ Error Supabase: {e}")
+
+
+# ─── Proceso principal ────────────────────────────────────────────────────────
+def run_research_agent():
+    """Itera ciudades × categorías, busca, extrae, geocodifica y guarda."""
+    print(f"\n{'='*60}")
+    print(f"🔍 PLANMAPP RESEARCH AGENT — {datetime.now().strftime('%Y-%m-%d %H:%M')}")
+    print(f"{'='*60}")
+
+    if not SUPABASE_URL or not SUPABASE_KEY:
+        print("❌ SUPABASE_URL o SUPABASE_KEY no configuradas. Abortando.")
+        return
+
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    total_saved = 0
+
+    for city in CITIES:
+        print(f"\n📍 Ciudad: {city}")
+        for category in CATEGORIES:
+            print(f"  🏷️  Categoría: {category['label']}")
+
+            # 1. Búsqueda Tavily
+            results = search_with_tavily(city, category)
+            if not results:
+                print(f"  ⚠️  Sin resultados de Tavily.")
+                time.sleep(2)
+                continue
+
+            # 2. Extracción Gemini
+            events = extract_events_with_gemini(results, city, category)
+            print(f"  📦 {len(events)} eventos extraídos")
+
+            # 3. Para cada evento: geocodificar y guardar
+            for event in events:
+                # Geocodificación Google Places (opcional: no bloquea si falla)
+                geo = geocode_with_google_places(
+                    event.get("location_name", ""),
+                    event.get("address", ""),
+                    city,
+                )
+                upsert_event(supabase, event, city, category, geo)
+                total_saved += 1
+                time.sleep(0.5)  # Rate limiting suave
+
+            time.sleep(3)  # Pausa entre categorías
+
+        time.sleep(5)  # Pausa entre ciudades
+
+    print(f"\n✅ Proceso completado. Total eventos procesados: {total_saved}")
+    print(f"{'='*60}\n")
+
+
+# ─── Servidor Flask (para Render) ─────────────────────────────────────────────
 app = Flask(__name__)
 scrape_lock = threading.Lock()
 
-@app.route('/')
-def home(): return jsonify({"status": "online"}), 200
 
-@app.route('/scrape', methods=['GET', 'POST'])
+@app.route("/")
+def health():
+    return jsonify({"status": "online", "service": "Planmapp Research Agent v2.0"}), 200
+
+
+@app.route("/scrape", methods=["GET", "POST"])
 def trigger_scrape():
-    if not scrape_lock.acquire(blocking=False): return jsonify({"status": "busy"}), 409
-    def run():
-        try: main_scrape()
-        finally: scrape_lock.release()
-    threading.Thread(target=run).start()
-    return jsonify({"status": "started"}), 202
+    """Endpoint para invocar el agente manualmente desde Render o externa."""
+    if not scrape_lock.acquire(blocking=False):
+        return jsonify({"status": "busy", "message": "Ya hay un scrape en curso"}), 409
 
+    def _run():
+        try:
+            run_research_agent()
+        finally:
+            scrape_lock.release()
+
+    threading.Thread(target=_run, daemon=True).start()
+    return jsonify({"status": "started", "message": "Research Agent iniciado en background"}), 202
+
+
+@app.route("/status", methods=["GET"])
+def status():
+    is_running = not scrape_lock.acquire(blocking=False)
+    if not is_running:
+        scrape_lock.release()
+    return jsonify({"running": is_running}), 200
+
+
+# ─── Entry point ──────────────────────────────────────────────────────────────
 if __name__ == "__main__":
-    port = int(os.environ.get("PORT", 10000))
-    app.run(host="0.0.0.0", port=port)
+    # Si se llama directamente (GitHub Actions cron), corre el agente y sale
+    import sys
+    if len(sys.argv) > 1 and sys.argv[1] == "--once":
+        run_research_agent()
+    else:
+        # Modo servidor Render
+        port = int(os.environ.get("PORT", 10000))
+        print(f"🚀 Iniciando servidor en puerto {port}")
+        app.run(host="0.0.0.0", port=port)

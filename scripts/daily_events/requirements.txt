@@ -3,3 +3,4 @@ beautifulsoup4
 google-generativeai>=0.8.3
 supabase
 flask
+tavily-python

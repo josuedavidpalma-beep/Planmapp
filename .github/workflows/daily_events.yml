@@ -23,12 +23,14 @@ jobs:
       - name: Install dependencies
         run: pip install -r scripts/daily_events/requirements.txt
       
-      - name: Run Scraper
-        run: python scripts/daily_events/scrape_events.py
+      - name: Run Research Agent
+        run: python scripts/daily_events/scrape_events.py --once
         env:
+          TAVILY_API_KEY: ${{ secrets.TAVILY_API_KEY }}
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          GOOGLE_PLACES_API_KEY: ${{ secrets.GOOGLE_PLACES_API_KEY }}
 
       # ESTE ES EL FAMOSO PASO "SAVE RESULTS"
       - name: Save Results
