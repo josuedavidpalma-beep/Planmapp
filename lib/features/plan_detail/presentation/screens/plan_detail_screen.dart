@@ -536,10 +536,15 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
     if (!await AuthGuard.ensureAuthenticated(context)) return; // Guard
     HapticFeedback.lightImpact();
     try {
-      await _chatService.sendMessage(widget.planId, _messageController.text);
+      final text = _messageController.text;
+      await _chatService.sendMessage(widget.planId, text);
       _messageController.clear();
       // Wait for frame to scroll
       Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
+      
+      if (text.toLowerCase().contains('@planmapp')) {
+          _chatService.triggerAgent(widget.planId, _plan?.city ?? 'Bogotá');
+      }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
     }
@@ -1291,19 +1296,22 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
   
     final String? myId = Supabase.instance.client.auth.currentUser?.id;
     final bool isMe = msg.userId == myId;
+    final bool isSystem = msg.type == 'system';
+    
     final userProfile = _membersMap[msg.userId];
     String rawName = userProfile?['full_name'] ?? "Usuario";
+    if (isSystem) rawName = "✨ Planmapp Bot";
     if (rawName.trim().isEmpty) rawName = "Usuario";
-    final String senderName = rawName.split(' ')[0]; // First name
+    final String senderName = isSystem ? rawName : rawName.split(' ')[0]; // First name
     
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
-        mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
+        mainAxisAlignment: isSystem ? MainAxisAlignment.center : (isMe ? MainAxisAlignment.end : MainAxisAlignment.start),
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
             // Avatar for others
-            if (!isMe) ...[
+            if (!isMe && !isSystem) ...[
                 CircleAvatar(
                     radius: 16,
                     backgroundColor: Colors.grey[300],
@@ -1318,39 +1326,101 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
             Flexible(
                child: Container(
                   padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * 0.7),
+                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * (isSystem ? 0.85 : 0.7)),
                   decoration: BoxDecoration(
-                    color: isMe ? AppTheme.primaryBrand : Colors.white,
+                    gradient: isSystem ? LinearGradient(colors: [AppTheme.primaryBrand.withOpacity(0.1), AppTheme.secondaryBrand.withOpacity(0.1)]) : null,
+                    color: isSystem ? null : (isMe ? AppTheme.primaryBrand : Colors.white),
                     borderRadius: BorderRadius.only(
-                      topLeft: const Radius.circular(18),
-                      topRight: const Radius.circular(18),
-                      bottomLeft: Radius.circular(isMe ? 18 : 0),
-                      bottomRight: Radius.circular(isMe ? 0 : 18),
+                      topLeft: Radius.circular(isSystem ? 18 : 18),
+                      topRight: Radius.circular(isSystem ? 18 : 18),
+                      bottomLeft: Radius.circular(isSystem ? 18 : (isMe ? 18 : 0)),
+                      bottomRight: Radius.circular(isSystem ? 18 : (isMe ? 0 : 18)),
                     ),
+                    border: isSystem ? Border.all(color: AppTheme.primaryBrand.withOpacity(0.5)) : null,
                     boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1))],
                   ),
                   child: Column(
-                    crossAxisAlignment: isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start,
+                    crossAxisAlignment: isSystem ? CrossAxisAlignment.center : (isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start),
                     children: [
                        // Sender Name (Only for others in Group Chat context)
-                       if (!isMe)
+                       if (!isMe || isSystem)
                            Padding(
                                padding: const EdgeInsets.only(bottom: 4),
-                               child: Text(senderName, style: TextStyle(color: Colors.pink[300], fontSize: 11, fontWeight: FontWeight.bold)),
+                               child: Text(
+                                   senderName, 
+                                   style: TextStyle(
+                                       color: isSystem ? AppTheme.primaryBrand : Colors.pink[300], 
+                                       fontSize: isSystem ? 13 : 11, 
+                                       fontWeight: FontWeight.bold
+                                   )
+                               ),
                            ),
                        
                        Text(
                          msg.content, 
+                         textAlign: isSystem ? TextAlign.center : TextAlign.start,
                          style: TextStyle(
-                           color: isMe ? Colors.white : Colors.black87,
+                           color: isSystem ? Colors.black87 : (isMe ? Colors.white : Colors.black87),
                            fontSize: 15,
                          ),
                        ),
-                       const SizedBox(height: 2),
+                       
+                       // Event metadata integration
+                       if (isSystem && msg.metadata != null && msg.metadata!['suggested_event'] != null) ...[
+                           const SizedBox(height: 12),
+                           Container(
+                               padding: const EdgeInsets.all(8),
+                               decoration: BoxDecoration(
+                                   color: Colors.white,
+                                   borderRadius: BorderRadius.circular(12),
+                               ),
+                               child: Row(
+                                   children: [
+                                       ClipRRect(
+                                           borderRadius: BorderRadius.circular(8),
+                                           child: Image.network(
+                                               msg.metadata!['suggested_event']['image_url'] ?? 'https://via.placeholder.com/150',
+                                               width: 50, height: 50, fit: BoxFit.cover,
+                                               errorBuilder: (_,__,___) => const Icon(Icons.broken_image)
+                                           )
+                                       ),
+                                       const SizedBox(width: 12),
+                                       Expanded(
+                                           child: Column(
+                                               crossAxisAlignment: CrossAxisAlignment.start,
+                                               children: [
+                                                   Text(msg.metadata!['suggested_event']['title'] ?? 'Plan', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                                   Text(msg.metadata!['suggested_event']['location'] ?? 'Ubicación', style: const TextStyle(fontSize: 11, color: Colors.grey), maxLines: 1),
+                                               ],
+                                           )
+                                       )
+                                   ]
+                               )
+                           ),
+                           const SizedBox(height: 8),
+                           SizedBox(
+                               width: double.infinity,
+                               child: ElevatedButton(
+                                   onPressed: () {
+                                       HapticFeedback.lightImpact();
+                                       final suggestedEvent = msg.metadata!['suggested_event'];
+                                       
+                                       // Open Poll Dialog to ask group if they want this specifically
+                                       _showCreatePollDialog(
+                                           initialQuestion: "¿Agregamos el plan de ${suggestedEvent['title']}?",
+                                       );
+                                   },
+                                   style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, elevation: 0),
+                                   child: const Text("Hacer Votación", style: TextStyle(fontSize: 12))
+                               ),
+                           )
+                       ],
+
+                       const SizedBox(height: 4),
                        Text(
                          DateFormat('HH:mm').format(msg.createdAt),
                          style: TextStyle(
-                           color: isMe ? Colors.white70 : Colors.black38,
+                           color: isSystem ? Colors.grey : (isMe ? Colors.white70 : Colors.black38),
                            fontSize: 10,
                          ),
                        ),
@@ -1362,6 +1432,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
       ),
     );
   }
+
 
   Widget _buildMessageInput() {
     return SafeArea(
