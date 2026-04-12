@@ -54,15 +54,21 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         return '/onboarding'; // Default landing for guests
       }
 
+      final isAnonymous = session?.user.isAnonymous ?? false;
+
       if (isLoggedIn && isLoggingIn) {
         // Allow the register screen to manually navigate to onboarding-setup on success
         if (state.uri.path == '/register') return null;
+        
+        // If the user is anonymous, allow them to view auth screens to upgrade their account
+        if (isAnonymous) return null;
+
         return '/'; // Already logged in
       }
 
       // If logged in but no nickname → send to onboarding-setup (first time)
       // BUT: anonymous/guest users skip this - they don't need a profile
-      final isAnonymous = session?.user.isAnonymous ?? false;
+
       if (isLoggedIn && !isAnonymous && !isPublic && state.uri.path != '/onboarding-setup') {
         try {
           final uid = session.user.id;
