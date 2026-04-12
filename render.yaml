@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: planmapp-research-agent
+    runtime: python
+    buildCommand: pip install -r scripts/daily_events/requirements.txt
+    startCommand: gunicorn wsgi:app --bind 0.0.0.0:$PORT --workers 1 --timeout 120 --log-level info
+    envVars:
+      - key: SUPABASE_URL
+        sync: false
+      - key: SUPABASE_KEY
+        sync: false
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: TAVILY_API_KEY
+        sync: false
+      - key: GOOGLE_PLACES_API_KEY
+        sync: false

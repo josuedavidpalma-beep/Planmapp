@@ -27,12 +27,19 @@ BEGIN
 END
 $$;
 
--- Update the insert policy to also allow authenticated users (for the agent using service_role)
--- The service_role bypasses RLS automatically, but this makes intent explicit
-CREATE POLICY IF NOT EXISTS "Allow authenticated insert" 
-  ON public.events FOR INSERT
-  TO authenticated
-  WITH CHECK (true);
+-- Update the insert policy to allow authenticated users
+-- Using DO block because PostgreSQL doesn't support IF NOT EXISTS for policies
+DO $$
+BEGIN
+  IF NOT EXISTS (
+    SELECT 1 FROM pg_policies
+    WHERE tablename = 'events'
+    AND policyname = 'Allow authenticated insert'
+  ) THEN
+    EXECUTE 'CREATE POLICY "Allow authenticated insert" ON public.events FOR INSERT TO authenticated WITH CHECK (true)';
+  END IF;
+END
+$$;
 
 -- Create index on city for faster filtering
 CREATE INDEX IF NOT EXISTS events_city_idx ON public.events (city);
