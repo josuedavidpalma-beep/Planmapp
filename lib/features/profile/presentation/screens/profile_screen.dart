@@ -129,7 +129,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
           content: Text('✅ Perfil actualizado'),
           backgroundColor: Colors.green,
         ));
-        context.pop();
       }
     } catch (e) {
       if (mounted) {
