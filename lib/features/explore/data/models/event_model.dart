@@ -11,6 +11,10 @@ class Event {
   final String? address;
   final String? contactInfo;
   final String city;
+  final double? latitude;
+  final double? longitude;
+  final String? googlePlaceId;
+  final double? ratingGoogle;
 
   Event({
     required this.id,
@@ -25,6 +29,10 @@ class Event {
     this.address,
     this.contactInfo,
     this.city = 'Bogotá',
+    this.latitude,
+    this.longitude,
+    this.googlePlaceId,
+    this.ratingGoogle,
   });
 
   factory Event.fromJson(Map<String, dynamic> json) {
@@ -41,6 +49,10 @@ class Event {
       address: json['address'] as String?,
       contactInfo: json['contact_info'] as String?,
       city: json['city'] as String? ?? 'Bogotá',
+      latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
+      longitude: json['longitude'] != null ? (json['longitude'] as num).toDouble() : null,
+      googlePlaceId: json['google_place_id'] as String?,
+      ratingGoogle: json['rating_google'] != null ? (json['rating_google'] as num).toDouble() : null,
     );
   }
 
@@ -58,6 +70,10 @@ class Event {
       'address': address,
       'contact_info': contactInfo,
       'city': city,
+      'latitude': latitude,
+      'longitude': longitude,
+      'google_place_id': googlePlaceId,
+      'rating_google': ratingGoogle,
     };
   }
 }

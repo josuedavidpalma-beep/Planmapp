@@ -19,8 +19,8 @@ class EventsService {
       }
       return [];
     } catch (e) {
-      // Handle error gracefully or rethrow
-      // debugPrint('Error fetching events: $e'); // using debugPrint if available or just silence for now
+      print('=== EventsService Error ===');
+      print(e);
       return [];
     }
   }

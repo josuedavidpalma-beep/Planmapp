@@ -11,7 +11,6 @@ import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:planmapp/features/venues/presentation/widgets/instagram_reel_feed.dart';
 import 'package:planmapp/core/presentation/widgets/premium_empty_state.dart';
 import 'package:planmapp/core/presentation/widgets/guest_barrier.dart';
 import 'package:planmapp/core/presentation/widgets/skeleton_loader.dart';
@@ -278,24 +277,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       _buildFilterChip("Rumba"),
                       _buildFilterChip("Aire Libre"),
                       _buildFilterChip("Cultura"),
-                      _buildFilterChip("📸 Reels"),
+                      _buildFilterChip("Música"),
                     ],
                   ),
                 ),
                  const SizedBox(height: 24),
-    
-                // SWITCHING VISUALIZATION FOR TIKTOK FEED
-                if (_selectedFilter == "📸 Reels")
-                   SizedBox(
-                       height: MediaQuery.of(context).size.height * 0.65, // Adjust vertical fill
-                       child: InstagramEmbedFeed(
-                           instagramUrls: const [
-                              "https://www.instagram.com/reel/DE-R9bSR20Q/",
-                              "https://www.instagram.com/p/DBhCHf7y6I-/",
-                              "https://www.instagram.com/p/DB4f1Q8SiB5/"
-                           ] // Mock URLs para MVP, idealmente vienen de DB para locales
-                       ),
-                   )
                 // CLASIC FEED CARDS
                 else if (filteredEvents.isEmpty)
                    const PremiumEmptyState(
@@ -429,6 +415,45 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                       if (event.description != null)
                                           Text(event.description!, style: const TextStyle(fontSize: 14, height: 1.5), maxLines: 3, overflow: TextOverflow.ellipsis),
                                       const SizedBox(height: 24),
+                                      
+                                      // DYNAMIC CTAs
+                                      if (event.sourceUrl != null && event.sourceUrl!.isNotEmpty)
+                                        Padding(
+                                          padding: const EdgeInsets.only(bottom: 12),
+                                          child: SizedBox(
+                                            width: double.infinity,
+                                            height: 50,
+                                            child: ElevatedButton.icon(
+                                              onPressed: () async {
+                                                final u = Uri.parse(event.sourceUrl!);
+                                                if (await canLaunchUrl(u)) {
+                                                  await launchUrl(u, mode: LaunchMode.externalApplication);
+                                                }
+                                              },
+                                              icon: Icon(
+                                                event.sourceUrl!.contains('tuboleta') || event.sourceUrl!.contains('eticket') || event.sourceUrl!.contains('entradas') 
+                                                ? Icons.local_activity
+                                                : event.sourceUrl!.contains('wa.me') || event.sourceUrl!.contains('whatsapp')
+                                                  ? Icons.chat
+                                                  : Icons.open_in_browser,
+                                                color: AppTheme.primaryBrand
+                                              ),
+                                              style: ElevatedButton.styleFrom(
+                                                backgroundColor: AppTheme.primaryBrand.withOpacity(0.1),
+                                                foregroundColor: AppTheme.primaryBrand,
+                                                elevation: 0,
+                                              ),
+                                              label: Text(
+                                                event.sourceUrl!.contains('tuboleta') || event.sourceUrl!.contains('eticket') || event.sourceUrl!.contains('entradas') 
+                                                ? "Comprar Entradas"
+                                                : event.sourceUrl!.contains('wa.me') || event.sourceUrl!.contains('whatsapp')
+                                                  ? "Reservar por WhatsApp"
+                                                  : "Ver sitio oficial",
+                                                style: const TextStyle(fontWeight: FontWeight.bold)
+                                              )
+                                            ),
+                                          ),
+                                        ),
 
                                       SizedBox(
                                           width: double.infinity,
