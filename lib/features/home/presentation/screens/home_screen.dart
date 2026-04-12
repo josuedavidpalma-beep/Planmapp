@@ -29,6 +29,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   final List<String> _cities = ["Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena"];
   bool _isLocating = false;
   String _userName = "";
+  bool _showCompleteProfileBanner = false;
 
   @override
   void initState() {
@@ -39,13 +40,26 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   Future<void> _fetchUserName() async {
       try {
-          final uid = Supabase.instance.client.auth.currentUser?.id;
-          if (uid != null) {
-              final data = await Supabase.instance.client.from('profiles').select('full_name, display_name').eq('id', uid).single();
-              final name = data['display_name'] ?? data['full_name'] ?? "";
-              if (mounted && name.isNotEmpty) {
-                  setState(() => _userName = name.split(" ")[0]);
-              }
+          final user = Supabase.instance.client.auth.currentUser;
+          if (user == null) return;
+          // Don't show banner for anonymous/guest users
+          final isAnon = user.isAnonymous ?? false;
+          final data = await Supabase.instance.client
+              .from('profiles')
+              .select('full_name, display_name, nickname')
+              .eq('id', user.id)
+              .maybeSingle();
+          if (data == null) return;
+          final nickname = data['nickname'] as String?;
+          final name = nickname?.isNotEmpty == true
+              ? nickname!
+              : (data['display_name'] ?? data['full_name'] ?? "");
+          if (mounted) {
+              setState(() {
+                _userName = name.split(" ")[0];
+                // Show banner if registered (non-anon) user has no nickname yet
+                _showCompleteProfileBanner = !isAnon && (nickname == null || nickname.isEmpty);
+              });
           }
       } catch (e) {
           // Fallback to empty
@@ -219,6 +233,40 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
                 const SizedBox(height: 24),
     
+                // PROFILE COMPLETION BANNER
+                if (_showCompleteProfileBanner)
+                  GestureDetector(
+                    onTap: () => context.push('/profile'),
+                    child: Container(
+                      width: double.infinity,
+                      margin: const EdgeInsets.only(bottom: 16),
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppTheme.primaryBrand.withOpacity(0.1), AppTheme.secondaryBrand.withOpacity(0.1)],
+                        ),
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: AppTheme.primaryBrand.withOpacity(0.3)),
+                      ),
+                      child: Row(
+                        children: [
+                          const Text('🎯', style: TextStyle(fontSize: 24)),
+                          const SizedBox(width: 12),
+                          const Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('¡Completa tu perfil!', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                                Text('Elige un nickname e intereses para planes más personalizados.', style: TextStyle(fontSize: 12, color: Colors.grey)),
+                              ],
+                            ),
+                          ),
+                          Icon(Icons.arrow_forward_ios, size: 14, color: AppTheme.primaryBrand),
+                        ],
+                      ),
+                    ),
+                  ),
+
                 // CHIPS / FILTERS
                 SizedBox(
                   height: 40,

@@ -13,6 +13,7 @@ class ProfileScreen extends StatefulWidget {
 
 class _ProfileScreenState extends State<ProfileScreen> {
   final _nameController = TextEditingController();
+  final _nicknameController = TextEditingController();
   final _phoneController = TextEditingController();
   bool _isLoading = true;
   String? _avatarUrl;
@@ -20,7 +21,24 @@ class _ProfileScreenState extends State<ProfileScreen> {
   DateTime? _birthday;
   String _selectedCountryCode = '+57';
   List<String> _selectedPreferences = [];
+  List<String> _selectedInterests = [];
+  String _budgetLevel = 'bacano';
   List<Map<String, dynamic>> _paymentMethods = [];
+
+  static const _budgetOptions = [
+    {'key': 'economico', 'label': '💰 Económico', 'sub': 'Planes sin gastar mucho'},
+    {'key': 'bacano',    'label': '🎉 Bacano',    'sub': 'Buen ambiente, precio justo'},
+    {'key': 'play',      'label': '✨ Play',       'sub': 'Experiencias premium'},
+  ];
+
+  static const _interestOptions = [
+    {'key': 'gastronomy', 'label': '🍔 Gastronomía'},
+    {'key': 'nightlife',  'label': '🎉 Rumba'},
+    {'key': 'culture',    'label': '🎭 Cultura'},
+    {'key': 'outdoors',   'label': '🌿 Naturaleza'},
+    {'key': 'cinema',     'label': '🎬 Cine'},
+    {'key': 'sports',     'label': '⚽ Deportes'},
+  ];
 
   final List<String> _countryCodes = ['+57', '+1', '+52', '+54', '+56', '+51', '+55', '+593', '+507', '+506'];
   final Map<String, IconData> _prefOptions = {
@@ -54,12 +72,19 @@ class _ProfileScreenState extends State<ProfileScreen> {
       if (mounted && data != null) {
         setState(() {
           _nameController.text = data['display_name'] ?? data['full_name'] ?? "";
+          _nicknameController.text = data['nickname'] ?? "";
           _phoneController.text = data['phone'] ?? "";
           _avatarUrl = data['avatar_url'];
           _email = Supabase.instance.client.auth.currentUser?.email;
           _selectedCountryCode = data['country_code'] ?? '+57';
-          if (data['birthday'] != null) {
+          _budgetLevel = data['budget_level'] ?? 'bacano';
+          if (data['birth_date'] != null) {
+            _birthday = DateTime.tryParse(data['birth_date']);
+          } else if (data['birthday'] != null) {
             _birthday = DateTime.tryParse(data['birthday']);
+          }
+          if (data['interests'] != null) {
+            _selectedInterests = List<String>.from(data['interests']);
           }
           if (data['preferences'] != null) {
             _selectedPreferences = List<String>.from(data['preferences']);
@@ -69,6 +94,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
           _isLoading = false;
         });
+      } else if (mounted) {
+        setState(() => _isLoading = false);
       }
     } catch (e) {
       if (mounted) {
@@ -86,15 +113,22 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'id': userId,
         'full_name': _nameController.text.trim(),
         'display_name': _nameController.text.trim(),
+        'nickname': _nicknameController.text.trim(),
         'phone': _phoneController.text.trim(),
         'country_code': _selectedCountryCode,
+        'birth_date': _birthday?.toIso8601String(),
         'birthday': _birthday?.toIso8601String(),
+        'budget_level': _budgetLevel,
+        'interests': _selectedInterests,
         'preferences': _selectedPreferences,
         'payment_methods': _paymentMethods,
         'updated_at': DateTime.now().toIso8601String(),
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Perfil actualizado')));
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+          content: Text('✅ Perfil actualizado'),
+          backgroundColor: Colors.green,
+        ));
         context.pop();
       }
     } catch (e) {
@@ -320,9 +354,21 @@ class _ProfileScreenState extends State<ProfileScreen> {
                   TextField(
                     controller: _nameController,
                     decoration: InputDecoration(
-                      labelText: "Nombre",
+                      labelText: "Nombre completo",
                       border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
                       prefixIcon: const Icon(Icons.person_outline),
+                    ),
+                  ),
+                  const SizedBox(height: 16),
+
+                  // Nickname
+                  TextField(
+                    controller: _nicknameController,
+                    decoration: InputDecoration(
+                      labelText: "@Nickname (cómo te ven en planes)",
+                      hintText: "ej. Josu, Palma, ElJefe...",
+                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+                      prefixIcon: const Icon(Icons.alternate_email_rounded),
                     ),
                   ),
                   const SizedBox(height: 24),
@@ -388,8 +434,55 @@ class _ProfileScreenState extends State<ProfileScreen> {
                      ),
                    ),
 
-                  const SizedBox(height: 32),
-                  const Text("¿Qué te mueve? ✨", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  // Interests (from onboarding)
+                  const SizedBox(height: 24),
+                  const Text("Mis Intereses 🎯", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 4),
+                  const Text("Esto personaliza el feed y las sugerencias del asistente.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const SizedBox(height: 12),
+                  Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
+                    children: _interestOptions.map((opt) {
+                      final isSelected = _selectedInterests.contains(opt['key']);
+                      return FilterChip(
+                        label: Text(opt['label']!),
+                        selected: isSelected,
+                        selectedColor: AppTheme.primaryBrand,
+                        labelStyle: TextStyle(color: isSelected ? Colors.white : AppTheme.bodyTextSoft),
+                        onSelected: (selected) {
+                          setState(() {
+                            if (selected) {
+                              _selectedInterests.add(opt['key']!);
+                            } else {
+                              _selectedInterests.remove(opt['key']);
+                            }
+                          });
+                        },
+                      );
+                    }).toList(),
+                  ),
+
+                  // Budget level
+                  const SizedBox(height: 24),
+                  const Text("Nivel de Presupuesto 💸", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 12),
+                  ..._budgetOptions.map((opt) {
+                    final isSelected = _budgetLevel == opt['key'];
+                    return RadioListTile<String>(
+                      value: opt['key']!,
+                      groupValue: _budgetLevel,
+                      title: Text(opt['label']!, style: TextStyle(fontWeight: isSelected ? FontWeight.bold : FontWeight.normal)),
+                      subtitle: Text(opt['sub']!),
+                      activeColor: AppTheme.primaryBrand,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                      tileColor: isSelected ? AppTheme.primaryBrand.withOpacity(0.05) : null,
+                      onChanged: (val) => setState(() => _budgetLevel = val!),
+                    );
+                  }),
+
+                  const SizedBox(height: 24),
+                  const Text("Otras Preferencias ✨", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 8),
                   Wrap(
                     spacing: 8,
