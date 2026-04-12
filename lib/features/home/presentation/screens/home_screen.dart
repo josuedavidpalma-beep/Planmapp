@@ -304,20 +304,22 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                            )
                        )
                    )
-                else if (filteredEvents.isEmpty)
-                   const PremiumEmptyState(
-                     icon: Icons.search_off_rounded,
-                     title: "Mmm, está muy tranquilo",
-                     subtitle: "No encontramos planes para esta categoría hoy. ¿Por qué no creas tu propio plan?",
-                   )
-                else
-                   ...filteredEvents.map((event) => _AnimatedPlanCard(
-                      title: event.title, 
-                      subtitle: "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", 
-                      imageUrl: event.imageUrl ?? "https://via.placeholder.com/600",
-                      event: event,
-                      onTap: () => _showPlanPreview(context, event.title, "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", event.imageUrl ?? "https://via.placeholder.com/600", event)
-                   )),
+                else ...[
+                   if (filteredEvents.isEmpty)
+                      const PremiumEmptyState(
+                        icon: Icons.search_off_rounded,
+                        title: "Mmm, está muy tranquilo",
+                        subtitle: "No encontramos planes para esta categoría hoy. ¿Por qué no creas tu propio plan?",
+                      )
+                   else
+                      ...filteredEvents.map((event) => _AnimatedPlanCard(
+                         title: event.title, 
+                         subtitle: "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", 
+                         imageUrl: event.imageUrl ?? "https://via.placeholder.com/600",
+                         event: event,
+                         onTap: () => _showPlanPreview(context, event.title, "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", event.imageUrl ?? "https://via.placeholder.com/600", event)
+                      )),
+                ],
 
 
                 const SizedBox(height: 80), // Bottom padding

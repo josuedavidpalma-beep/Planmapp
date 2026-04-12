@@ -543,7 +543,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
       Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
       
       if (text.toLowerCase().contains('@planmapp')) {
-          _chatService.triggerAgent(widget.planId, _plan?.city ?? 'Bogotá');
+          _chatService.triggerAgent(widget.planId, _plan?.locationName ?? 'Bogotá');
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
