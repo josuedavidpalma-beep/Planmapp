@@ -14,6 +14,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:planmapp/core/presentation/widgets/premium_empty_state.dart';
 import 'package:planmapp/core/presentation/widgets/guest_barrier.dart';
 import 'package:planmapp/core/presentation/widgets/skeleton_loader.dart';
+import 'package:planmapp/features/home/presentation/widgets/discover_map.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -29,6 +30,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isLocating = false;
   String _userName = "";
   bool _showCompleteProfileBanner = false;
+  bool _isMapView = false;
 
   @override
   void initState() {
@@ -161,6 +163,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         centerTitle: true,
         actions: [
           IconButton(
+            icon: Icon(_isMapView ? Icons.view_agenda_rounded : Icons.map_rounded, color: AppTheme.primaryBrand),
+            onPressed: () {
+                setState(() => _isMapView = !_isMapView);
+            },
+          ),
+          IconButton(
             icon: Icon(ref.watch(themeProvider) == ThemeMode.light ? Icons.dark_mode_rounded : Icons.light_mode_rounded),
              onPressed: () {
                  ref.read(themeProvider.notifier).toggle();
@@ -281,8 +289,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     ],
                   ),
                 ),
-                 const SizedBox(height: 24),
-                // CLASIC FEED CARDS
+                const SizedBox(height: 24),
+                
+                // MAP OR LIST VIEW
+                if (_isMapView)
+                   SizedBox(
+                       height: MediaQuery.of(context).size.height * 0.6,
+                       child: ClipRRect(
+                           borderRadius: BorderRadius.circular(20),
+                           child: DiscoverMap(
+                               events: filteredEvents,
+                               city: _selectedCity,
+                               onEventTap: (event) => _showPlanPreview(context, event.title, "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", event.imageUrl ?? "https://via.placeholder.com/600", event)
+                           )
+                       )
+                   )
                 else if (filteredEvents.isEmpty)
                    const PremiumEmptyState(
                      icon: Icons.search_off_rounded,
@@ -297,6 +318,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       event: event,
                       onTap: () => _showPlanPreview(context, event.title, "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", event.imageUrl ?? "https://via.placeholder.com/600", event)
                    )),
+
 
                 const SizedBox(height: 80), // Bottom padding
               ],
