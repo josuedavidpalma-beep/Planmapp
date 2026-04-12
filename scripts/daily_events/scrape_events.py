@@ -14,7 +14,12 @@ from datetime import datetime, timedelta
 
 import google.generativeai as genai
 from supabase import create_client, Client
-from flask import Flask, jsonify
+from flask import Flask, jsonify, request
+try:
+    from flask_cors import CORS
+except ImportError:
+    # If not installed yet, just a dummy no-op
+    pass
 
 # ─── Librerías opcionales (no fallan si no están instaladas) ──────────────────
 try:
@@ -284,8 +289,11 @@ def run_research_agent():
     print(f"{'='*60}\n")
 
 
-# ─── Servidor Flask (para Render) ─────────────────────────────────────────────
 app = Flask(__name__)
+try:
+    CORS(app)
+except NameError:
+    pass
 scrape_lock = threading.Lock()
 
 
@@ -316,6 +324,106 @@ def status():
     if not is_running:
         scrape_lock.release()
     return jsonify({"running": is_running}), 200
+
+
+@app.route("/chat_agent", methods=["POST"])
+def chat_agent():
+    """
+    Asistente Social IA: Recibe contexto de chat y UUIDs.
+    Retorna la mejor sugerencia de plan de la BD basada en los perfiles del grupo.
+    """
+    if not SUPABASE_URL or not SUPABASE_KEY or not GEMINI_API_KEY:
+        return jsonify({"error": "Faltan API keys en el backend"}), 500
+
+    data = request.json or {}
+    plan_id = data.get("plan_id")
+    city = data.get("city", "Bogotá")
+
+    if not plan_id:
+        return jsonify({"error": "Falta plan_id"}), 400
+
+    supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    
+    # 0. Obtener miembros del plan y últimos mensajes
+    try:
+        plan_res = supabase.table("plans").select("members").eq("id", plan_id).single().execute()
+        members = plan_res.data.get("members", [])
+        
+        msgs_res = supabase.table("messages").select("content, profiles(nickname)").eq("plan_id", plan_id).order("created_at", desc=True).limit(15).execute()
+        # Invertir para que estén en orden cronológico
+        message_context = [{"sender": m.get("profiles", {}).get("nickname", "Alguien"), "text": m.get("content")} for m in reversed(msgs_res.data)]
+    except Exception as e:
+        return jsonify({"error": f"Error fetch BD: {e}"}), 500
+
+    if not members:
+        return jsonify({"error": "No hay miembros en el plan"}), 400
+
+    # 1. Obtener perfiles del grupo
+    try:
+        profiles_res = supabase.table("profiles").select("nickname, interests, budget_level, preferences").in_("id", members).execute()
+        profiles = profiles_res.data
+    except Exception as e:
+        return jsonify({"error": f"Error fetch perfiles: {e}"}), 500
+
+    # 2. Obtener eventos recientes en la ciudad (max 50 para que Gemini procese bien)
+    try:
+        events_res = supabase.table("events").select("*").eq("city", city).order("created_at", desc=True).limit(50).execute()
+        events = events_res.data
+    except Exception as e:
+        return jsonify({"error": f"Error fetch eventos: {e}"}), 500
+
+    if not events:
+        return jsonify({"error": "No hay eventos en la cartelera para esta ciudad"}), 404
+
+    # 3. Preparar Prompt para Gemini
+    genai.configure(api_key=GEMINI_API_KEY)
+    model = genai.GenerativeModel("gemini-2.0-flash")
+
+    prompt = f"""
+Eres '@planmapp', el Asistente Social Inteligente en un grupo de chat de amigos.
+Tu misión es analizar el contexto de su conversación y sus perfiles, para seleccionar el SÚPER MEJOR PLAN dentro de una lista de eventos disponibles.
+
+# PERFILES DEL GRUPO:
+{json.dumps(profiles, ensure_ascii=False)}
+
+# ÚLTIMOS MENSAJES DEL CHAT:
+{json.dumps(message_context, ensure_ascii=False)}
+
+# CARTELERA DE EVENTOS DISPONIBLES EN {city} HOY:
+{json.dumps(events, ensure_ascii=False)}
+
+INSTRUCCIONES:
+1. Encuentra los intereses comunes del grupo (majority logic).
+2. Lee el chat para ver qué tienen ganas de hacer hoy.
+3. Elige SOLO 1 evento de la Cartelera (el que tenga el ID exacto).
+4. Redacta un mensaje amable, cool, conciso, de máximo 3 líneas como asistente recomendando el plan.
+
+RESPONDE SOLAMENTE UN JSON VÁLIDO SIN MARKDOWN:
+{{
+  "rationale": "Tu mensaje genial para el grupo justificando la decisión basándote en que a todos les gusta X o lo que leíste en chat",
+  "suggested_event_id": "EL_ID_EXACTO_DEL_EVENTO_ELEGIDO"
+}}
+"""
+    try:
+        response = model.generate_content(prompt)
+        raw = response.text.strip()
+        if raw.startswith("```"):
+            raw = raw.split("```")[1]
+            if raw.startswith("json"):
+                raw = raw[4:]
+        
+        parsed = json.loads(raw.strip())
+        
+        # Encontrar el evento completo de vuelta
+        selected_id = parsed.get("suggested_event_id")
+        selected_event = next((e for e in events if str(e.get("id")) == str(selected_id)), None)
+
+        return jsonify({
+            "rationale": parsed.get("rationale", "¡Este plan está buenísimo para ustedes!"),
+            "event": selected_event
+        }), 200
+    except Exception as e:
+        return jsonify({"error": f"Error AI Processing: {e}"}), 500
 
 
 # ─── Entry point ──────────────────────────────────────────────────────────────
