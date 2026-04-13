@@ -38,7 +38,7 @@ class PlanDetailScreen extends StatefulWidget {
 }
 
 
-class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerProviderStateMixin {
+class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProviderStateMixin {
   late TabController _tabController;
   Plan? _plan;
   bool _isLoading = true;
@@ -56,8 +56,8 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
   @override
   void initState() {
     super.initState();
-    // Reduced to 4 tabs
-    _tabController = TabController(length: 4, vsync: this);
+    // We initialize with 1 tab initially (Chat), will update when data loads
+    _tabController = TabController(length: 1, vsync: this);
     
     // Initialize streams safely
     try {
@@ -114,6 +114,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
           _myRole = role;
           _isLoading = false;
         });
+        _updateTabs();
       }
     } catch (e) {
       if (mounted) {
@@ -121,6 +122,34 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error cargando plan: $e")));
       }
     }
+  }
+
+  void _updateTabs() {
+      if (_plan == null) return;
+      int requiredLength = 1; // Chat
+      
+      final bool hasItinerary = _plan!.eventDate != null || _plan!.locationName.isNotEmpty;
+      if (hasItinerary) {
+          requiredLength++;
+          final String payMode = _plan!.paymentMode ?? 'individual';
+          if (payMode == 'split' || payMode == 'pool') {
+              requiredLength++;
+          }
+      }
+      
+      if (_tabController.length != requiredLength) {
+          final int oldIndex = _tabController.index;
+          _tabController.dispose();
+          _tabController = TabController(
+             length: requiredLength, 
+             vsync: this, 
+             initialIndex: oldIndex < requiredLength ? oldIndex : 0
+          );
+          _tabController.addListener(() {
+              if (!_tabController.indexIsChanging) setState((){});
+          });
+          if (mounted) setState(() {});
+      }
   }
 
   // Fetch members for Chat avatars
@@ -209,10 +238,12 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
             controller: _tabController,
             children: [
                isDesktop ? const Center(child: Text("El chat está abierto en el panel derecho 👉", style: TextStyle(color: Colors.grey))) : _buildChatAndPolls(), 
-                ItineraryPlanTab(planId: widget.planId, userRole: _myRole, planDate: _plan!.eventDate),
-               BudgetPlanTab(planId: widget.planId),
-               ExpensesPlanTab(planId: widget.planId, userRole: _myRole),
-               // GamesPlanTab REMOVED
+               if (_plan?.eventDate != null || (_plan?.locationName.isNotEmpty ?? false))
+                   ItineraryPlanTab(planId: widget.planId, userRole: _myRole, planDate: _plan!.eventDate),
+               if ((_plan?.eventDate != null || (_plan?.locationName.isNotEmpty ?? false)) && _plan?.paymentMode == 'pool')
+                   BudgetPlanTab(planId: widget.planId),
+               if ((_plan?.eventDate != null || (_plan?.locationName.isNotEmpty ?? false)) && _plan?.paymentMode == 'split')
+                   ExpensesPlanTab(planId: widget.planId, userRole: _myRole),
             ],
           ),
         );
@@ -322,12 +353,14 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
                       labelColor: AppTheme.primaryBrand,
                       unselectedLabelColor: Colors.grey,
                       indicatorColor: AppTheme.primaryBrand,
-                      tabs: const [
-                          Tab(icon: Icon(Icons.chat_bubble_outline), text: "Resumen"),
-                          Tab(icon: Icon(Icons.map_outlined), text: "Itinerario"),
-                          Tab(icon: Icon(Icons.savings_rounded), text: "Vaca/Cuota"),
-                          Tab(icon: Icon(Icons.receipt_long_rounded), text: "Gastos"),
-                          // Tab(icon: Icon(Icons.casino_outlined), text: "Juegos"), // REMOVED
+                      tabs: [
+                          const Tab(icon: Icon(Icons.chat_bubble_outline), text: "Resumen"),
+                          if (_plan?.eventDate != null || (_plan?.locationName.isNotEmpty ?? false))
+                              const Tab(icon: Icon(Icons.map_outlined), text: "Itinerario"),
+                          if ((_plan?.eventDate != null || (_plan?.locationName.isNotEmpty ?? false)) && _plan?.paymentMode == 'pool')
+                              const Tab(icon: Icon(Icons.savings_rounded), text: "Vaca/Cuota"),
+                          if ((_plan?.eventDate != null || (_plan?.locationName.isNotEmpty ?? false)) && _plan?.paymentMode == 'split')
+                              const Tab(icon: Icon(Icons.receipt_long_rounded), text: "Gastos"),
                       ],
                    ),
                 ),
@@ -471,26 +504,15 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
   }
 
   Widget? _getFabForTab() {
-      switch (_tabController.index) {
-          case 2: // Logística
+      if (_tabController.index == 2 && _plan?.paymentMode == 'split') {
+          if (_myRole == 'admin' || _myRole == 'treasurer') {
               return FloatingActionButton(
-                  onPressed: () {
-                      // Add Task Logic - Handled inside Logistics Tab usually, but if here:
-                      // _logisticsKey.currentState?.showAddDialog();
-                  },
-                  child: const Icon(Icons.add_task),
+                onPressed: _createNewBill,
+                child: const Icon(Icons.note_add_outlined),
               );
-          case 3: // Gastos
-              if (_myRole == 'admin' || _myRole == 'treasurer') {
-                  return FloatingActionButton(
-                    onPressed: _createNewBill,
-                    child: const Icon(Icons.note_add_outlined),
-                  );
-              }
-              return null;
-          default:
-              return null;
+          }
       }
+      return null;
   }
 
   Future<void> _createNewBill() async {
@@ -592,7 +614,14 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
                             }
                         });
                   } else if (localPollType == 2) { // Time
-                       showTimePicker(context: context, initialTime: TimeOfDay.now()).then((time) {
+                       showTimePicker(
+                           context: context, 
+                           initialTime: TimeOfDay.now(),
+                           builder: (context, child) => MediaQuery(
+                               data: MediaQuery.of(context).copyWith(alwaysUse24HourFormat: false),
+                               child: child!,
+                           ),
+                       ).then((time) {
                            if (time != null && context.mounted) {
                                final dt = DateTime(2022, 1, 1, time.hour, time.minute);
                                setDialogState(() => options.add({'name': TextEditingController(text: DateFormat('h:mm a').format(dt)), 'qty': TextEditingController(text: '1')}));
@@ -922,24 +951,45 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
                   if (drafts.isNotEmpty) ...[
                       const Padding(
                           padding: EdgeInsets.only(bottom: 8.0),
-                          child: Text("Sugerencias (Borradores)", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.amber, fontSize: 14)),
+                          child: Text("Sugerencias de la IA", style: TextStyle(fontWeight: FontWeight.w800, color: AppTheme.accentColor, fontSize: 13, letterSpacing: 1.2)),
                       ),
                       ...drafts.map((poll) => Card(
-                          color: Colors.amber.shade50,
-                          elevation: 0,
-                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: Colors.amber.shade200)),
-                          margin: const EdgeInsets.only(bottom: 12),
-                          child: ListTile(
-                              leading: const Icon(Icons.lightbulb_outline, color: Colors.amber),
-                              title: Text(poll.question, style: const TextStyle(fontWeight: FontWeight.bold)),
-                              subtitle: const Text("Toca para configurar opciones"),
-                              trailing: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black, elevation: 0),
-                                  onPressed: () {
-                                      _showCreatePollDialog(initialQuestion: poll.question, draftId: poll.id);
-                                  }, 
-                                  child: const Text("Configurar")
-                              ),
+                          color: const Color(0xFF1A1F2E), 
+                          elevation: 8,
+                          shadowColor: Colors.black.withOpacity(0.3),
+                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16), side: BorderSide(color: AppTheme.accentColor.withOpacity(0.3))),
+                          margin: const EdgeInsets.only(bottom: 16),
+                          child: InkWell(
+                              borderRadius: BorderRadius.circular(16),
+                              onTap: () => _showCreatePollDialog(initialQuestion: poll.question, draftId: poll.id),
+                              child: Padding(
+                                  padding: const EdgeInsets.all(16),
+                                  child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                          Row(
+                                              children: [
+                                                  const Icon(Icons.auto_awesome, color: AppTheme.accentColor, size: 20),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(child: Text(poll.question, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white, height: 1.3))),
+                                              ],
+                                          ),
+                                          const SizedBox(height: 12),
+                                          SizedBox(
+                                              width: double.infinity,
+                                              height: 44,
+                                              child: ElevatedButton.icon(
+                                                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))),
+                                                  icon: const Icon(Icons.settings, size: 18),
+                                                  onPressed: () {
+                                                      _showCreatePollDialog(initialQuestion: poll.question, draftId: poll.id);
+                                                  }, 
+                                                  label: const Text("Configurar Opciones", style: TextStyle(fontWeight: FontWeight.bold))
+                                              ),
+                                          )
+                                      ],
+                                  )
+                              )
                           ),
                       )),
                       const SizedBox(height: 16),
@@ -1024,7 +1074,9 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
                         child: PopupMenuButton<String>(
                             // ... (Existing menu logic)
                              onSelected: (value) async {
-                                 if (value == 'close') {
+                                 if (value == 'edit_poll') {
+                                     _showCreatePollDialog(initialQuestion: poll.question, draftId: poll.id);
+                                 } else if (value == 'close') {
                                      final confirm = await showDialog<bool>(
                                          context: context, 
                                          builder: (context) => AlertDialog(
@@ -1073,6 +1125,8 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with SingleTickerPr
                                  }
                              },
                              itemBuilder: (context) => [
+                                if (totalVotes == 0)
+                                    const PopupMenuItem(value: 'edit_poll', child: Row(children: [Icon(Icons.edit, color: Colors.green), SizedBox(width: 8), Text("Editar Encuesta")])),
                                 const PopupMenuItem(value: 'close', child: Row(children: [Icon(Icons.check_circle, color: Colors.blue), SizedBox(width: 8), Text("Cerrar Encuesta")])),
                                 const PopupMenuItem(value: 'delete_poll', child: Row(children: [Icon(Icons.delete_outline, color: Colors.orange), SizedBox(width: 8), Text("Eliminar Encuesta")])),
                              ]

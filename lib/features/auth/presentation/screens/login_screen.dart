@@ -6,7 +6,7 @@ import 'package:planmapp/core/services/auth_service.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:flutter_secure_storage/flutter_secure_storage.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -23,7 +23,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   
   bool _isLoading = false;
   bool _rememberMe = false;
-  final _storage = const FlutterSecureStorage();
 
   @override
   void initState() {
@@ -33,8 +32,9 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _loadSecureCredentials() async {
       try {
-          final email = await _storage.read(key: 'remember_email');
-          final password = await _storage.read(key: 'remember_password');
+          final prefs = await SharedPreferences.getInstance();
+          final email = prefs.getString('remember_email');
+          final password = prefs.getString('remember_password');
           
           if (email != null && password != null && mounted) {
               setState(() {
@@ -57,11 +57,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       );
 
       if (_rememberMe) {
-          await _storage.write(key: 'remember_email', value: _emailController.text.trim());
-          await _storage.write(key: 'remember_password', value: _passwordController.text.trim());
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('remember_email', _emailController.text.trim());
+          await prefs.setString('remember_password', _passwordController.text.trim());
       } else {
-          await _storage.delete(key: 'remember_email');
-          await _storage.delete(key: 'remember_password');
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.remove('remember_email');
+          await prefs.remove('remember_password');
       }
 
     } on AuthException catch (e) {

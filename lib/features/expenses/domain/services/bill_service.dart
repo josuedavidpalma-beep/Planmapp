@@ -1,6 +1,7 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/features/expenses/domain/models/bill_model.dart';
 import 'package:planmapp/features/expenses/domain/models/bill_item_model.dart';
+import 'package:planmapp/features/expenses/domain/services/bill_calculator.dart';
 import 'dart:developer';
 
 class BillService {
@@ -146,4 +147,44 @@ class BillService {
   
   // --- CALCULATIONS (Proxy to Server or Local) ---
   // Ideally, we might use BillCalculator locally for UI responsiveness and save final Snapshot to DB.
+
+  Future<void> settleBill(Bill bill, Map<String, UserBillShare> splitResults) async {
+      try {
+          // 1. Mark bill as settling
+          await _supabase.from('bills').update({'status': 'settling'}).eq('id', bill.id);
+
+          // 2. Clean old trackers for this bill if re-settling
+          await _supabase.from('payment_trackers').delete().eq('bill_id', bill.id);
+
+          // 3. Prepare inserts for those who owe > 0 and are NOT the payer
+          final List<Map<String, dynamic>> inserts = [];
+          
+          for (var entry in splitResults.entries) {
+              final uid = entry.key;
+              final share = entry.value;
+
+              if (share.totalOwed > 0 && uid != bill.payerId) {
+                  final isGuest = uid.startsWith('guest_');
+                  
+                  inserts.add({
+                      'plan_id': bill.planId,
+                      'bill_id': bill.id,
+                      'user_id': isGuest ? null : uid,
+                      'guest_name': isGuest ? 'Invitado' : null,
+                      'status': 'pending',
+                      'amount_owe': share.totalOwed,
+                      'amount_paid': 0.0,
+                      'description': 'Gasto: ${bill.title}'
+                  });
+              }
+          }
+
+          if (inserts.isNotEmpty) {
+              await _supabase.from('payment_trackers').insert(inserts);
+          }
+      } catch (e) {
+          log("Error settling bill: $e");
+          rethrow;
+      }
+  }
 }

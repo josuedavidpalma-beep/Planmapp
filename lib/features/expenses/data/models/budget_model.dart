@@ -42,6 +42,8 @@ class PaymentTracker {
   final PaymentStatus status;
   final double amountPaid;
   final double amountOwe;
+  final String? billId;
+  final String? description;
 
   PaymentTracker({
     required this.id,
@@ -51,6 +53,8 @@ class PaymentTracker {
     required this.status,
     required this.amountPaid,
     required this.amountOwe,
+    this.billId,
+    this.description,
   });
 
   String get displayName => (guestName?.isNotEmpty == true) ? guestName! : "Usuario";
@@ -67,6 +71,8 @@ class PaymentTracker {
       ),
       amountPaid: (json['amount_paid'] as num?)?.toDouble() ?? 0.0,
       amountOwe: (json['amount_owe'] as num?)?.toDouble() ?? 0.0,
+      billId: json['bill_id'],
+      description: json['description'],
     );
   }
 }

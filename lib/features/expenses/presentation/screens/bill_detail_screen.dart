@@ -10,6 +10,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:planmapp/features/plans/services/plan_members_service.dart'; // To pick assignees
 import 'package:image_picker/image_picker.dart'; // NEW
 import 'package:planmapp/features/expenses/services/receipt_scanner_service.dart'; // NEW
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class BillDetailScreen extends StatefulWidget {
   final String billId;
@@ -32,11 +33,40 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
   
   late TabController _tabController;
 
+  late RealtimeChannel _itemsChannel;
+
   @override
   void initState() {
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadData();
+    _setupRealtime();
+  }
+
+  void _setupRealtime() {
+      _itemsChannel = Supabase.instance.client
+          .channel('public:bill_items_live_${widget.billId}')
+          .onPostgresChanges(
+              event: PostgresChangeEvent.all, 
+              schema: 'public', 
+              table: 'bill_items', 
+              filter: PostgresChangeFilter(
+                  type: PostgresChangeFilterType.eq, 
+                  column: 'bill_id', 
+                  value: widget.billId
+              ),
+              callback: (payload) {
+                  _loadData();
+              }
+          )
+          .subscribe();
+  }
+
+  @override
+  void dispose() {
+      _tabController.dispose();
+      Supabase.instance.client.removeChannel(_itemsChannel);
+      super.dispose();
   }
 
   Future<void> _loadData() async {
@@ -146,7 +176,17 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
                           ],
                       ),
                       const SizedBox(height: 20),
-                      const Text("Usamos IA para detectar ítems automágicamente ✨", style: TextStyle(color: Colors.grey, fontSize: 12))
+                      Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.amber.shade200)),
+                          child: const Row(
+                              children: [
+                                  Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
+                                  SizedBox(width: 8),
+                                  Expanded(child: Text("La IA puede tardar unos segundos en leer y procesar la factura. Verifica que los montos sean correctos después de la lectura automática.", style: TextStyle(color: Colors.orange, fontSize: 12)))
+                              ],
+                          ),
+                      )
                   ],
               ),
           )
@@ -253,6 +293,22 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
           }
       }
+  }
+
+  Future<void> _settleBillAndGoBack(Map<String, UserBillShare> results) async {
+       try {
+           setState(() => _isLoading = true);
+           await _billService.settleBill(_bill!, results);
+           if (mounted) {
+               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cobros emitidos con éxito. ¡Revisa el Dashboard de la Vaca!")));
+               Navigator.pop(context); // Go back
+           }
+       } catch (e) {
+           if (mounted) {
+               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+               setState(() => _isLoading = false);
+           }
+       }
   }
 
   // --- NEW: GUEST PARTICIPANTS ---
@@ -494,7 +550,25 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
                        subtitle: Text("Subtotal: ${CurrencyInputFormatter.format(share.subtotal)} + Extras: ${CurrencyInputFormatter.format(share.taxShare + share.tipShare)}"),
                        trailing: Text(CurrencyInputFormatter.format(share.totalOwed), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
                    );
-               })
+               }),
+               const SizedBox(height: 24),
+               if (_bill!.payerId == Supabase.instance.client.auth.currentUser?.id && _bill!.status == 'draft')
+                   ElevatedButton(
+                       style: ElevatedButton.styleFrom(
+                           backgroundColor: Colors.redAccent,
+                           foregroundColor: Colors.white,
+                           padding: const EdgeInsets.symmetric(vertical: 16)
+                       ),
+                       onPressed: () => _settleBillAndGoBack(results),
+                       child: const Text("Cerrar Factura y Emitir Cobros", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                   ),
+               if (_bill!.status != 'draft')
+                   Container(
+                       padding: const EdgeInsets.all(12),
+                       decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(8)),
+                       child: const Text("✔ Factura cerrada. Los cobros ya fueron emitidos al dashboard general.", textAlign: TextAlign.center, style: TextStyle(color: Colors.green, fontWeight: FontWeight.bold)),
+                   ),
+               const SizedBox(height: 80),
            ],
        );
   }

@@ -508,28 +508,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           ),
                                       ),
                                       
-                                      // NEW: More Info Link
-                                      if (event.sourceUrl != null && (event.sourceUrl?.isNotEmpty ?? false))
-                                          Padding(
-                                            padding: const EdgeInsets.only(top: 12),
-                                            child: SizedBox(
-                                              width: double.infinity,
-                                              height: 50,
-                                              child: OutlinedButton.icon(
-                                                  onPressed: () async {
-                                                      final uri = Uri.parse(event.sourceUrl!);
-                                                      if (await canLaunchUrl(uri)) {
-                                                          await launchUrl(uri, mode: LaunchMode.externalApplication);
-                                                      } else {
-                                                          if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No se pudo abrir el enlace")));
-                                                      } 
-                                                  },
-                                                  icon: const Icon(Icons.public, size: 18),
-                                                  label: const Text("Ver más información"),
-                                                  style: OutlinedButton.styleFrom(foregroundColor: Colors.black),
-                                              ),
-                                            ),
-                                          ),
+
                                       const SizedBox(height: 16), // Extra bottom padding
                                   ],
                               ),

@@ -80,7 +80,7 @@ class BudgetRepository {
       final totalBudget = items.fold(0.0, (sum, item) => sum + item.estimatedAmount);
       
       // 2. Get count of participants (Real + Guests)
-      final trackers = await getPaymentTrackers(planId);
+      final trackers = (await getPaymentTrackers(planId)).where((t) => t.billId == null).toList();
       if (trackers.isEmpty) return; // Divide by zero safety
       
       final quota = totalBudget / trackers.length;

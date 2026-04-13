@@ -1,5 +1,6 @@
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:planmapp/features/expenses/data/models/budget_model.dart';
 import 'package:planmapp/features/expenses/data/repositories/budget_repository.dart';
@@ -68,9 +69,12 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
       final items = await _repository.getBudgetItems(widget.planId);
       final trackers = await _repository.getPaymentTrackers(widget.planId);
       
-      final total = items.fold(0.0, (sum, i) => sum + i.estimatedAmount);
-      final validTrackers = trackers.length;
-      final quota = validTrackers > 0 ? total / validTrackers : 0.0;
+      final totalVaca = items.fold(0.0, (sum, i) => sum + i.estimatedAmount);
+      final poolTrackers = trackers.where((t) => t.billId == null).length;
+      final quota = poolTrackers > 0 ? totalVaca / poolTrackers : 0.0;
+      
+      final totalGastos = trackers.where((t) => t.billId != null).fold(0.0, (sum, t) => sum + t.amountOwe);
+      final total = totalVaca + totalGastos;
       
       final collected = trackers
           .where((t) => t.status == PaymentStatus.paid)
@@ -260,7 +264,7 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
                   DropdownButton<String>(
                       value: selectedCat,
                       isExpanded: true,
-                      items: ['Hospedaje', 'Alimentación', 'Transporte', 'Entretenimiento', 'Otros'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
+                      items: ['Hospedaje', 'Alimentación', 'Transporte', 'Vuelos', 'Entretenimiento', 'Emergencias', 'Souvenirs', 'Otros'].map((e) => DropdownMenuItem(value: e, child: Text(e))).toList(),
                       onChanged: (v) => setSt(() => selectedCat = v!),
                   ),
                   TextField(controller: descController, decoration: const InputDecoration(labelText: "Descripción (Opcional)")),
@@ -560,13 +564,24 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
                              child: Text(t.displayName[0].toUpperCase(), style: TextStyle(color: _getColorForStatus(t.status), fontWeight: FontWeight.bold)),
                         ),
                         title: Text(isMe ? "Tú (${t.displayName})" : t.displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Text(
-                            _getTextForStatus(t.status).toUpperCase(), 
-                            style: TextStyle(fontSize: 10, color: _getColorForStatus(t.status), fontWeight: FontWeight.bold)
+                        subtitle: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                                Text(
+                                    _getTextForStatus(t.status).toUpperCase(), 
+                                    style: TextStyle(fontSize: 10, color: _getColorForStatus(t.status), fontWeight: FontWeight.bold)
+                                ),
+                                Text(t.description ?? 'Fondo / Vaca', style: const TextStyle(fontSize: 11, color: Colors.grey)),
+                            ],
                         ),
                         trailing: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
+                                // Show exact amount
+                                Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
+                                    child: Text(CurrencyInputFormatter.format(t.amountOwe > 0 ? t.amountOwe : _quotaPerPerson), style: const TextStyle(fontWeight: FontWeight.bold)),
+                                ),
                                 // Remind Button (Only if Pending)
                                 // MODIFIED FOR TESTING: Allow "me" to remind "myself" to test the button
                                 if (t.status == PaymentStatus.pending)
@@ -604,11 +619,12 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
                                 if (t.status == PaymentStatus.pending)
                                    isMe 
                                      ? OutlinedButton(
-                                         onPressed: () async {
-                                             await _repository.updatePaymentStatus(t.id, PaymentStatus.verifying);
-                                             _loadData();
+                                         style: OutlinedButton.styleFrom(side: const BorderSide(color: AppTheme.primaryBrand), foregroundColor: AppTheme.primaryBrand),
+                                         onPressed: () {
+                                              HapticFeedback.lightImpact();
+                                              _showPaymentAction(context, t.id, t.amountOwe > 0 ? t.amountOwe : _quotaPerPerson);
                                          },
-                                         child: const Text("Ya Pagué"),
+                                         child: const Text("Pagar"),
                                      )
                                      : IconButton( // Organizer can force pay manually
                                          icon: const Icon(Icons.more_vert, color: Colors.grey),
@@ -633,6 +649,74 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
     );
   }
   
+  Future<void> _showPaymentAction(BuildContext context, String trackerId, double quota) async {
+       if (_creatorIdDebug == null) return;
+       
+       // Show bottom sheet with payment info
+       showModalBottomSheet(
+           context: context, 
+           isScrollControlled: true,
+           shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+           builder: (c) => Padding(
+               padding: const EdgeInsets.all(20),
+               child: Column(
+                   mainAxisSize: MainAxisSize.min,
+                   children: [
+                       const Text("Realizar Pago", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                       const SizedBox(height: 8),
+                       Text("Monto a pagar: ${CurrencyInputFormatter.format(quota)}", style: const TextStyle(fontSize: 18, color: Colors.green, fontWeight: FontWeight.bold)),
+                       const SizedBox(height: 16),
+                       const Text("Medios de pago del organizador:", style: TextStyle(fontWeight: FontWeight.bold)),
+                       const SizedBox(height: 8),
+                       
+                       FutureBuilder(
+                           future: Supabase.instance.client.from('profiles').select('payment_links').eq('id', _creatorIdDebug!).single(),
+                           builder: (context, snapshot) {
+                               if (snapshot.connectionState == ConnectionState.waiting) return const CircularProgressIndicator();
+                               if (snapshot.hasError || !snapshot.hasData) return const Text("Revisa con el organizador cómo hacer el pago.");
+                               
+                               final data = snapshot.data as Map<String, dynamic>;
+                               final links = List<Map<String,dynamic>>.from(data['payment_links'] ?? []);
+                               
+                               if (links.isEmpty) return const Text("El organizador no ha configurado medios de pago en su perfil. Acuerda con él directamente.", style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic));
+                               
+                               return Column(
+                                   children: links.map((pm) => Card(
+                                       color: Colors.grey.shade50,
+                                       margin: const EdgeInsets.only(bottom: 8),
+                                       child: ListTile(
+                                           leading: const Icon(Icons.account_balance_wallet, color: AppTheme.primaryBrand),
+                                           title: Text(pm['type'] ?? 'Banco', style: const TextStyle(fontWeight: FontWeight.bold)),
+                                           subtitle: Text(pm['details'] ?? ''),
+                                           trailing: IconButton(icon: const Icon(Icons.copy, size: 18), onPressed: () async {
+                                               await Clipboard.setData(ClipboardData(text: pm['details'] ?? ''));
+                                               if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Copiado al portapapeles")));
+                                           }),
+                                       ),
+                                   )).toList()
+                               );
+                           }
+                       ),
+                       const SizedBox(height: 24),
+                       SizedBox(
+                           width: double.infinity,
+                           child: ElevatedButton(
+                               onPressed: () async {
+                                   Navigator.pop(c);
+                                   await _repository.updatePaymentStatus(trackerId, PaymentStatus.verifying);
+                                   _loadData();
+                                   if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pago enviado a verificación por el organizador!")));
+                               }, 
+                               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16)),
+                               child: const Text("Notificar que Ya Pagué", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
+                           ),
+                       )
+                   ],
+               ),
+           )
+       );
+  }
+
   Future<void> _showStatusMenu(BuildContext context, String trackerId) async {
        // Simple dialog or bottom sheet
        await showModalBottomSheet(context: context, builder: (c) => Column(
@@ -657,7 +741,10 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
           case 'Hospedaje': return Icons.hotel;
           case 'Alimentación': return Icons.restaurant;
           case 'Transporte': return Icons.directions_bus;
+          case 'Vuelos': return Icons.flight_takeoff;
           case 'Entretenimiento': return Icons.attractions;
+          case 'Emergencias': return Icons.medical_services_outlined;
+          case 'Souvenirs': return Icons.card_giftcard;
           default: return Icons.category;
       }
   }

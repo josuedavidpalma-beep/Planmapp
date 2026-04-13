@@ -307,6 +307,17 @@ class _PlanCard extends StatelessWidget {
 
   const _PlanCard({required this.plan, required this.onRefresh});
 
+  String _getPlanImage(String title) {
+    final t = title.toLowerCase();
+    if (t.contains('playa') || t.contains('mar') || t.contains('piscina') || t.contains('isla') || t.contains('sol')) return "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80";
+    if (t.contains('cena') || t.contains('restaurante') || t.contains('comercio') || t.contains('almuerzo')) return "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=800&q=80";
+    if (t.contains('fiesta') || t.contains('rumba') || t.contains('antro') || t.contains('cerveza') || t.contains('beer')) return "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&q=80";
+    if (t.contains('cine') || t.contains('película') || t.contains('movie')) return "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=800&q=80";
+    if (t.contains('viaje') || t.contains('paseo') || t.contains('finca') || t.contains('pueblo')) return "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80";
+    if (t.contains('cumple') || t.contains('party') || t.contains('bday')) return "https://images.unsplash.com/photo-1530103862676-de8892b07439?auto=format&fit=crop&w=800&q=80";
+    return "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=800&q=80"; // Default abstract event
+  }
+
   @override
   Widget build(BuildContext context) {
     final uid = Supabase.instance.client.auth.currentUser?.id;
@@ -317,7 +328,12 @@ class _PlanCard extends StatelessWidget {
       tag: 'plan_bg_${plan.id}',
       child: Container(
       decoration: BoxDecoration(
-        color: theme.cardColor,
+        color: Colors.black, // fallback
+        image: DecorationImage(
+          image: NetworkImage(_getPlanImage(plan.title)),
+          fit: BoxFit.cover,
+          colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.55), BlendMode.darken),
+        ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
           BoxShadow(
@@ -414,9 +430,10 @@ class _PlanCard extends StatelessWidget {
                 Text(
                   plan.title,
                   style: const TextStyle(
-                    fontSize: 20,
-                    fontWeight: FontWeight.w800,
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
                     height: 1.2,
+                    color: Colors.white,
                     letterSpacing: -0.5,
                   ),
                 ),
@@ -426,17 +443,17 @@ class _PlanCard extends StatelessWidget {
                 // Info Row
                 Row(
                   children: [
-                     Container(
+                      Container(
                        padding: const EdgeInsets.all(8),
-                       decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(10)),
-                       child: const Icon(Icons.calendar_today_rounded, size: 16, color: AppTheme.primaryBrand),
+                       decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                       child: const Icon(Icons.calendar_today_rounded, size: 16, color: Colors.white),
                      ),
                      const SizedBox(width: 12),
                      Column(
                        crossAxisAlignment: CrossAxisAlignment.start,
                        children: [
-                          Text(plan.eventDate != null ? DateFormat('MMM d, y').format(plan.eventDate!) : "Por definir", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13)),
-                          Text(plan.eventDate != null ? DateFormat('h:mm a').format(plan.eventDate!) : "--:--", style: TextStyle(color: Colors.grey[600], fontSize: 12)),
+                          Text(plan.eventDate != null ? DateFormat('MMM d, y').format(plan.eventDate!) : "Por definir", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
+                          Text(plan.eventDate != null ? DateFormat('h:mm a').format(plan.eventDate!) : "--:--", style: TextStyle(color: Colors.white70, fontSize: 13)),
                        ],
                      )
                   ],
@@ -446,8 +463,8 @@ class _PlanCard extends StatelessWidget {
                   children: [
                      Container(
                        padding: const EdgeInsets.all(8),
-                       decoration: BoxDecoration(color: Colors.grey[50], borderRadius: BorderRadius.circular(10)),
-                       child: const Icon(Icons.location_on_outlined, size: 16, color: AppTheme.primaryBrand),
+                       decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                       child: const Icon(Icons.location_on_outlined, size: 16, color: Colors.white),
                      ),
                      const SizedBox(width: 12),
                      Expanded(
@@ -455,7 +472,7 @@ class _PlanCard extends StatelessWidget {
                          plan.locationName.isEmpty ? "Ubicación por definir" : plan.locationName,
                          maxLines: 1,
                          overflow: TextOverflow.ellipsis,
-                         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 13),
+                         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.white),
                        ),
                      ),
                   ],
