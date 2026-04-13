@@ -96,7 +96,7 @@ def extract_events_with_gemini(results: list[dict], city: str, category: dict) -
         return []
 
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-2.5-flash")
 
     # Formatear los snippets de Tavily para el prompt
     snippets_text = ""
@@ -377,7 +377,7 @@ def chat_agent():
 
     # 3. Preparar Prompt para Gemini
     genai.configure(api_key=GEMINI_API_KEY)
-    model = genai.GenerativeModel("gemini-1.5-flash")
+    model = genai.GenerativeModel("gemini-2.5-flash")
 
     prompt = f"""
 Eres '@planmapp', el Asistente Social Inteligente en un grupo de chat de amigos.
