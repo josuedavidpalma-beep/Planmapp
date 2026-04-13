@@ -10,6 +10,7 @@ import os
 import json
 import time
 import threading
+import random
 from datetime import datetime, timedelta
 
 import google.generativeai as genai
@@ -52,15 +53,61 @@ CATEGORIES = [
     {"key": "outdoors", "label": "Aire libre",    "query_hint": "senderismo, playas, parques, deportes acuáticos, naturaleza"},
 ]
 
-# Imágenes de respaldo por categoría (Unsplash)
+# Imágenes de respaldo por categoría (Unsplash Premium / High-Res)
 FALLBACK_IMAGES = {
-    "food":     "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&q=80&w=800",
-    "party":    "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800",
-    "culture":  "https://images.unsplash.com/photo-1533174072545-e8d4aa97edf9?auto=format&fit=crop&q=80&w=800",
-    "outdoors": "https://images.unsplash.com/photo-1502086223501-681a91cc44e7?auto=format&fit=crop&q=80&w=800",
-    "music":    "https://images.unsplash.com/photo-1540039155732-d674d6e3f0be?auto=format&fit=crop&q=80&w=800",
-    "other":    "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4?auto=format&fit=crop&q=80&w=800",
+    "food": [
+        "https://images.unsplash.com/photo-1555939594-58d7cb561ad1",
+        "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
+        "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4",
+        "https://images.unsplash.com/photo-1414235077428-338989a2e8c0",
+        "https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c",
+        "https://images.unsplash.com/photo-1544148103-0773bf10d330",
+        "https://images.unsplash.com/photo-1528605248644-14dd04022da1",
+    ],
+    "party": [
+        "https://images.unsplash.com/photo-1492684223066-81342ee5ff30",
+        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819",
+        "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7",
+        "https://images.unsplash.com/photo-1520854221256-17451cc331bf",
+        "https://images.unsplash.com/photo-1470229722913-7c090be5f5ae",
+        "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4",
+        "https://images.unsplash.com/photo-1558500277-33fba0c9b0e2",
+    ],
+    "culture": [
+        "https://images.unsplash.com/photo-1533174072545-e8d4aa97edf9",
+        "https://images.unsplash.com/photo-1518998053401-b28e5dbecb03",
+        "https://images.unsplash.com/photo-1502474530064-16a75be415f3",
+        "https://images.unsplash.com/photo-1478147424037-142f1b402127",
+        "https://images.unsplash.com/photo-1470225620780-dba8ba36b745",
+        "https://images.unsplash.com/photo-1522031189420-1b7effebf071",
+        "https://images.unsplash.com/photo-1544928147-79a2dbc1f389",
+    ],
+    "outdoors": [
+        "https://images.unsplash.com/photo-1502086223501-681a91cc44e7",
+        "https://images.unsplash.com/photo-1478131143081-80f7f84ca84d",
+        "https://images.unsplash.com/photo-1455582916367-25f75bfc6710",
+        "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800",
+        "https://images.unsplash.com/photo-1519331379826-f10be5486c6f",
+        "https://images.unsplash.com/photo-1508672019048-805c876b67e2",
+        "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1",
+    ],
+    "music": [
+        "https://images.unsplash.com/photo-1540039155732-d674d6e3f0be",
+        "https://images.unsplash.com/photo-1459749411175-04bf5292ceea",
+        "https://images.unsplash.com/photo-1470225620780-dba8ba36b745",
+        "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4",
+        "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4",
+        "https://images.unsplash.com/photo-1520854221256-17451cc331bf",
+    ],
+    "other": [
+        "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4",
+        "https://images.unsplash.com/photo-1529156069898-49953eb1b5ce",
+        "https://images.unsplash.com/photo-1523580494863-6f3031224c94",
+        "https://images.unsplash.com/photo-1472653431158-6364773b2a56",
+        "https://images.unsplash.com/photo-1517457373958-b7bdd4587205",
+    ],
 }
+
 
 # ─── Paso 1: Búsqueda con Tavily ───────────────────────────────────────────────
 def search_with_tavily(city: str, category: dict) -> list[dict]:
@@ -207,10 +254,13 @@ def upsert_event(supabase: Client, event: dict, city: str, category: dict, geo: 
         return
 
     # Construir imagen final (Places > Fallback de Unsplash)
+    base_fallback = random.choice(FALLBACK_IMAGES.get(category["key"], FALLBACK_IMAGES["other"]))
+    fallback_with_params = f"{base_fallback}?auto=format&fit=crop&q=80&w=800"
+
     image_url = (
         (geo.get("google_image_url") if geo else None)
         or event.get("image_url")
-        or FALLBACK_IMAGES.get(category["key"], FALLBACK_IMAGES["other"])
+        or fallback_with_params
     )
 
     record = {
