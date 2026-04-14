@@ -52,47 +52,54 @@ class DiscoverMap extends StatelessWidget {
       ),
       children: [
         TileLayer(
-           // Usa un layer dark style o uno de cartoDB para sentirse muy pro/tech
-          urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}@2x.png',
+           // Dark mode for a premium tech feel
+          urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png',
           subdomains: const ['a', 'b', 'c', 'd'],
         ),
         MarkerLayer(
           markers: validEvents.map((event) {
-            // Un evento dorados si tiene super rating > 4.5
             final isSuperMatch = (event.ratingGoogle ?? 0.0) >= 4.5;
+            final borderColor = isSuperMatch ? AppTheme.secondaryBrand : AppTheme.primaryBrand;
 
             return Marker(
               point: LatLng(event.latitude!, event.longitude!),
-              width: 50,
-              height: 50,
+              width: 140, // Wide enough for pill shape
+              height: 48,
               child: GestureDetector(
                 onTap: () => onEventTap(event),
-                child: AnimatedContainer(
-                  duration: const Duration(milliseconds: 300),
-                  child: Stack(
-                      alignment: Alignment.center,
-                      children: [
-                          Icon(
-                              Icons.location_on,
-                              color: isSuperMatch ? AppTheme.secondaryBrand : AppTheme.primaryBrand,
-                              size: 45,
-                              shadows: [
-                                  Shadow(
-                                      color: Colors.black.withOpacity(0.3),
-                                      blurRadius: 10,
-                                      offset: const Offset(0, 5)
-                                  )
-                              ],
-                          ),
-                          if (event.imageUrl != null)
-                             Positioned(
-                                 top: 5,
-                                 child: CircleAvatar(
-                                     radius: 12,
-                                     backgroundImage: CachedNetworkImageProvider(event.imageUrl!),
-                                 )
-                             )
-                      ],
+                child: Container(
+                  padding: const EdgeInsets.all(4),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.surface,
+                    borderRadius: BorderRadius.circular(24),
+                    border: Border.all(color: borderColor.withOpacity(0.8), width: 1.5),
+                    boxShadow: [
+                      BoxShadow(
+                        color: borderColor.withOpacity(0.3),
+                        blurRadius: 10,
+                        offset: const Offset(0, 5)
+                      )
+                    ],
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                        CircleAvatar(
+                            radius: 16,
+                            backgroundColor: Theme.of(context).colorScheme.surfaceContainerHighest,
+                            backgroundImage: CachedNetworkImageProvider(event.displayImageUrl),
+                        ),
+                        const SizedBox(width: 6),
+                        Expanded(
+                            child: Text(
+                                event.title,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: const TextStyle(fontSize: 10, fontWeight: FontWeight.bold, height: 1.1),
+                            ),
+                        ),
+                        const SizedBox(width: 4),
+                    ],
                   ),
                 ),
               ),

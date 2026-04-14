@@ -44,70 +44,54 @@ SUPABASE_KEY          = os.environ.get("SUPABASE_KEY")          # service_role k
 GOOGLE_PLACES_API_KEY = os.environ.get("GOOGLE_PLACES_API_KEY")
 
 # ─── Ciudades y categorías objetivo ────────────────────────────────────────────
-CITIES = ["Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena", "Santa Marta"]
+CITIES = ["Bogotá", "Medellín", "Cali", "Barranquilla", "Cartagena", "Santa Marta", "Bucaramanga", "Pereira", "Manizales", "Armenia", "Villavicencio", "Cúcuta"]
 
 CATEGORIES = [
-    {"key": "food",     "label": "Gastronomía",  "query_hint": "restaurantes especiales, happy hour, 2x1 comida, cenas románticas"},
-    {"key": "party",    "label": "Rumba",         "query_hint": "bares de moda, fiestas, eventos nocturnos, música en vivo"},
-    {"key": "culture",  "label": "Cultura",       "query_hint": "museos, exposiciones, teatro, cine, festivales culturales"},
-    {"key": "outdoors", "label": "Aire libre",    "query_hint": "senderismo, playas, parques, deportes acuáticos, naturaleza"},
+    {"key": "food", "label": "Restaurantes y Cenas", "query_hint": "restaurantes especiales, cenas románticas, comida internacional, gastronomía local"},
+    {"key": "food", "label": "Promos y Comida Rápida", "query_hint": "happy hour comida, 2x1 en comida, hamburguesería, pizzería, tacos"},
+    {"key": "food", "label": "Cafés y Brunch", "query_hint": "cafeterías de especialidad, brunch de fin de semana, postres"},
+    {"key": "party", "label": "Rumba y Bares", "query_hint": "bares de moda, fiestas, discotecas, eventos nocturnos"},
+    {"key": "party", "label": "Conciertos", "query_hint": "conciertos de música, música en vivo, festivales de música, toques de bandas"},
+    {"key": "party", "label": "Cervecerías y Pubs", "query_hint": "cerveza artesanal, pubs, bares deportivos, happy hour licores"},
+    {"key": "culture", "label": "Arte y Museos", "query_hint": "museos, galerías de arte, exposiciones, recorridos históricos"},
+    {"key": "culture", "label": "Teatro y Comedia", "query_hint": "obras de teatro, stand up comedy, monólogos, shows en vivo"},
+    {"key": "culture", "label": "Cine y Festivales", "query_hint": "cine independiente, festivales de cine, ferias culturales"},
+    {"key": "outdoors", "label": "Naturaleza", "query_hint": "senderismo, caminatas, parques naturales"},
+    {"key": "outdoors", "label": "Deportes Extremos y Agua", "query_hint": "deportes acuáticos, playas, cuatrimotos, parapente"},
+    {"key": "outdoors", "label": "Pueblear y Paseos", "query_hint": "pueblitos cercanos, escapadas de fin de semana, miradores turísticos"},
 ]
 
-# Imágenes de respaldo por categoría (Unsplash Premium / High-Res)
+# ─── Imágenes de Respaldo por Categoría (Unsplash Premium) ───────────────────
+# Usamos URLs absolutas para evitar la API deprecada source.unsplash.com
+import random
 FALLBACK_IMAGES = {
     "food": [
-        "https://images.unsplash.com/photo-1555939594-58d7cb561ad1",
-        "https://images.unsplash.com/photo-1504674900247-0877df9cc836",
-        "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4",
-        "https://images.unsplash.com/photo-1414235077428-338989a2e8c0",
-        "https://images.unsplash.com/photo-1550966871-3ed3cdb5ed0c",
-        "https://images.unsplash.com/photo-1544148103-0773bf10d330",
-        "https://images.unsplash.com/photo-1528605248644-14dd04022da1",
+        "https://images.unsplash.com/photo-1555939594-58d7cb561ad1?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1544148103-0773bf10d330?auto=format&fit=crop&w=800&q=80",
     ],
     "party": [
-        "https://images.unsplash.com/photo-1492684223066-81342ee5ff30",
-        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819",
-        "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7",
-        "https://images.unsplash.com/photo-1520854221256-17451cc331bf",
-        "https://images.unsplash.com/photo-1470229722913-7c090be5f5ae",
-        "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4",
-        "https://images.unsplash.com/photo-1558500277-33fba0c9b0e2",
+        "https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1545128485-c400e7702796?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1470225620780-dba8ba36b745?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=800&q=80",
     ],
     "culture": [
-        "https://images.unsplash.com/photo-1533174072545-e8d4aa97edf9",
-        "https://images.unsplash.com/photo-1518998053401-b28e5dbecb03",
-        "https://images.unsplash.com/photo-1502474530064-16a75be415f3",
-        "https://images.unsplash.com/photo-1478147424037-142f1b402127",
-        "https://images.unsplash.com/photo-1470225620780-dba8ba36b745",
-        "https://images.unsplash.com/photo-1522031189420-1b7effebf071",
-        "https://images.unsplash.com/photo-1544928147-79a2dbc1f389",
+        "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1518998053401-b25431cb0272?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1582555172866-f73bb12a2ab3?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1460661419201-fd4cecdf8a8b?auto=format&fit=crop&w=800&q=80",
     ],
     "outdoors": [
-        "https://images.unsplash.com/photo-1502086223501-681a91cc44e7",
-        "https://images.unsplash.com/photo-1478131143081-80f7f84ca84d",
-        "https://images.unsplash.com/photo-1455582916367-25f75bfc6710",
-        "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800",
-        "https://images.unsplash.com/photo-1519331379826-f10be5486c6f",
-        "https://images.unsplash.com/photo-1508672019048-805c876b67e2",
-        "https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1",
-    ],
-    "music": [
-        "https://images.unsplash.com/photo-1540039155732-d674d6e3f0be",
-        "https://images.unsplash.com/photo-1459749411175-04bf5292ceea",
-        "https://images.unsplash.com/photo-1470225620780-dba8ba36b745",
-        "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4",
-        "https://images.unsplash.com/photo-1501281668745-f7f57925c3b4",
-        "https://images.unsplash.com/photo-1520854221256-17451cc331bf",
-    ],
-    "other": [
-        "https://images.unsplash.com/photo-1511671782779-c97d3d27a1d4",
-        "https://images.unsplash.com/photo-1529156069898-49953eb1b5ce",
-        "https://images.unsplash.com/photo-1523580494863-6f3031224c94",
-        "https://images.unsplash.com/photo-1472653431158-6364773b2a56",
-        "https://images.unsplash.com/photo-1517457373958-b7bdd4587205",
-    ],
+        "https://images.unsplash.com/photo-1501504905252-473c47e087f8?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1507525428034-b723cf961d3e?auto=format&fit=crop&w=800&q=80",
+        "https://images.unsplash.com/photo-1519331379826-f947873d63bd?auto=format&fit=crop&w=800&q=80",
+    ]
 }
-
 
 # ─── Paso 1: Búsqueda con Tavily ───────────────────────────────────────────────
 def search_with_tavily(city: str, category: dict) -> list[dict]:
@@ -165,17 +149,19 @@ INSTRUCCIONES:
 - Si el evento ya pasó (antes de {today_str}), ignóralo
 - Si no hay fecha clara, usa null para date_start
 
+Escribe un reporte estilo periodístico atractivo detallando "Cuándo", "Dónde", "Qué promociones existen", costo si se menciona, y si se requiere reserva.
 Devuelve ÚNICAMENTE un JSON array válido (sin markdown, sin explicación):
 [
   {{
     "title": "Nombre del evento/lugar",
-    "description": "Descripción atractiva de máximo 120 caracteres",
+    "description": "Párrafo completo descriptivo: ¿De qué trata? ¿A qué hora? ¿Qué promos hay (2x1, happy hour)?",
     "date_start": "YYYY-MM-DD o null",
-    "location_name": "Nombre del lugar o barrio",
+    "location_name": "Nombre exacto del lugar o teatro",
     "address": "Dirección si está disponible o null",
     "category": "{category['key']}",
     "source_url": "URL del resultado",
-    "image_url": null
+    "image_url": null,
+    "contact_info": "Número de teléfono o web encontrado en el texto (o null)"
   }}
 ]
 
@@ -242,6 +228,29 @@ def geocode_with_google_places(location_name: str, address: str, city: str) -> d
             "user_ratings_total": place.get("user_ratings_total"),
             "google_image_url": image_url,
         }
+        
+        # Second Query: Get Details (Phone/Website) using Place ID. Non-blocking if fails.
+        try:
+            d_url = "https://maps.googleapis.com/maps/api/place/details/json"
+            d_params = {
+                "place_id": place.get("place_id"),
+                "fields": "formatted_phone_number,website",
+                "key": GOOGLE_PLACES_API_KEY,
+                "language": "es"
+            }
+            d_resp = _requests.get(d_url, params=d_params, timeout=5)
+            d_data = d_resp.json()
+            if d_data.get("status") == "OK":
+                res = d_data.get("result", {})
+                contact = res.get("formatted_phone_number")
+                if not contact:
+                    contact = res.get("website")
+                if contact:
+                    ret["contact_info"] = contact
+        except Exception:
+            pass # Ignore details fail
+
+        return ret
     except Exception as e:
         print(f"  [PLACES] Error geocodificando '{query}': {e}")
         return None
@@ -253,15 +262,19 @@ def upsert_event(supabase: Client, event: dict, city: str, category: dict, geo: 
     if not event.get("title") or not event.get("source_url"):
         return
 
-    # Construir imagen final (Places > Fallback de Unsplash)
-    base_fallback = random.choice(FALLBACK_IMAGES.get(category["key"], FALLBACK_IMAGES["other"]))
-    fallback_with_params = f"{base_fallback}?auto=format&fit=crop&q=80&w=800"
-
-    image_url = (
-        (geo.get("google_image_url") if geo else None)
-        or event.get("image_url")
-        or fallback_with_params
-    )
+    # Determinación Inteligente de Imagen
+    # 1. Foto original (si existe)
+    image_url = event.get("image_url")
+    
+    # 2. Foto de Google Places (mayor calidad si es un local)
+    if geo and geo.get("google_image_url"):
+        image_url = geo.get("google_image_url")
+        
+    # 3. Inyección Automática de Galería Unsplash según la categoría
+    if not image_url or len(str(image_url).strip()) < 5:
+        cat_key = category["key"]
+        if cat_key in FALLBACK_IMAGES:
+            image_url = random.choice(FALLBACK_IMAGES[cat_key])
 
     record = {
         "title":            event["title"],
@@ -273,7 +286,7 @@ def upsert_event(supabase: Client, event: dict, city: str, category: dict, geo: 
         "image_url":        image_url,
         "source_url":       event["source_url"],
         "city":             city,
-        "contact_info":     "",
+        "contact_info":     geo.get("contact_info") if geo and geo.get("contact_info") else event.get("contact_info"),
         # Campos de geocodificación (null si no hay Places)
         "google_place_id":      geo.get("google_place_id") if geo else None,
         "latitude":             geo.get("latitude") if geo else None,
@@ -331,9 +344,14 @@ def run_research_agent():
                 total_saved += 1
                 time.sleep(0.5)  # Rate limiting suave
 
-            time.sleep(3)  # Pausa entre categorías
+            # 🛡️ THROTTLING DE SEGURIDAD (ANTI-429):
+            # Gemini Free Tier soporta máximo 15 requests/minuto (1 req cada 4 segs).
+            # Al dormir 7 segundos por ciclo de categoría garantizamos ~8 Peticiones por Minuto.
+            print("  ⏳ [Throttling] Esperando 7 segundos para enfriar la API...")
+            time.sleep(7)  
 
-        time.sleep(5)  # Pausa entre ciudades
+        print("  ⏳ [Throttling] Pausa de 10 segundos entre ciudades...")
+        time.sleep(10)  
 
     print(f"\n✅ Proceso completado. Total eventos procesados: {total_saved}")
     print(f"{'='*60}\n")

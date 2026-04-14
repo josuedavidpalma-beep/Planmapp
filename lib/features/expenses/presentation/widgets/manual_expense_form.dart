@@ -291,6 +291,27 @@ class _ManualExpenseFormState extends State<ManualExpenseForm> {
   void initState() {
       super.initState();
       _additionalValueCtrl.addListener(_calcPercentage);
+      _loadPaymentMethods();
+  }
+  
+  Future<void> _loadPaymentMethods() async {
+      try {
+          final uid = Supabase.instance.client.auth.currentUser?.id;
+          if (uid == null) return;
+          
+          final profile = await Supabase.instance.client.from('profiles').select('payment_methods').eq('id', uid).single();
+          if (profile['payment_methods'] != null) {
+              final methods = List<Map<String, dynamic>>.from(profile['payment_methods'].map((i) => Map<String, dynamic>.from(i)));
+              if (methods.isNotEmpty && mounted) {
+                  setState(() {
+                      // Join methods into a readable string "Nequi: 300.., DaviPlata: 310.."
+                      _paymentInstructionsCtrl.text = methods.map((m) => "${m['type']}: ${m['details']}").join(" | ");
+                  });
+              }
+          }
+      } catch (e) {
+          // Silent catch
+      }
   }
   
   Future<void> _autoCategorize() async {

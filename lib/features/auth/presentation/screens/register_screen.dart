@@ -21,6 +21,8 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _phonePasswordController = TextEditingController();
   
   bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _obscurePhonePassword = true;
 
   Future<void> _registerEmail() async {
     setState(() => _isLoading = true);
@@ -168,11 +170,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                                    TextField(
                                                       controller: _passwordController,
                                                       style: const TextStyle(color: Colors.white),
-                                                      decoration: const InputDecoration(
+                                                      decoration: InputDecoration(
                                                           labelText: "Contraseña", 
-                                                          prefixIcon: Icon(Icons.lock_outlined)
+                                                          prefixIcon: const Icon(Icons.lock_outlined),
+                                                          suffixIcon: IconButton(
+                                                              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.white70),
+                                                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                                          ),
                                                       ),
-                                                      obscureText: true,
+                                                      obscureText: _obscurePassword,
                                                    ),
                                                    const SizedBox(height: 32),
                                                    SizedBox(
@@ -202,11 +208,15 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                                    TextField(
                                                       controller: _phonePasswordController,
                                                       style: const TextStyle(color: Colors.white),
-                                                      decoration: const InputDecoration(
+                                                      decoration: InputDecoration(
                                                           labelText: "Contraseña", 
-                                                          prefixIcon: Icon(Icons.lock_outlined)
+                                                          prefixIcon: const Icon(Icons.lock_outlined),
+                                                          suffixIcon: IconButton(
+                                                              icon: Icon(_obscurePhonePassword ? Icons.visibility_off : Icons.visibility, color: Colors.white70),
+                                                              onPressed: () => setState(() => _obscurePhonePassword = !_obscurePhonePassword),
+                                                          ),
                                                       ),
-                                                      obscureText: true,
+                                                      obscureText: _obscurePhonePassword,
                                                    ),
                                                    const SizedBox(height: 32),
                                                    SizedBox(

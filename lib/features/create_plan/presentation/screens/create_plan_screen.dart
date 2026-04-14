@@ -20,8 +20,9 @@ class CreatePlanScreen extends StatefulWidget {
   final String? initialTitle;
   final String? initialAddress;
   final DateTime? initialDate;
+  final String? initialImageUrl;
 
-  const CreatePlanScreen({super.key, this.initialTitle, this.initialAddress, this.initialDate});
+  const CreatePlanScreen({super.key, this.initialTitle, this.initialAddress, this.initialDate, this.initialImageUrl});
 
   @override
   State<CreatePlanScreen> createState() => _CreatePlanScreenState();
@@ -122,6 +123,7 @@ class _CreatePlanScreenState extends State<CreatePlanScreen> {
         locationName: _isLocationDefined ? _locationController.text : "Por definir", // Use Controller
         status: PlanStatus.active,
         visibility: 'private', // Always private now
+        imageUrl: widget.initialImageUrl, // Pass image url
       );
 
       // SAVE PLAN 

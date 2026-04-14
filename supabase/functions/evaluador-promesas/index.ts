@@ -32,10 +32,34 @@ serve(async (req) => {
                 if (perfil) tono = perfil.tono_regional;
             }
 
-            // 4. Degradación empática
+            // 4. Degradación empática con Gemini UI (The AI Collector)
             let mensajeError = `Hola, notamos que pasó la fecha acordada para tu aporte de ${promesa.monto}. ¿Tuviste algún inconveniente?`;
-            if (tono === 'paisa') mensajeError = `¡Quiubo! Pasó la fecha de la vaca por ${promesa.monto}. ¿Qué te pasó, mor?`;
-            // ... (otros tonos)
+            
+            const geminiKey = Deno.env.get('GEMINI_API_KEY');
+            if (geminiKey && tono !== 'neutro') {
+                try {
+                    const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiKey}`, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({
+                            contents: [{
+                                parts: [{ text: `Eres PlanMaps, un asistente logístico. Genera UN solo mensaje muy corto y coloquial de WhatsApp cobrando a un amigo una cuota o promesa de pago vencida de $${promesa.monto}. El tono/jerga del deudor es colombiano: '${tono}'. Actúa como si fueras de su misma región. Sé empático pero directo. Usa MÁXIMO 20 palabras y un emoji.` }]
+                            }]
+                        })
+                    });
+                    const geminiData = await geminiRes.json();
+                    if (geminiData?.candidates?.[0]?.content?.parts?.[0]?.text) {
+                        mensajeError = geminiData.candidates[0].content.parts[0].text.trim();
+                    }
+                } catch (e) {
+                    console.error("Error llamando a Gemini:", e);
+                }
+            } else {
+                // Fallback local
+                if (tono === 'paisa') mensajeError = `¡Quiubo! Pasó la fecha de la vaca por ${promesa.monto}. ¿Qué te pasó, mor?`;
+                if (tono === 'costeno') mensajeError = `¡Eche vale! Pasó la fecha pa la vaca de ${promesa.monto}. ¿Qué pasó con la liga?`;
+                if (tono === 'rolo') mensajeError = `¡Ala! Pasó la fecha acordada por ${promesa.monto}. ¿Te cobró el banco paila o qué?`;
+            }
 
             // TODO: Enviar mensaje de utilidad vía Meta WhatsApp API
             console.log("Enviando WhatsApp a deudor:", promesa.deudor_telefono, mensajeError);

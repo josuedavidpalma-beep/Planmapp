@@ -300,7 +300,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                            child: DiscoverMap(
                                events: filteredEvents,
                                city: _selectedCity,
-                               onEventTap: (event) => _showPlanPreview(context, event.title, "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", event.imageUrl ?? "https://via.placeholder.com/600", event)
+                               onEventTap: (event) => _showPlanPreview(context, event.title, "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", event.displayImageUrl, event)
                            )
                        )
                    )
@@ -315,9 +315,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ...filteredEvents.map((event) => _AnimatedPlanCard(
                          title: event.title, 
                          subtitle: "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", 
-                         imageUrl: event.imageUrl ?? "https://via.placeholder.com/600",
+                         imageUrl: event.displayImageUrl,
                          event: event,
-                         onTap: () => _showPlanPreview(context, event.title, "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", event.imageUrl ?? "https://via.placeholder.com/600", event)
+                         onTap: () => _showPlanPreview(context, event.title, "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", event.displayImageUrl, event)
                       )),
                 ],
 
@@ -368,7 +368,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           builder: (context) => Container(
               constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85), // Allow it to be taller if needed
               decoration: const BoxDecoration(
-                  color: Colors.white,
+                  color: AppTheme.darkBackground,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
               ),
               child: SingleChildScrollView(
@@ -379,7 +379,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ClipRRect(
                             borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
                             child: CachedNetworkImage(
-                                imageUrl: imageUrl.startsWith('http') ? imageUrl : 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800', 
+                                imageUrl: imageUrl, 
                                 height: 200, 
                                 width: double.infinity, 
                                 fit: BoxFit.cover,
@@ -413,7 +413,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           child: Row(children: [
                                             const Icon(Icons.location_on, size: 16, color: AppTheme.secondaryBrand),
                                             const SizedBox(width: 8),
-                                            Expanded(child: Text(event.address ?? event.location!, style: const TextStyle(color: Colors.black87), overflow: TextOverflow.ellipsis, maxLines: 2)),
+                                            Expanded(child: Text(event.address ?? event.location!, style: const TextStyle(color: Colors.white70), overflow: TextOverflow.ellipsis, maxLines: 2)),
                                           ]),
                                         ),
                                       if (event.date != null)
@@ -422,7 +422,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           child: Row(children: [
                                             const Icon(Icons.calendar_month, size: 16, color: AppTheme.primaryBrand),
                                             const SizedBox(width: 8),
-                                            Expanded(child: Text(event.endDate != null && event.endDate != event.date ? "Del ${event.date} al ${event.endDate}" : "${event.date}", style: const TextStyle(color: Colors.black87), maxLines: 2, overflow: TextOverflow.ellipsis)),
+                                            Expanded(child: Text(event.endDate != null && event.endDate != event.date ? "Del ${event.date} al ${event.endDate}" : "${event.date}", style: const TextStyle(color: Colors.white70), maxLines: 2, overflow: TextOverflow.ellipsis)),
                                           ]),
                                         ),
                                       if (event.contactInfo != null)
@@ -431,7 +431,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                           child: Row(children: [
                                             const Icon(Icons.phone, size: 16, color: Colors.grey),
                                             const SizedBox(width: 8),
-                                            Expanded(child: Text(event.contactInfo!, style: const TextStyle(color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                                            Expanded(child: Text(event.contactInfo!, style: const TextStyle(color: Colors.white70), maxLines: 1, overflow: TextOverflow.ellipsis)),
                                           ]),
                                         ),
 
@@ -498,7 +498,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                       context.push('/create-plan', extra: {
                                                           'initialTitle': title,
                                                           'initialAddress': event.address ?? event.location,
-                                                          'initialDate': parsedDate
+                                                          'initialDate': parsedDate,
+                                                          'initialImageUrl': imageUrl,
                                                       }); 
                                                       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Creando plan: $title")));
                                                   });
@@ -571,7 +572,7 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
             child: Stack(
                children: [
                   CachedNetworkImage(
-                    imageUrl: widget.imageUrl.startsWith('http') ? widget.imageUrl : 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800', 
+                    imageUrl: widget.imageUrl, 
                     fit: BoxFit.cover, 
                     width: double.infinity, 
                     height: double.infinity,

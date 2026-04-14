@@ -44,6 +44,7 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
   double _tax = 0.0;
   double _tip = 0.0;
   List<CollectionMethodInput> _collectionMethods = [CollectionMethodInput("Nequi", "")];
+  List<String> _availableMethods = ["Nequi", "DaviPlata", "Transferencia Bancaria", "Breve", "Llave", "Efectivo"];
 
   // Loading Animation
   int _loadingIndex = 0;
@@ -80,7 +81,11 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
                       // Dispose existing controllers first
                       for (var m in _collectionMethods) { m.controller.dispose(); }
                       
-                      _collectionMethods = methods.map((m) => CollectionMethodInput(m['type'] ?? "Banco", m['details'] ?? "")).toList();
+                      _collectionMethods = methods.map((m) {
+                          final type = m['type'] ?? "Banco";
+                          if (!_availableMethods.contains(type)) _availableMethods.add(type);
+                          return CollectionMethodInput(type, m['details'] ?? "");
+                      }).toList();
                   });
               }
           }
@@ -381,7 +386,7 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
                                   child: DropdownButtonFormField<String>(
                                       value: item.method,
                                       decoration: const InputDecoration(labelText: "Método", border: OutlineInputBorder(), isDense: true, contentPadding: EdgeInsets.symmetric(horizontal: 8, vertical: 12)),
-                                      items: ["Nequi", "DaviPlata", "Transferencia Bancaria", "Breve", "Llave", "Efectivo"]
+                                      items: _availableMethods
                                          .map((e) => DropdownMenuItem(value: e, child: Text(e, style: const TextStyle(fontSize: 13), overflow: TextOverflow.ellipsis))).toList(),
                                       onChanged: (v) => setState(() => item.method = v!),
                                   )

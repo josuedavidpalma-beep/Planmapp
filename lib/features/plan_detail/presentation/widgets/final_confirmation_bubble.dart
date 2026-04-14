@@ -4,6 +4,7 @@ import 'package:planmapp/features/plan_detail/domain/models/message_model.dart';
 import 'package:planmapp/core/services/plan_service.dart';
 import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:url_launcher/url_launcher.dart' as url_launcher;
 
 class FinalConfirmationBubble extends StatefulWidget {
   final Message message;
@@ -225,15 +226,53 @@ class _FinalConfirmationBubbleState extends State<FinalConfirmationBubble> {
                       padding: const EdgeInsets.all(12),
                       color: _isAttending ? Colors.green[50] : Colors.red[50],
                       alignment: Alignment.center,
-                      child: Row(
+                      child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
                           children: [
-                              Icon(_isAttending ? Icons.check_circle : Icons.cancel, color: _isAttending ? Colors.green : Colors.red),
-                              const SizedBox(width: 8),
-                              Text(
-                                  _isAttending ? "Asistencia Confirmada" : "No asistirás",
-                                  style: TextStyle(fontWeight: FontWeight.bold, color: _isAttending ? Colors.green[800] : Colors.red[800])
-                              )
+                              Row(
+                                  mainAxisAlignment: MainAxisAlignment.center,
+                                  children: [
+                                      Icon(_isAttending ? Icons.check_circle : Icons.cancel, color: _isAttending ? Colors.green : Colors.red),
+                                      const SizedBox(width: 8),
+                                      Text(
+                                          _isAttending ? "Asistencia Confirmada" : "No asistirás",
+                                          style: TextStyle(fontWeight: FontWeight.bold, color: _isAttending ? Colors.green[800] : Colors.red[800])
+                                      )
+                                  ]
+                              ),
+                              // B. Banking Deep Links
+                              if (_isAttending && metadata['payment_mode'] == 'pool') ...[
+                                  const SizedBox(height: 16),
+                                  Text("¡Momento de poner pa' la Vaca!", style: TextStyle(color: Colors.green[700], fontWeight: FontWeight.bold, fontSize: 13)),
+                                  const SizedBox(height: 8),
+                                  Row(
+                                      mainAxisAlignment: MainAxisAlignment.center,
+                                      children: [
+                                          ElevatedButton.icon(
+                                              onPressed: () => _launchApp('nequi://'), 
+                                              icon: const Icon(Icons.account_balance_wallet, size: 14), 
+                                              label: const Text("Nequi"),
+                                              style: ElevatedButton.styleFrom(backgroundColor: const Color(0xFFE2007D), foregroundColor: Colors.white, textStyle: const TextStyle(fontSize: 12), padding: const EdgeInsets.symmetric(horizontal: 12))
+                                          ),
+                                          const SizedBox(width: 8),
+                                          ElevatedButton.icon(
+                                              onPressed: () => _launchApp('daviplata://'), 
+                                              icon: const Icon(Icons.account_balance_wallet, size: 14), 
+                                              label: const Text("DaviP"),
+                                              style: ElevatedButton.styleFrom(backgroundColor: Colors.red[600], foregroundColor: Colors.white, textStyle: const TextStyle(fontSize: 12), padding: const EdgeInsets.symmetric(horizontal: 12))
+                                          )
+                                      ]
+                                  )
+                              ],
+                              // D. Live Planometer Indicator
+                              if (_isAttending) ...[
+                                  const SizedBox(height: 12),
+                                  Container(
+                                      padding: const EdgeInsets.symmetric(vertical: 4, horizontal: 8),
+                                      decoration: BoxDecoration(color: Colors.green[100], borderRadius: BorderRadius.circular(12)),
+                                      child: const Text("🔥 Viabilidad del Plan +10%", style: TextStyle(color: Colors.green, fontSize: 11, fontWeight: FontWeight.bold))
+                                  )
+                              ]
                           ],
                       ),
                   )
@@ -241,6 +280,19 @@ class _FinalConfirmationBubbleState extends State<FinalConfirmationBubble> {
         ),
       ),
     );
+  }
+
+  Future<void> _launchApp(String schema) async {
+      final Uri uri = Uri.parse(schema);
+      try {
+          if (await url_launcher.canLaunchUrl(uri)) {
+              await url_launcher.launchUrl(uri);
+          } else {
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("App no instalada o no soportada.")));
+          }
+      } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No se pudo abrir la app bancaria.")));
+      }
   }
   
   String _getPaymentLabel(String mode) {

@@ -1497,9 +1497,17 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
         child: Row(
           children: [
               IconButton(
-                  icon: const Icon(Icons.casino_outlined, color: Colors.purple),
+                  icon: const Icon(Icons.casino_outlined, color: Colors.orange),
                   tooltip: "Ruleta de la Suerte",
                   onPressed: _openWheel,
+              ),
+              IconButton(
+                  icon: const Icon(Icons.auto_awesome, color: Colors.purple),
+                  tooltip: "Asistente IA",
+                  onPressed: () {
+                      _messageController.text = "@planmapp ${_messageController.text}";
+                      _messageController.selection = TextSelection.fromPosition(TextPosition(offset: _messageController.text.length));
+                  },
               ),
             Expanded(
               child: TextField(

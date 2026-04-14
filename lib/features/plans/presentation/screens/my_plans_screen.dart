@@ -11,6 +11,7 @@ import 'package:planmapp/core/presentation/widgets/skeleton_helper.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/core/presentation/widgets/premium_empty_state.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class MyPlansScreen extends ConsumerStatefulWidget {
   const MyPlansScreen({super.key});
@@ -330,7 +331,7 @@ class _PlanCard extends StatelessWidget {
       decoration: BoxDecoration(
         color: Colors.black, // fallback
         image: DecorationImage(
-          image: NetworkImage(_getPlanImage(plan.title)),
+          image: CachedNetworkImageProvider(plan.imageUrl ?? _getPlanImage(plan.title)),
           fit: BoxFit.cover,
           colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.55), BlendMode.darken),
         ),

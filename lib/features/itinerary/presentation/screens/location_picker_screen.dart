@@ -1,12 +1,9 @@
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
-// import 'package:google_maps_webservice/places.dart';
-// import 'package:flutter_google_places/flutter_google_places.dart';
-
-// PLACEHOLDER: User must replace this KEY!
-const kGoogleApiKey = "YOUR_GOOGLE_MAPS_API_KEY";
+import 'package:http/http.dart' as http;
 
 class LocationPickerScreen extends StatefulWidget {
   final LatLng initialCenter;
@@ -20,47 +17,63 @@ class LocationPickerScreen extends StatefulWidget {
 class _LocationPickerScreenState extends State<LocationPickerScreen> {
   late LatLng _pickedLocation;
   final MapController _mapController = MapController();
+  final TextEditingController _searchController = TextEditingController();
+  
+  String _currentAddress = "Cargando dirección...";
+  bool _isSearching = false;
+  List<dynamic> _searchResults = [];
 
   @override
   void initState() {
     super.initState();
     _pickedLocation = widget.initialCenter;
+    _fetchAddress(_pickedLocation);
   }
 
-  Future<void> _handleSearch() async {
-      // TEMPORARY FIX: Disabled due to Windows Build bugs with google_headers
-      ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text("Búsqueda temporalmente desactivada por mantenimiento en Windows."))
-      );
-      /*
-      try {
-        Prediction? p = await PlacesAutocomplete.show(
-            context: context, 
-            apiKey: kGoogleApiKey,
-            mode: Mode.overlay, // or Mode.fullscreen
-            language: "es",
-            components: [Component(Component.country, "co")]
-        );
-
-        if (p != null && p.placeId != null) {
-            // Get details for lat/lng
-            GoogleMapsPlaces _places = GoogleMapsPlaces(apiKey: kGoogleApiKey);
-            PlacesDetailsResponse detail = await _places.getDetailsByPlaceId(p.placeId!);
-            
-            if (detail.result.geometry != null) {
-                final lat = detail.result.geometry!.location.lat;
-                final lng = detail.result.geometry!.location.lng;
-                
-                setState(() {
-                    _pickedLocation = LatLng(lat, lng);
-                    _mapController.move(_pickedLocation, 15.0);
-                });
-            }
+  Future<void> _fetchAddress(LatLng loc) async {
+    try {
+      final url = Uri.parse("https://nominatim.openstreetmap.org/reverse?format=json&lat=${loc.latitude}&lon=${loc.longitude}");
+      final response = await http.get(url, headers: {'User-Agent': 'PlanmappApp/1.0'});
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['address'] != null) {
+          final addressObj = data['address'];
+          final street = addressObj['road'] ?? addressObj['pedestrian'] ?? '';
+          final city = addressObj['city'] ?? addressObj['town'] ?? addressObj['village'] ?? '';
+          
+          String finalAddress = "$street".trim();
+          if (finalAddress.isEmpty) {
+              finalAddress = data['display_name'] ?? "Ubicación seleccionada";
+          } else if (city.isNotEmpty) {
+              finalAddress += ", $city";
+          }
+          if (mounted) setState(() => _currentAddress = finalAddress);
         }
-      } catch (e) {
-          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error en búsqueda: $e")));
       }
-      */
+    } catch (e) {
+      if (mounted) setState(() => _currentAddress = "Ubicación guardada");
+    }
+  }
+
+  Future<void> _performSearch(String query) async {
+    if (query.trim().isEmpty) {
+      setState(() => _searchResults = []);
+      return;
+    }
+    setState(() => _isSearching = true);
+    try {
+      final url = Uri.parse("https://nominatim.openstreetmap.org/search?q=${Uri.encodeComponent(query)}&format=json&limit=5&countrycodes=co");
+      final response = await http.get(url, headers: {'User-Agent': 'PlanmappApp/1.0'});
+      if (response.statusCode == 200) {
+        setState(() {
+          _searchResults = jsonDecode(response.body);
+        });
+      }
+    } catch (e) {
+      print("Search error: $e");
+    } finally {
+      setState(() => _isSearching = false);
+    }
   }
 
   @override
@@ -69,15 +82,11 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
       appBar: AppBar(
         title: const Text("Seleccionar Ubicación"),
         actions: [
-            IconButton(
-                icon: const Icon(Icons.search, color: Colors.white),
-                onPressed: _handleSearch,
-            ),
             TextButton(
                 onPressed: () {
                     Navigator.pop(context, _pickedLocation);
                 },
-                child: const Text("Confirmar", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                child: const Text("Confirmar", style: TextStyle(color: AppTheme.primaryBrand, fontWeight: FontWeight.bold, fontSize: 16)),
             )
         ],
       ),
@@ -87,16 +96,19 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                   mapController: _mapController,
                   options: MapOptions(
                       initialCenter: widget.initialCenter,
-                      initialZoom: 13.0,
+                      initialZoom: 14.0,
                       onTap: (tapPosition, point) {
                           setState(() {
                               _pickedLocation = point;
+                              _currentAddress = "Cargando...";
+                              _searchResults = []; // Close results on tap
                           });
+                          _fetchAddress(point);
                       },
                   ),
                   children: [
                       TileLayer(
-                          urlTemplate: 'https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', 
+                          urlTemplate: 'https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', 
                           userAgentPackageName: 'com.planmapp.app',
                           subdomains: const ['a', 'b', 'c', 'd'],
                       ),
@@ -107,32 +119,117 @@ class _LocationPickerScreenState extends State<LocationPickerScreen> {
                                   width: 60,
                                   height: 60,
                                   child: Container(
-                                    decoration: const BoxDecoration(
+                                    decoration: BoxDecoration(
                                       shape: BoxShape.circle,
+                                      boxShadow: [BoxShadow(color: AppTheme.primaryBrand.withOpacity(0.3), blurRadius: 10, spreadRadius: 5)],
                                     ),
-                                    child: const Icon(Icons.location_on, color: AppTheme.primaryGlow, size: 40)
+                                    child: const Icon(Icons.location_on, color: AppTheme.primaryBrand, size: 45)
                                   ),
                               )
                           ],
                       ),
                   ],
               ),
+              
+              // Top Search Bar
               Positioned(
-                  bottom: 24,
-                  left: 16,
-                  right: 16,
+                top: 16, left: 16, right: 16,
+                child: Column(
+                  children: [
+                    Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).colorScheme.surface,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10, offset: Offset(0, 4))],
+                      ),
+                      child: TextField(
+                        controller: _searchController,
+                        textInputAction: TextInputAction.search,
+                        onSubmitted: _performSearch,
+                        decoration: InputDecoration(
+                          hintText: "¿A qué lugar o ciudad vamos?",
+                          prefixIcon: const Icon(Icons.search, color: AppTheme.primaryBrand),
+                          suffixIcon: _isSearching 
+                              ? const Padding(padding: EdgeInsets.all(12), child: CircularProgressIndicator(strokeWidth: 2))
+                              : IconButton(
+                                  icon: const Icon(Icons.clear), 
+                                  onPressed: () { 
+                                     _searchController.clear(); 
+                                     setState(() => _searchResults = []); 
+                                  }
+                                ),
+                          border: InputBorder.none,
+                          contentPadding: const EdgeInsets.symmetric(vertical: 16),
+                        ),
+                      ),
+                    ),
+                    if (_searchResults.isNotEmpty)
+                      Container(
+                        margin: const EdgeInsets.only(top: 8),
+                        decoration: BoxDecoration(
+                          color: Theme.of(context).colorScheme.surface,
+                          borderRadius: BorderRadius.circular(16),
+                          boxShadow: const [BoxShadow(color: Colors.black12, blurRadius: 10)],
+                        ),
+                        constraints: const BoxConstraints(maxHeight: 250),
+                        child: ListView.builder(
+                          shrinkWrap: true,
+                          itemCount: _searchResults.length,
+                          itemBuilder: (context, index) {
+                            final place = _searchResults[index];
+                            return ListTile(
+                              leading: const Icon(Icons.place_outlined, color: Colors.grey),
+                              title: Text(place['display_name'], maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 13)),
+                              onTap: () {
+                                final lat = double.parse(place['lat']);
+                                final lon = double.parse(place['lon']);
+                                final loc = LatLng(lat, lon);
+                                setState(() {
+                                  _pickedLocation = loc;
+                                  _searchResults = [];
+                                  _currentAddress = place['display_name'];
+                                  _searchController.text = place['name'] ?? '';
+                                });
+                                _mapController.move(loc, 16.0);
+                              },
+                            );
+                          },
+                        ),
+                      )
+                  ],
+                ),
+              ),
+
+              // Bottom Info Card
+              Positioned(
+                  bottom: 24, left: 16, right: 16,
                   child: Card(
+                      elevation: 8,
+                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                       child: Padding(
                           padding: const EdgeInsets.all(16.0),
-                          child: Column(
-                              mainAxisSize: MainAxisSize.min,
+                          child: Row(
                               children: [
-                                  const Text("Toca la lupa 🔍 para buscar o el mapa para mover.", style: TextStyle(fontSize: 12, color: Colors.grey)),
-                                  const SizedBox(height: 8),
-                                  Text(
-                                      "Lat: ${_pickedLocation.latitude.toStringAsFixed(4)}\nLng: ${_pickedLocation.longitude.toStringAsFixed(4)}",
-                                      textAlign: TextAlign.center,
-                                      style: const TextStyle(fontWeight: FontWeight.bold),
+                                  Container(
+                                    padding: const EdgeInsets.all(12),
+                                    decoration: BoxDecoration(color: AppTheme.primaryBrand.withOpacity(0.1), shape: BoxShape.circle),
+                                    child: const Icon(Icons.my_location, color: AppTheme.primaryBrand)
+                                  ),
+                                  const SizedBox(width: 16),
+                                  Expanded(
+                                    child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                            const Text("Ubicación Exacta", style: TextStyle(fontSize: 12, color: Colors.grey, fontWeight: FontWeight.bold)),
+                                            const SizedBox(height: 4),
+                                            Text(
+                                                _currentAddress,
+                                                maxLines: 2, overflow: TextOverflow.ellipsis,
+                                                style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14),
+                                            ),
+                                        ],
+                                    ),
                                   ),
                               ],
                           ),

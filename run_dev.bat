@@ -40,5 +40,5 @@ echo ---------------------------------------------------
 echo ESTADO: Abriendo navegador. NO CIERRES ESTA VENTANA.
 echo Si ves letras rojas de "Failed to delete", intentalo de nuevo.
 echo ---------------------------------------------------
-call "%~dp0flutter_sdk\bin\flutter.bat" run -d chrome --web-hostname localhost --web-port 8081
+call "%~dp0flutter_sdk\bin\flutter.bat" run -d chrome --web-hostname localhost --web-port 8081 --dart-define=GEMINI_API_KEY="%GEMINI_API_KEY%"
 pause

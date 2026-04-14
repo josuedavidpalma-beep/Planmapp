@@ -40,6 +40,21 @@ class PaymentSummaryScreen extends StatelessWidget {
               textAlign: TextAlign.center,
               style: TextStyle(color: Colors.grey),
             ),
+            const SizedBox(height: 16),
+            Center(
+              child: Container(
+                padding: const EdgeInsets.symmetric(vertical: 6, horizontal: 12),
+                decoration: BoxDecoration(color: Colors.amber[100], borderRadius: BorderRadius.circular(20)),
+                child: Row(
+                   mainAxisSize: MainAxisSize.min,
+                   children: [
+                      const Text("⚡", style: TextStyle(fontSize: 16)),
+                      const SizedBox(width: 8),
+                      Text("¡Paga ahora y gana la medalla Flash!", style: TextStyle(color: Colors.amber[900], fontWeight: FontWeight.bold, fontSize: 12)),
+                   ],
+                ),
+              ),
+            ),
             const SizedBox(height: 32),
             Container(
               padding: const EdgeInsets.all(24),

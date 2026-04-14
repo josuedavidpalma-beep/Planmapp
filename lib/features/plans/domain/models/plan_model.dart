@@ -15,6 +15,7 @@ class Plan {
   final int reminderFrequencyDays;
   final String reminderChannel;
   final DateTime? lastReminderSent;
+  final String? imageUrl;
 
   const Plan({
     required this.id,
@@ -31,6 +32,7 @@ class Plan {
     this.reminderChannel = 'whatsapp',
     this.lastReminderSent,
     this.paymentMode = 'individual',
+    this.imageUrl,
   });
 
   // ... existing code ...
@@ -47,6 +49,7 @@ class Plan {
       'reminder_channel': reminderChannel,
       'visibility': visibility,
       'payment_mode': paymentMode,
+      'image_url': imageUrl,
     };
   }
 
@@ -73,6 +76,7 @@ class Plan {
         reminderChannel: json['reminder_channel']?.toString() ?? 'whatsapp',
         lastReminderSent: json['last_reminder_sent'] != null ? DateTime.tryParse(json['last_reminder_sent'].toString()) : null,
         paymentMode: json['payment_mode']?.toString() ?? 'individual',
+        imageUrl: json['image_url']?.toString(),
       );
     } catch (e) {
       print("Error parsing Plan ${json['id']}: $e");

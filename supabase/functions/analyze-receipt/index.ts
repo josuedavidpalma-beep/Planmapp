@@ -1,6 +1,6 @@
 
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import { GoogleGenerativeAI, Part } from "https://esm.sh/@google/generative-ai@0.1.3"
+import { GoogleGenerativeAI, Part } from "https://esm.sh/@google/generative-ai@0.21.0"
 
 const corsHeaders = {
     'Access-Control-Allow-Origin': '*',
@@ -38,8 +38,8 @@ serve(async (req) => {
         }
 
         const genAI = new GoogleGenerativeAI(apiKey)
-        // Switch to Pro for better reasoning on complex receipts
-        const model = genAI.getGenerativeModel({ model: 'gemini-1.5-pro' })
+        // Switch to Gemini 2.5 Flash for state-of-the-art vision extraction natively supported
+        const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
         // 4. Construct Prompt (Identical to Mobile Implementation)
         const promptText = `
