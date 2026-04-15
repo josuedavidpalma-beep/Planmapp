@@ -53,8 +53,6 @@ google-services.json
 firebase_options.dart
 key.jks
 **/*.keystore
-lib/core/config/api_config.dart
-
 # Large Files & Backups
 *.exe
 *.zip
