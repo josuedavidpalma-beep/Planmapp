@@ -643,22 +643,23 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
                           decoration: BoxDecoration(
                             color: color,
                             borderRadius: BorderRadius.circular(12),
-                            boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4)],
+                            boxShadow: [
+                              BoxShadow(color: Colors.black.withOpacity(0.3), blurRadius: 4),
+                              BoxShadow(color: color.withOpacity(0.5), blurRadius: 10, spreadRadius: -2)
+                            ],
                           ),
                           child: Row(
                             mainAxisSize: MainAxisSize.min,
                             children: [
                               Icon(icon, color: Colors.white, size: 14),
-                              const SizedBox(width: 4),
+                              const SizedBox(width: 6),
                               Text(
-                                widget.event.promoHighlights!.length > 15 
-                                    ? widget.event.promoHighlights!.substring(0, 12) + "..." 
-                                    : widget.event.promoHighlights!,
-                                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold),
+                                widget.event.promoHighlights!.toUpperCase(),
+                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.black, letterSpacing: 0.5),
                               ),
                             ],
-                          ),
-                        ),
+                          ).animate().shimmer(duration: 2.seconds, color: Colors.white.withOpacity(0.3)),
+                        ).animate().scale(delay: 400.ms, duration: 400.ms, curve: Curves.elasticOut),
                       );
                     }
                   ),
@@ -672,16 +673,19 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
   (IconData, Color) _getPromoBadgeInfo(String text) {
     final lower = text.toLowerCase();
     if (lower.contains('%') || lower.contains('dcto') || lower.contains('off') || lower.contains('descuento')) {
-      return (Icons.local_offer_rounded, Colors.redAccent);
+      return (Icons.percent_rounded, Colors.redAccent);
     }
     if (lower.contains('2x1') || lower.contains('3x2') || lower.contains('combo') || lower.contains('paga 1')) {
-      return (Icons.people_alt_rounded, Colors.orangeAccent);
+      return (Icons.style_rounded, Colors.orangeAccent);
     }
-    if (lower.contains('happy') || lower.contains('copa') || lower.contains('cóctel') || lower.contains('bar')) {
+    if (lower.contains('happy') || lower.contains('copa') || lower.contains('cóctel') || lower.contains('bar') || lower.contains('trago')) {
       return (Icons.local_bar_rounded, Colors.purpleAccent);
     }
-    if (lower.contains('gratis') || lower.contains('free') || lower.contains('regalo') || lower.contains('cortesía')) {
-      return (Icons.card_giftcard_rounded, Colors.greenAccent);
+    if (lower.contains('gratis') || lower.contains('free') || lower.contains('regalo') || lower.contains('cortesía') || lower.contains('$0')) {
+      return (Icons.confirmation_num_rounded, Colors.greenAccent);
+    }
+    if (lower.contains('almuerzo') || lower.contains('brunch') || lower.contains('menú') || lower.contains('desayuno')) {
+      return (Icons.restaurant_menu_rounded, Colors.blueAccent);
     }
     return (Icons.flash_on_rounded, AppTheme.primaryBrand);
   }

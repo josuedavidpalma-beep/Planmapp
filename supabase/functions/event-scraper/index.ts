@@ -48,13 +48,13 @@ serve(async (req) => {
             Resultados de Búsqueda:
             ${JSON.stringify(searchData.results)}
             
-            Requerimientos para cada evento:
+             Requerimientos para cada evento:
             - Solo eventos que ocurran pronto.
             - DEBES encontrar el contacto real: Teléfono (WhatsApp preferiblemente) y link de acción (Reserva, Ticketera, Menú o Web oficial).
             - Asigna un 'vibe_tag' entre: ["Rumba/Party", "Chill/Café", "Comida/Gastro", "Aventura/Outdoor", "Cine/Cultura"].
             - Genera un 'visual_keyword': Un término de búsqueda en INGLÉS corto y preciso para Unsplash que represente la imagen ideal del evento (ej: "night club neon", "luxury steakhouse", "beach sunset", "cinema theater seats"). Se lo más específico posible.
             - La 'description' debe ser atractiva.
-            - DEBES extraer un campo 'promo_highlights': Si hay Happy Hour, 2x1, descuentos, preventas o beneficios especiales, lístalos de forma muy corta (ej: "Happy Hour 2x1 hasta 9pm"). Si no hay, deja vacío.
+            - DEBES extraer un campo 'promo_highlights': DEBE SER MUY CORTO (máximo 15 caracteres) para que quepa en un símbolo o insignia. Ejemplos: "2x1", "30% OFF", "Happy Hour", "Entrada Libre", "Cóctel Gratis", "Cover $0". Si ves cualquier beneficio por mínimo que sea, extráelo. Si no hay nada, deja vacío.
             
             Formato de salida (JSON):
             {
@@ -62,7 +62,7 @@ serve(async (req) => {
                     {
                         "event_name": "Nombre",
                         "description": "Descripción persuasiva",
-                        "promo_highlights": "Resumen de promos (opcional)",
+                        "promo_highlights": "Resumen MUY CORTO de promo (ej: 2x1)",
                         "date": "YYYY-MM-DD",
                         "venue_name": "Lugar",
                         "address": "Dirección",

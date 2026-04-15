@@ -1,3 +1,5 @@
+import 'package:planmapp/core/constants/image_pools.dart';
+
 class Event {
   final String id;
   final String title;
@@ -42,58 +44,60 @@ class Event {
   String get displayImageUrl {
     final searchSpace = "${visualKeyword ?? ''} ${title.toLowerCase()} ${description?.toLowerCase() ?? ''} ${category?.toLowerCase() ?? ''}";
     
+    // Daily Rotation Seed
+    final daysSinceEpoch = DateTime.now().difference(DateTime(1970, 1, 1)).inDays;
+    
+    String categoryKey = '';
+
+    // 1. MATCH POR TIPOLOGÍAS ESPECÍFICAS
+    if (searchSpace.contains('cine') || searchSpace.contains('película') || searchSpace.contains('cinema')) {
+      categoryKey = 'cine';
+    } else if (searchSpace.contains('restaurante') || searchSpace.contains('comida') || searchSpace.contains('menú')) {
+      categoryKey = 'restaurante';
+    } else if (searchSpace.contains('deporte') || searchSpace.contains('running') || searchSpace.contains('ciclismo') || searchSpace.contains('futbol') || searchSpace.contains('beisbol')) {
+      categoryKey = 'deporte';
+    } else if (searchSpace.contains('desayuno') || searchSpace.contains('almuerzo') || searchSpace.contains('brunch') || searchSpace.contains('cena')) {
+      categoryKey = 'comida';
+    } else if (searchSpace.contains('calle') || searchSpace.contains('pueblo') || searchSpace.contains('colonial')) {
+      categoryKey = 'calles_colombia';
+    } else if (searchSpace.contains('cultura') || searchSpace.contains('museo') || searchSpace.contains('arte') || searchSpace.contains('historia')) {
+      categoryKey = 'cultura';
+    } else if (searchSpace.contains('amigos') || searchSpace.contains('parche') || searchSpace.contains('reunión')) {
+      categoryKey = 'amigos';
+    } else if (searchSpace.contains('bar') || searchSpace.contains('cerveza') || searchSpace.contains('pola') || searchSpace.contains('cocktail') || searchSpace.contains('cóctel')) {
+      categoryKey = 'bares_cervezas';
+    } else if (searchSpace.contains('concierto') || searchSpace.contains('rock') || searchSpace.contains('música en vivo')) {
+      categoryKey = 'conciertos';
+    } else if (searchSpace.contains('viaje') || searchSpace.contains('paseo') || searchSpace.contains('escapada')) {
+      categoryKey = 'viajes';
+    } else if (searchSpace.contains('acuatico') || searchSpace.contains('tobogán') || searchSpace.contains('parque de agua')) {
+      categoryKey = 'parques_acuaticos';
+    } else if (searchSpace.contains('playa') || searchSpace.contains('mar') || searchSpace.contains('arena')) {
+      categoryKey = 'playas';
+    } else if (searchSpace.contains('piscina') || searchSpace.contains('pool') || searchSpace.contains('balneario')) {
+      categoryKey = 'piscina';
+    } else if (searchSpace.contains('iconico') || searchSpace.contains('monumento') || searchSpace.contains('turismo')) {
+      categoryKey = 'lugares_iconicos';
+    } else if (searchSpace.contains('festival') || searchSpace.contains('carnaval') || searchSpace.contains('feria')) {
+      categoryKey = 'festivales';
+    } else if (searchSpace.contains('natural') || searchSpace.contains('senderismo') || searchSpace.contains('naturaleza') || searchSpace.contains('campamento')) {
+      categoryKey = 'parques_naturales';
+    } else if (searchSpace.contains('casa') || searchSpace.contains('lecura') || searchSpace.contains('gamer') || searchSpace.contains('netflix')) {
+      categoryKey = 'planes_casa';
+    } else if (searchSpace.contains('teatro') || searchSpace.contains('escena') || searchSpace.contains('obra')) {
+      categoryKey = 'teatro';
+    } else if (searchSpace.contains('romantico') || searchSpace.contains('pareja') || searchSpace.contains('amor') || searchSpace.contains('cita')) {
+      categoryKey = 'romantico';
+    }
+
     String finalId = '';
+    final pool = ImagePools.pools[categoryKey] ?? ImagePools.pools['cultura']!;
+    
+    // Logic: Rotation by ID + Day
+    final seed = (id.hashCode + daysSinceEpoch).abs();
+    finalId = pool[seed % pool.length];
 
-    // 1. MATCH POR PALABRAS CLAVES ESPECÍFICAS (Búsqueda refinada)
-    if (searchSpace.contains('cine') || searchSpace.contains('película') || searchSpace.contains('movie') || searchSpace.contains('cinema')) {
-        finalId = _getRandomFromPool(['1489599872518-e3c63964ff58', '1460661419205-02194c653ff9', '1585699324571-085731998ba2', '1461344573914-f7ad62660a74', '1517604435381-db28af7cf9d2']);
-    } else if (searchSpace.contains('bolera') || searchSpace.contains('bowling')) {
-        finalId = '1538108122303-07d745a30abb';
-    } else if (searchSpace.contains('billar') || searchSpace.contains('pool table')) {
-        finalId = '1542190897-447b869408d6';
-    } else if (searchSpace.contains('karaoke')) {
-        finalId = '1516280440605-db561c20980d';
-    } else if (searchSpace.contains('hamburguesa') || searchSpace.contains('burger')) {
-        finalId = '1568901346375-23c9450c58cd';
-    } else if (searchSpace.contains('pizza')) {
-        finalId = '1513104890138-7c749659a591';
-    } else if (searchSpace.contains('sushi')) {
-        finalId = '1579871494447-9811cf80d66c';
-    } else if (searchSpace.contains('taco') || searchSpace.contains('mexican')) {
-        finalId = '1565293288621-4d57c91a3c0c';
-    } else if (searchSpace.contains('café') || searchSpace.contains('coffee') || searchSpace.contains('brunch')) {
-        finalId = _getRandomFromPool(['1476224203463-3a1315b41fae', '1554118811-1e0d58224f24', '1501339847302-3861fb1796d3', '1511923211756-58bba0979509', '1525648199079-0599525406c7']);
-    } else if (searchSpace.contains('cerveza') || searchSpace.contains('pola') || searchSpace.contains('pub') || searchSpace.contains('bar') || searchSpace.contains('cocktail')) {
-        finalId = _getRandomFromPool(['1514362545857-3bc16c4c7d1b', '1470333738048-3a1525eef926', '1510626176241-af6dc395cf90', '1551024709-3769c76b4122', '1543007630-976d06086a9f']);
-    } else if (searchSpace.contains('rock') || searchSpace.contains('concierto') || searchSpace.contains('festival')) {
-        finalId = '1470225620780-dba8ba36b745';
-    } else if (searchSpace.contains('dj') || searchSpace.contains('disco') || searchSpace.contains('rumba') || searchSpace.contains('party')) {
-        finalId = _getRandomFromPool(['1514525253161-7a46d19cd819', '1516450360452-9312f5e86fc7', '1520113101900-51c0d45bf860', '1533170762720-efec82a4d801', '1540039155732-6bc14b781b03']);
-    } else if (searchSpace.contains('parque') || searchSpace.contains('naturaleza') || searchSpace.contains('hiking') || searchSpace.contains('outdoors')) {
-        finalId = _getRandomFromPool(['1441974231531-c6227db76b6e', '1501555088652-0dcac8b233a7', '1519331379826-f16638a16709', '1526772662000-2f882ecc3025', '1472214103451-9374bd1c798e']);
-    } else if (searchSpace.contains('museo') || searchSpace.contains('arte') || searchSpace.contains('gallery') || searchSpace.contains('culture')) {
-        finalId = _getRandomFromPool(['1533105079780-92b9be482077', '1533174072545-7a4b6ad7a6c3', '1561214115-f2f134cc4912', '1501862700950-ef8c2c2a49aa', '1459749411175-04bf5292ceea']);
-    }
-
-    // 2. FALLBACK SI NO HAY MATCH ESPECÍFICO (O si el local event no tiene visual_keyword)
-    if (finalId.isEmpty) {
-        // Only use scraping image as a last resort if it looks like a reliable direct link
-        if (imageUrl != null && imageUrl!.contains('unsplash.com')) {
-            return imageUrl!;
-        }
-        
-        final categoryPool = [
-          '1492684223066-81342ee5ff30', // Party
-          '1517048676732-d65bc937f952', // Social (Verified)
-          '1441974231531-c6227db76b6e', // Nature (Verified)
-          '1523580494863-6f3031224c94', // Aesthetic Gathering
-          '1470225620780-dba8ba36b745', // Live Music
-          '1533174072545-7a4b6ad7a6c3', // Culture (Verified)
-          '1517248135467-4c7edcad34c4', // Dining
-        ];
-        finalId = _getRandomFromPool(categoryPool);
-    }
-
+    // Handle Backup as emergency fallback (though pool is now large)
     return 'https://images.unsplash.com/photo-$finalId?auto=format&fit=crop&q=80&w=800';
   }
 
