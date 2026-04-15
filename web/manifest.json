@@ -5,9 +5,26 @@
     "display": "standalone",
     "background_color": "#0F111A",
     "theme_color": "#0F111A",
-    "description": "La app para organizar tus planes sin dramas. Crea el parche, divide los gastos y lánzate.",
+    "description": "La app definitiva para organizar planes épicos sin dramas. Crea el parche, divide los gastos y lánzate.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
+    "categories": ["social", "productivity", "lifestyle"],
+    "shortcuts": [
+        {
+            "name": "Nuevo Plan",
+            "short_name": "Nuevo",
+            "description": "Lanza una propuesta de plan a tus amigos",
+            "url": "/#/create-plan",
+            "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
+        },
+        {
+            "name": "Mis Deudas",
+            "short_name": "Deudas",
+            "description": "Mira quién te debe o a quién le debes",
+            "url": "/#/debts",
+            "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
+        }
+    ],
     "icons": [
         {
             "src": "icons/Icon-192.png",

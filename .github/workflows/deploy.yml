@@ -18,22 +18,15 @@ jobs:
         with:
           channel: 'stable'
 
-      # Paso para crear el archivo con las keys - usando printf para expandir variables
-      - name: Create API Config
-        run: |
-          mkdir -p lib/core/config
-          printf 'class ApiConfig {\n  static const String geminiApiKey = "%s";\n  static const String supabaseUrl = "%s";\n  static const String supabaseAnonKey = "%s";\n}\n' \
-            "${{ secrets.GEMINI_API_KEY }}" \
-            "${{ secrets.SUPABASE_URL }}" \
-            "sb_publishable_fq738FQkpkE1ppEkJlwqGQ_YQf58fYU" \
-            > lib/core/config/api_config.dart
-          echo "✅ api_config.dart generated successfully"
-          cat lib/core/config/api_config.dart
-
-
       - run: flutter clean
       - run: flutter pub get
-      - run: flutter build web --release --base-href "/${{ github.event.repository.name }}/"
+      - name: Build Web
+        run: |
+          flutter build web --release \
+            --base-href "/${{ github.event.repository.name }}/" \
+            --dart-define=GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
+            --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
+            --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
