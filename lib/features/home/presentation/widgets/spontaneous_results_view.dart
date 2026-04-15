@@ -8,6 +8,7 @@ import 'package:flutter/services.dart';
 import 'package:planmapp/core/services/plan_service.dart';
 import 'package:planmapp/features/plan_detail/presentation/screens/plan_detail_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:planmapp/features/explore/data/models/event_model.dart';
 
 class SpontaneousResultsView extends StatefulWidget {
   final String category;
@@ -34,62 +35,63 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
 
   Future<void> _fetchCuratedPlaces() async {
       try {
-          // Map UI categories to DB categories
-          String dbCategory = 'food';
-          if (widget.category == 'Comer') dbCategory = 'food';
-          else if (widget.category == 'Beber') dbCategory = 'party';
-          else if (widget.category == 'Cultura') dbCategory = 'culture';
-          else if (widget.category == 'Explorar') dbCategory = 'outdoors';
+          if (mounted) setState(() => _isLoading = true);
+          
+          List<String> targetVibes = [];
+          if (widget.category == 'Dados') {
+              final allVibes = ["Rumba/Party", "Chill/Café", "Comida/Gastro", "Aventura/Outdoor", "Cine/Cultura"];
+              targetVibes = [allVibes[random.nextInt(allVibes.length)], allVibes[random.nextInt(allVibes.length)]];
+          } else {
+              targetVibes = [widget.category]; // For legacy, mapping happens below
+          }
 
-          final res = await Supabase.instance.client
-              .from('events')
-              .select('*')
-              .eq('category', dbCategory)
-              .not('latitude', 'is', null)
-              .not('longitude', 'is', null)
-              .limit(50); // Get some to sort locally
-
+          // Combined Results
           List<Map<String, dynamic>> loaded = [];
-          for (var row in res) {
-              double lat = double.tryParse(row['latitude'].toString()) ?? 0;
-              double lng = double.tryParse(row['longitude'].toString()) ?? 0;
-              
-              double distMeters = Geolocator.distanceBetween(
-                  widget.position.latitude, widget.position.longitude,
-                  lat, lng
-              );
-              
-              String distStr = distMeters > 1000 
-                  ? "${(distMeters/1000).toStringAsFixed(1)} km" 
-                  : "${distMeters.round()} m";
 
-              // Pick random tag
-              final tags = ['La Confiable 🛡️', 'El Descubrimiento 💎', 'Recomendado ⭐', 'Popular 🔥'];
+          // 1. Fetch from 'local_events' (The new AI discoveries)
+          var localQuery = Supabase.instance.client.from('local_events').select('*');
+          if (widget.category != 'Dados') {
+              // Map UI labels to DB vibe_tags
+              String vibeMapping = widget.category;
+              if (widget.category == 'Rumba') vibeMapping = 'Rumba/Party';
+              else if (widget.category == 'Chill') vibeMapping = 'Chill/Café';
+              else if (widget.category == 'Comida') vibeMapping = 'Comida/Gastro';
+              else if (widget.category == 'Aventura') vibeMapping = 'Aventura/Outdoor';
+              else if (widget.category == 'Cultura') vibeMapping = 'Cine/Cultura';
+              localQuery = localQuery.ilike('vibe_tag', '%$vibeMapping%');
+          }
+          
+          final localRes = await localQuery.limit(20);
+          for (var row in localRes) {
+              _processRow(row, loaded, isLocal: true);
+          }
+
+          // 2. Fetch from legacy 'events' if needed
+          if (loaded.length < 5) {
+              String dbCategory = 'food';
+              if (widget.category == 'Rumba') dbCategory = 'party';
+              else if (widget.category == 'Chill') dbCategory = 'cafe';
+              else if (widget.category == 'Cultura') dbCategory = 'culture';
+              else if (widget.category == 'Aventura') dbCategory = 'outdoors';
+
+              final res = await Supabase.instance.client
+                  .from('events')
+                  .select('*')
+                  .eq('category', dbCategory)
+                  .limit(10);
               
-              loaded.add({
-                  'name': row['title'] ?? 'Lugar',
-                  'rating': row['rating_google'] ?? (random.nextDouble() * 1.5 + 3.5).toStringAsFixed(1),
-                  'dist': distStr,
-                  'dist_val': distMeters,
-                  'tag': tags[random.nextInt(tags.length)],
-                  'desc': row['description'] ?? 'Un lugar increíble descubierto por Planmapp.',
-                  'image': row['image_url'] ?? 'https://images.unsplash.com/photo-1501281668745-f7f57925c3b4?auto=format&fit=crop&w=800&q=80',
-                  'contact': row['contact_info']
-              });
+              for (var row in res) {
+                  _processRow(row, loaded, isLocal: false);
+              }
           }
 
           // Sort by distance
           loaded.sort((a, b) => (a['dist_val'] as double).compareTo(b['dist_val'] as double));
           
-          if (loaded.length > 5) {
-               _places = loaded.sublist(0, 5); // Take top 5 closest
-          } else {
-               _places = loaded;
-          }
+          _places = loaded.length > 8 ? loaded.sublist(0, 8) : loaded;
 
           if (_places.isEmpty) {
-              // Fallback just in case
-              _places = [{ 'name': 'Sin resultados', 'rating': '5.0', 'dist': '0 m', 'tag': 'Ouch', 'desc': 'No encontramos lugares reales cerca de ti para este vibe. Vuelve a intentarlo.', 'image': 'https://images.unsplash.com/photo-1519331379826-f947873d63bd?auto=format&fit=crop&w=500' }];
+              _places = [{ 'name': 'Vibe Tranquilo', 'rating': '5.0', 'dist': 'Pronto', 'tag': 'Tip Planmapp', 'desc': 'No hay eventos masivos ahora, pero es el momento perfecto para una caminata por el Malecón del Río.', 'image': 'https://images.unsplash.com/photo-1519331379826-f947873d63bd?auto=format&fit=crop&w=500' }];
           }
 
       } catch (e) {
@@ -98,6 +100,49 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
       }
 
       if (mounted) setState(() => _isLoading = false);
+  }
+
+  void _processRow(Map<String, dynamic> row, List<Map<String, dynamic>> loaded, {required bool isLocal}) {
+      double? lat = double.tryParse(row['latitude']?.toString() ?? '');
+      double? lng = double.tryParse(row['longitude']?.toString() ?? '');
+      
+      double distMeters = 0;
+      if (lat != null && lng != null) {
+          distMeters = Geolocator.distanceBetween(
+              widget.position.latitude, widget.position.longitude,
+              lat, lng
+          );
+      }
+      
+      String distStr = distMeters > 1000 
+          ? "${(distMeters/1000).toStringAsFixed(1)} km" 
+          : "${distMeters.round()} m";
+      if (distMeters == 0) distStr = "Cerca";
+
+      final title = row['event_name'] ?? row['title'] ?? 'Lugar';
+      final desc = row['description'] ?? title;
+      bool hasDiscount = desc.toLowerCase().contains('desc') || desc.toLowerCase().contains('%') || desc.toLowerCase().contains('promo');
+
+      // NEW: Use Event model logic for images
+      final event = Event(
+          id: row['id']?.toString() ?? 'temp_${title.hashCode}',
+          title: title,
+          description: desc,
+          imageUrl: row['image_url'],
+          visualKeyword: row['visual_keyword'],
+          category: row['category'] ?? row['vibe_tag'],
+      );
+
+      loaded.add({
+          'name': title,
+          'rating': row['rating_google']?.toString() ?? (random.nextDouble() * 1.0 + 4.0).toStringAsFixed(1),
+          'dist': distStr,
+          'dist_val': distMeters,
+          'tag': hasDiscount ? 'OFERTA 🏷️' : (isLocal ? 'FRESH ✨' : 'TOP 🔥'),
+          'desc': desc,
+          'image': event.displayImageUrl,
+          'reservation_link': row['reservation_link'] ?? row['source_url']
+      });
   }
 
   Future<void> _createSpontaneousPlan(Map<String, dynamic> place) async {
@@ -114,16 +159,19 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
            final title = "Plan Espontáneo en ${place['name']}";
            final desc = "Mood: ${widget.category}\nLugar: ${place['name']} (${place['tag']})\n${place['desc']}";
            
-           final planData = {
-               'title': title,
-               'description': desc,
-               'location_name': place['name'],
-               'event_date': DateTime.now().toIso8601String(), // NOW!
-               'payment_mode': 'individual',
-               'creator_id': userId,
-               'image_url': place['image'], // FIX: Mantiene la foto coherente
-               'status': 'active' // or confirmed?
-           };
+            final planData = {
+                'title': title,
+                'description': desc,
+                'location_name': place['name'],
+                'event_date': DateTime.now().toIso8601String(), // NOW!
+                'payment_mode': 'individual',
+                'creator_id': userId,
+                'image_url': place['image'],
+                'reservation_link': place['reservation_link']?.toString(), // PERSIST ACTIONABLE DATA
+                'contact_info': place['contact_phone']?.toString(), // IF AVAILABLE
+                'promo_highlights': place['promo_highlights']?.toString(),
+                'status': 'active' 
+            };
 
            final res = await Supabase.instance.client.from('plans').insert(planData).select().single();
            final planId = res['id'];
@@ -199,9 +247,27 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                  const SizedBox(height: 16),
                  Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2))),
                  const SizedBox(height: 24),
-                 Text("Top Picks: ${widget.category}", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                 Row(
+                   mainAxisAlignment: MainAxisAlignment.center,
+                   children: [
+                     Text(
+                       widget.category == 'Dados' ? "Suerte del día 🎲" : "Top Picks: ${widget.category}", 
+                       style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)
+                     ),
+                     if (widget.category == 'Dados') ...[
+                       const SizedBox(width: 8),
+                       IconButton(
+                           onPressed: _fetchCuratedPlaces, 
+                           icon: const Icon(Icons.refresh_rounded, color: AppTheme.primaryBrand)
+                       ).animate(onPlay: (controller) => controller.repeat()).shimmer(duration: 2.seconds)
+                     ]
+                   ],
+                 ),
                  const SizedBox(height: 4),
-                 Text("Cerca de ti • Abierto ahora", style: TextStyle(color: Colors.grey[600], fontSize: 13)),
+                 Text(
+                   widget.category == 'Dados' ? "Algo diferente cada vez que tiras." : "Cerca de ti • Abierto ahora", 
+                   style: TextStyle(color: Colors.grey[600], fontSize: 13)
+                 ),
                  const SizedBox(height: 24),
                  
                  Expanded(

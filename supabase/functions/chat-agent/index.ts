@@ -1,0 +1,133 @@
+
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from 'https://esm.sh/@supabase/supabase-js@2';
+
+const corsHeaders = {
+    'Access-Control-Allow-Origin': '*',
+    'Access-Control-Allow-Headers': 'authorization, x-client-info, apikey, content-type',
+};
+
+serve(async (req) => {
+    if (req.method === 'OPTIONS') {
+        return new Response('ok', { headers: corsHeaders });
+    }
+
+    let body: any = {};
+    try {
+        body = await req.json();
+        const { plan_id, content } = body;
+        const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
+        const supabaseUrl = Deno.env.get('SUPABASE_URL');
+        const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+
+        if (!geminiApiKey) throw new Error("GEMINI_API_KEY is not set");
+        
+        const supabase = createClient(supabaseUrl!, supabaseServiceRoleKey!);
+
+        // 1. Fetch Plan Details to give context to Gemini
+        const { data: plan, error: planError } = await supabase
+            .from('plans')
+            .select('*')
+            .eq('id', plan_id)
+            .single();
+
+        if (planError || !plan) throw new Error("Plan not found");
+
+        // 2. Prepare Prompt
+        const prompt = `
+            Eres el Asistente Inteligente de Planmapp. Tu objetivo es ayudar a este grupo de amigos a concretar su plan de forma rápida y fácil.
+            
+            Contexto del Plan actual:
+            - Título: "${plan.title}"
+            - Ubicación: "${plan.location_name}"
+            - Descripción: "${plan.description}"
+            - Info de contacto/reserva disponible: "${plan.contact_info || 'No especificada'}" y "${plan.reservation_link || 'No especificado'}"
+            
+            Mensaje del usuario: "${content}"
+            
+            Instrucciones:
+            1. Responde de forma amistosa y proactiva.
+            2. SI hay información de contacto o reserva (WhatsApp, link, teléfono), DEBES mencionarla y animar al grupo a usarla para asegurar el plan. Ejemplo: "Chicos, ya vi que tienen el contacto de reserva aquí mismo, ¿quieren que alguien llame o reservamos por el link?"
+            3. Si el usuario pregunta qué hacer, ofrece sugerencias basadas en la ubicación "${plan.location_name}".
+            
+            Formato de salida (JSON):
+            {
+                "rationale": "Tu respuesta amable y proactiva al grupo",
+                "suggested_event": {
+                    "title": "Nombre de actividad/lugar sugerido (opcional)",
+                    "location": "Dirección aprox (opcional)",
+                    "image_url": "URL sugerida (opcional)"
+                }
+            }
+            RETORNA ÚNICAMENTE EL JSON.
+        `;
+
+        // 3. Call Gemini
+        const response = await fetch(`https://generativelanguage.googleapis.com/v1/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                contents: [{ parts: [{ text: prompt }] }],
+            }),
+        });
+
+        if (!response.ok) {
+            const err = await response.text();
+            throw new Error(`Gemini API Error: ${err}`);
+        }
+
+        const data = await response.json();
+        let textResult = data.candidates?.[0]?.content?.parts?.[0]?.text;
+        
+        console.log("Gemini Raw Response:", textResult);
+
+        // Robust JSON extraction
+        const jsonMatch = textResult.match(/\{[\s\S]*\}/);
+        if (!jsonMatch) {
+            console.error("No JSON found in Gemini response:", textResult);
+            throw new Error("Could not parse AI response as JSON");
+        }
+        
+        const resultJson = JSON.parse(jsonMatch[0]);
+
+        // 4. Update the chat in real-time (Insert system message)
+        await supabase.from('messages').insert({
+            plan_id,
+            content: resultJson.rationale,
+            user_id: null, // System
+            type: 'system',
+            metadata: resultJson.suggested_event ? { suggested_event: resultJson.suggested_event } : null
+        });
+
+        return new Response(JSON.stringify({ status: 'ok' }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+        });
+
+    } catch (error) {
+        console.error(error);
+        
+        // Final attempt to report error to the chat if we have plan_id
+        try {
+            const { plan_id } = await req.json().catch(() => ({}));
+            if (plan_id) {
+                const supabaseUrl = Deno.env.get('SUPABASE_URL');
+                const supabaseServiceRoleKey = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY');
+                const supabase = createClient(supabaseUrl!, supabaseServiceRoleKey!);
+                await supabase.from('messages').insert({
+                    plan_id,
+                    content: `⚠️ Error de Asistente: ${error.message}. Por favor, verifica la configuración de Gemini.`,
+                    user_id: null,
+                    type: 'system'
+                });
+            }
+        } catch (innerErr) {
+            console.error("Failed to report error to chat:", innerErr);
+        }
+
+        return new Response(JSON.stringify({ error: error.message }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 400,
+        });
+    }
+});

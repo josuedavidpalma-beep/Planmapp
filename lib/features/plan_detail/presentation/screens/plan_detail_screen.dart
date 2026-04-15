@@ -25,7 +25,8 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:planmapp/features/games/presentation/widgets/wheel_spin_dialog.dart'; // NEW Wheel
 import 'package:planmapp/features/plan_detail/presentation/widgets/roulette_message_bubble.dart';
 import 'package:planmapp/features/plan_detail/presentation/widgets/final_confirmation_bubble.dart';
-import 'package:planmapp/features/plan_detail/presentation/widgets/participants_list_sheet.dart'; // NEW
+import 'package:planmapp/features/plan_detail/presentation/widgets/participants_list_sheet.dart'; 
+import 'package:url_launcher/url_launcher.dart';
 // import 'package:planmapp/features/plan_detail/presentation/screens/games_plan_tab.dart'; // REMOVED
 
 class PlanDetailScreen extends StatefulWidget {
@@ -368,10 +369,74 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
             );
   }
 
+  Widget _buildActionBanner() {
+      return Container(
+          margin: const EdgeInsets.all(16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [AppTheme.primaryBrand.withOpacity(0.15), AppTheme.secondaryBrand.withOpacity(0.15)]),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.primaryBrand.withOpacity(0.3))
+          ),
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                  Row(
+                      children: [
+                          const Icon(Icons.flash_on_rounded, color: AppTheme.primaryBrand, size: 20),
+                          const SizedBox(width: 8),
+                          const Text("Acciones Rápidas", style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBrand)),
+                          const Spacer(),
+                          Text("¡Asegura el plan!", style: TextStyle(fontSize: 11, color: AppTheme.primaryBrand.withOpacity(0.7))),
+                      ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                      children: [
+                          if (_plan?.reservationLink != null && _plan!.reservationLink!.isNotEmpty)
+                              Expanded(
+                                  child: ElevatedButton.icon(
+                                      onPressed: () => launchUrl(Uri.parse(_plan!.reservationLink!)),
+                                      icon: const Icon(Icons.calendar_month_rounded, size: 18),
+                                      label: const Text("RESERVAR"),
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor: AppTheme.primaryBrand,
+                                          foregroundColor: Colors.white,
+                                          elevation: 0,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                                      ),
+                                  ),
+                              ),
+                          if (_plan?.reservationLink != null && _plan!.reservationLink!.isNotEmpty && _plan?.contactInfo != null && _plan!.contactInfo!.isNotEmpty)
+                              const SizedBox(width: 8),
+                          if (_plan?.contactInfo != null && _plan!.contactInfo!.isNotEmpty)
+                              Expanded(
+                                  child: OutlinedButton.icon(
+                                      onPressed: () => launchUrl(Uri.parse("https://wa.me/${_plan!.contactInfo!.replaceAll(RegExp(r'[^0-9]'), '')}")),
+                                      icon: const Icon(Icons.chat_bubble_outline_rounded, size: 18),
+                                      label: const Text("WHATSAPP"),
+                                      style: OutlinedButton.styleFrom(
+                                          side: const BorderSide(color: AppTheme.primaryBrand),
+                                          foregroundColor: AppTheme.primaryBrand,
+                                          shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                                      ),
+                                  ),
+                              ),
+                      ],
+                  )
+              ],
+          )
+      );
+  }
+
   // Merged Tab: Polls at top + Chat (Now named generic for re-use)
   Widget _buildChatAndPolls() {
      return Column(
        children: [
+          // Action Banner (Reservar / Contactar)
+          if ((_plan?.reservationLink != null && _plan!.reservationLink!.isNotEmpty) || (_plan?.contactInfo != null && _plan!.contactInfo!.isNotEmpty))
+             _buildActionBanner(),
+
           // Active Polls Section
           StreamBuilder<List<Poll>>(
              stream: _pollsStream,
@@ -565,7 +630,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
       Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
       
       if (text.toLowerCase().contains('@planmapp')) {
-          _chatService.triggerAgent(widget.planId, _plan?.locationName ?? 'Bogotá');
+          _chatService.triggerAgent(widget.planId, text);
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));
@@ -1396,7 +1461,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                   child: Column(
                     crossAxisAlignment: isSystem ? CrossAxisAlignment.center : (isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start),
                     children: [
-                       // Sender Name (Only for others in Group Chat context)
+                       // Sender Name
                        if (!isMe || isSystem)
                            Padding(
                                padding: const EdgeInsets.only(bottom: 4),
@@ -1419,38 +1484,48 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                          ),
                        ),
                        
-                       // Event metadata integration
+                       // Event metadata (Suggested Card)
                        if (isSystem && msg.metadata != null && msg.metadata!['suggested_event'] != null) ...[
                            const SizedBox(height: 12),
-                           Container(
-                               padding: const EdgeInsets.all(8),
-                               decoration: BoxDecoration(
-                                   color: Colors.white,
-                                   borderRadius: BorderRadius.circular(12),
+                           InkWell(
+                               onTap: () {
+                                   final link = msg.metadata!['suggested_event']['reservation_link'] ?? msg.metadata!['suggested_event']['source_url'];
+                                   if (link != null) launchUrl(Uri.parse(link));
+                               },
+                               child: Container(
+                                   padding: const EdgeInsets.all(8),
+                                   decoration: BoxDecoration(
+                                       color: Colors.white,
+                                       borderRadius: BorderRadius.circular(12),
+                                       border: Border.all(color: AppTheme.primaryBrand.withOpacity(0.2)),
+                                   ),
+                                   child: Row(
+                                       children: [
+                                           ClipRRect(
+                                               borderRadius: BorderRadius.circular(8),
+                                               child: Image.network(
+                                                   msg.metadata!['suggested_event']['image_url'] ?? 'https://images.unsplash.com/photo-1517048676732-d65bc937f952?w=200',
+                                                   width: 50, height: 50, fit: BoxFit.cover,
+                                                   errorBuilder: (_,__,___) => const Icon(Icons.auto_awesome, color: AppTheme.primaryBrand)
+                                               )
+                                           ),
+                                           const SizedBox(width: 12),
+                                           Expanded(
+                                               child: Column(
+                                                   crossAxisAlignment: CrossAxisAlignment.start,
+                                                   children: [
+                                                       Text(msg.metadata!['suggested_event']['title'] ?? 'Actividad Sugerida', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black87), maxLines: 2, overflow: TextOverflow.ellipsis),
+                                                       Text(msg.metadata!['suggested_event']['location'] ?? 'Haz clic para ver más', style: const TextStyle(fontSize: 11, color: AppTheme.primaryBrand, fontWeight: FontWeight.w500), maxLines: 1),
+                                                   ],
+                                               )
+                                           ),
+                                           const Icon(Icons.arrow_forward_ios, size: 12, color: Colors.grey),
+                                       ],
+                                   ),
                                ),
-                               child: Row(
-                                   children: [
-                                       ClipRRect(
-                                           borderRadius: BorderRadius.circular(8),
-                                           child: Image.network(
-                                               msg.metadata!['suggested_event']['image_url'] ?? 'https://via.placeholder.com/150',
-                                               width: 50, height: 50, fit: BoxFit.cover,
-                                               errorBuilder: (_,__,___) => const Icon(Icons.broken_image)
-                                           )
-                                       ),
-                                       const SizedBox(width: 12),
-                                       Expanded(
-                                           child: Column(
-                                               crossAxisAlignment: CrossAxisAlignment.start,
-                                               children: [
-                                                   Text(msg.metadata!['suggested_event']['title'] ?? 'Plan', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 13), maxLines: 2, overflow: TextOverflow.ellipsis),
-                                                   Text(msg.metadata!['suggested_event']['location'] ?? 'Ubicación', style: const TextStyle(fontSize: 11, color: Colors.grey), maxLines: 1),
-                                               ],
-                                           )
-                                       )
-                                   ]
-                               )
                            ),
+
+                           // Quick action button (Votación)
                            const SizedBox(height: 8),
                            SizedBox(
                                width: double.infinity,
@@ -1458,16 +1533,19 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                                    onPressed: () {
                                        HapticFeedback.lightImpact();
                                        final suggestedEvent = msg.metadata!['suggested_event'];
-                                       
-                                       // Open Poll Dialog to ask group if they want this specifically
                                        _showCreatePollDialog(
                                            initialQuestion: "¿Agregamos el plan de ${suggestedEvent['title']}?",
                                        );
                                    },
-                                   style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, elevation: 0),
+                                   style: ElevatedButton.styleFrom(
+                                       backgroundColor: AppTheme.primaryBrand, 
+                                       foregroundColor: Colors.white, 
+                                       elevation: 0,
+                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))
+                                   ),
                                    child: const Text("Hacer Votación", style: TextStyle(fontSize: 12))
                                ),
-                           )
+                           ),
                        ],
 
                        const SizedBox(height: 4),
@@ -1486,6 +1564,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
       ),
     );
   }
+
 
 
   Widget _buildMessageInput() {
@@ -1512,7 +1591,10 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
             Expanded(
               child: TextField(
                 controller: _messageController,
-                style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color), // Explicit text color
+                maxLines: null,
+                minLines: 1,
+                keyboardType: TextInputType.multiline,
+                style: TextStyle(color: Theme.of(context).textTheme.bodyLarge?.color), 
                 onSubmitted: (_) => _sendMessage(),
                 decoration: InputDecoration(
                   hintText: "Escribe algo...",
@@ -1524,8 +1606,8 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                   filled: true,
                   fillColor: Theme.of(context).brightness == Brightness.light 
                       ? Colors.grey[100] 
-                      : Colors.grey[800], // Dark input background
-                  contentPadding: const EdgeInsets.symmetric(horizontal: 20),
+                      : Colors.grey[800], 
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 20, vertical: 10),
                 ),
               ),
             ),

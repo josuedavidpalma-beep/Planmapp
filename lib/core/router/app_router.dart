@@ -146,7 +146,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
            return CreatePlanScreen(
                initialTitle: extra?['initialTitle'],
                initialAddress: extra?['initialAddress'],
-               initialDate: extra?['initialDate']
+               initialDate: extra?['initialDate'],
+               initialImageUrl: extra?['initialImageUrl'],
            );
         },
       ),

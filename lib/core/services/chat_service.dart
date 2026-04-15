@@ -31,34 +31,22 @@ class ChatService {
     });
   }
 
-  Future<void> triggerAgent(String planId, String city) async {
+  Future<void> triggerAgent(String planId, String content) async {
     try {
-      final response = await http.post(
-        Uri.parse('https://planmapp.onrender.com/chat_agent'),
-        headers: {'Content-Type': 'application/json'},
-        body: jsonEncode({
+      final response = await _supabase.functions.invoke(
+        'chat-agent',
+        body: {
           'plan_id': planId,
-          'city': city
-        })
+          'content': content
+        },
       );
       
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final rationale = data['rationale'];
-        final event = data['event'];
-        // Insert message as "system" or a special "bot" user
-        await _supabase.from('messages').insert({
-          'plan_id': planId,
-          'content': rationale,
-          'user_id': null, // system message
-          'type': 'system', // or 'bot_suggestion'
-          'metadata': event != null ? {'suggested_event': event} : null
-        });
-      } else {
-        print("Agent Error: ${response.body}");
+      if (response.status != 200) {
+          throw Exception("El servidor respondió con un error: ${response.data}");
       }
     } catch (e) {
       print("Agent Trigger Exception: $e");
+      rethrow; // Rethrow to let the UI snackbar catch it
     }
   }
 }

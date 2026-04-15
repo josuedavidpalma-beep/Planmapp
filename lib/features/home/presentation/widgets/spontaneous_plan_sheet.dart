@@ -99,28 +99,30 @@ class _SpontaneousPlanSheetState extends State<SpontaneousPlanSheet> {
                 ] else ...[
                     const Text(
                         "¿Cuál es el vibe de hoy?", 
-                        style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87),
+                        style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.black87),
                         textAlign: TextAlign.center
                     ).animate().fadeIn().moveY(begin: 10),
                     const SizedBox(height: 8),
                     Text(
-                        "Te mostraremos opciones top cerca de ti.", 
-                        style: TextStyle(fontSize: 14, color: Colors.grey[600]),
+                        "Encuentra los tesoros más frescos de hoy.", 
+                        style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.w500),
                         textAlign: TextAlign.center
                     ).animate().fadeIn().moveY(begin: 10, delay: 100.ms),
-                    const SizedBox(height: 32),
+                    const SizedBox(height: 24),
                     
                     Expanded(
                         child: GridView.count(
-                            crossAxisCount: 2, // 2 cols
+                            crossAxisCount: 2,
                             mainAxisSpacing: 16,
                             crossAxisSpacing: 16,
-                            childAspectRatio: 1.4,
+                            childAspectRatio: 1.1,
                             children: [
-                                _buildMoodCard("Comer", "🍔", Colors.orange),
-                                _buildMoodCard("Beber", "🍻", Colors.purple),
-                                _buildMoodCard("Café", "☕", Colors.brown),
-                                _buildMoodCard("Sorpréndeme", "🎲", Colors.blue),
+                                _buildVisualMoodCard("Rumba", "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=400&q=80"),
+                                _buildVisualMoodCard("Chill", "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=400&q=80"),
+                                _buildVisualMoodCard("Comida", "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80"),
+                                _buildVisualMoodCard("Aventura", "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=400&q=80"),
+                                _buildVisualMoodCard("Cultura", "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=400&q=80"),
+                                _buildDiceCard(),
                             ],
                         ).animate().fadeIn(delay: 200.ms),
                     )
@@ -130,22 +132,64 @@ class _SpontaneousPlanSheetState extends State<SpontaneousPlanSheet> {
     );
   }
 
-  Widget _buildMoodCard(String label, String emoji, Color color) {
+  Widget _buildVisualMoodCard(String label, String imageUrl) {
       return InkWell(
           onTap: () => _onMoodSelected(label),
-          borderRadius: BorderRadius.circular(20),
+          borderRadius: BorderRadius.circular(24),
+          child: Container(
+              clipBehavior: Clip.antiAlias,
+              decoration: BoxDecoration(
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))]
+              ),
+              child: Stack(
+                  fit: StackFit.expand,
+                  children: [
+                      Image.network(imageUrl, fit: BoxFit.cover),
+                      Container(
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            begin: Alignment.topCenter,
+                            end: Alignment.bottomCenter,
+                            colors: [Colors.transparent, Colors.black.withOpacity(0.7)],
+                          ),
+                        ),
+                      ),
+                      Center(
+                        child: Text(
+                          label.toUpperCase(), 
+                          style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1.2)
+                        ),
+                      )
+                  ],
+              ),
+          ),
+      );
+  }
+
+  Widget _buildDiceCard() {
+      return InkWell(
+          onTap: () => _onMoodSelected("Dados"),
+          borderRadius: BorderRadius.circular(24),
           child: Container(
               decoration: BoxDecoration(
-                  color: color.withOpacity(0.1),
-                  borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: color.withOpacity(0.3), width: 1.5)
+                  gradient: const LinearGradient(
+                    colors: [AppTheme.primaryBrand, AppTheme.secondaryBrand],
+                    begin: Alignment.topLeft,
+                    end: Alignment.bottomRight,
+                  ),
+                  borderRadius: BorderRadius.circular(24),
+                  boxShadow: [BoxShadow(color: AppTheme.primaryBrand.withOpacity(0.3), blurRadius: 15, offset: const Offset(0, 8))]
               ),
-              child: Column(
+              child: const Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                      Text(emoji, style: const TextStyle(fontSize: 32)),
-                      const SizedBox(height: 8),
-                      Text(label, style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: color.withOpacity(0.8)))
+                      Icon(Icons.casino_rounded, color: Colors.white, size: 40),
+                      SizedBox(height: 8),
+                      Text(
+                        "DADOS", 
+                        style: TextStyle(color: Colors.white, fontWeight: FontWeight.w900, fontSize: 16, letterSpacing: 1.2)
+                      )
                   ],
               ),
           ),
