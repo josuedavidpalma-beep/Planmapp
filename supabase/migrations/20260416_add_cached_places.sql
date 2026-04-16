@@ -23,6 +23,16 @@ CREATE POLICY "Allow public read access to cached_places"
 ON public.cached_places FOR SELECT 
 USING (true);
 
+CREATE POLICY "Allow anonymous insert to cached_places" 
+ON public.cached_places FOR INSERT 
+TO public 
+WITH CHECK (true);
+
+CREATE POLICY "Allow anonymous update to cached_places" 
+ON public.cached_places FOR UPDATE 
+TO public 
+USING (true);
+
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_cached_places_city ON public.cached_places(city);
 CREATE INDEX IF NOT EXISTS idx_cached_places_category ON public.cached_places(category);

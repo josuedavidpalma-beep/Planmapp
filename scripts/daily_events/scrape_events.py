@@ -277,29 +277,32 @@ def upsert_event(supabase: Client, event: dict, city: str, category: dict, geo: 
             image_url = random.choice(FALLBACK_IMAGES[cat_key])
 
     record = {
-        "title":            event["title"],
+        "event_name":       event["title"],
         "description":      event.get("description"),
         "date":             event.get("date_start"),
-        "location":         event.get("location_name"),
+        "end_date":         None,
+        "venue_name":       event.get("location_name"),
         "address":          event.get("address"),
         "category":         category["key"],
         "image_url":        image_url,
-        "source_url":       event["source_url"],
+        "primary_source":   event["source_url"],
         "city":             city,
-        "contact_info":     geo.get("contact_info") if geo and geo.get("contact_info") else event.get("contact_info"),
-        # Campos de geocodificación (null si no hay Places)
-        "google_place_id":      geo.get("google_place_id") if geo else None,
-        "latitude":             geo.get("latitude") if geo else None,
-        "longitude":            geo.get("longitude") if geo else None,
-        "rating_google":        geo.get("rating_google") if geo else None,
-        "user_ratings_total":   geo.get("user_ratings_total") if geo else None,
+        "contact_phone":    geo.get("contact_info") if geo and geo.get("contact_info") else event.get("contact_info"),
+        "google_place_id":  geo.get("google_place_id") if geo else None,
+        "latitude":         geo.get("latitude") if geo else None,
+        "longitude":        geo.get("longitude") if geo else None,
+        "rating_google":    geo.get("rating_google") if geo else None,
+        "status":           "active"
     }
 
     try:
-        supabase.table("events").upsert(record, on_conflict="source_url").execute()
-        print(f"  ✅ Guardado: {event['title'][:60]}")
+        supabase.table("local_events").upsert(
+            record, 
+            on_conflict="event_name, date, city"
+        ).execute()
+        print(f"  ✅ Guardado en local_events: {event['title'][:60]}")
     except Exception as e:
-        print(f"  ❌ Error Supabase: {e}")
+        print(f"  ❌ Error Supabase (local_events): {e}")
 
 
 # ─── Proceso principal ────────────────────────────────────────────────────────
