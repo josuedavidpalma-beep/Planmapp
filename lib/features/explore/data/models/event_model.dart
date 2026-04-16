@@ -47,8 +47,6 @@ class Event {
     this.isOpen,
   });
 
-  final String? googlePlaceId;
-  final double? ratingGoogle;
 
   String get displayImageUrl {
     final searchSpace = "${visualKeyword ?? ''} ${title.toLowerCase()} ${description?.toLowerCase() ?? ''} ${category?.toLowerCase() ?? ''}";
