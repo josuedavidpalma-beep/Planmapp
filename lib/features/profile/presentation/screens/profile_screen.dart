@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:flutter/services.dart';
+import 'package:planmapp/features/profile/presentation/widgets/avatar_gallery_modal.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -26,9 +27,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<Map<String, dynamic>> _paymentMethods = [];
 
   static const _budgetOptions = [
-    {'key': 'economico', 'label': '💰 Económico', 'sub': 'Planes sin gastar mucho'},
-    {'key': 'bacano',    'label': '🎉 Bacano',    'sub': 'Buen ambiente, precio justo'},
-    {'key': 'play',      'label': '✨ Play',       'sub': 'Experiencias premium'},
+    {'key': 'economico', 'label': '💰 Ahorrador', 'sub': 'Planes tranqui y baratos'},
+    {'key': 'bacano',    'label': '🎉 Equilibrado', 'sub': 'Calidad-precio, lo justo'},
+    {'key': 'play',      'label': '💎 Ilimitado / Premium', 'sub': 'No me preocupo por el precio'},
   ];
 
   static const _interestOptions = [
@@ -122,6 +123,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'interests': _selectedInterests,
         'preferences': _selectedPreferences,
         'payment_methods': _paymentMethods,
+        'avatar_url': _avatarUrl,
         'updated_at': DateTime.now().toIso8601String(),
       });
       if (mounted) {
@@ -288,13 +290,40 @@ class _ProfileScreenState extends State<ProfileScreen> {
                 children: [
                    // Avatar
                   Center(
-                    child: CircleAvatar(
-                      radius: 50,
-                      backgroundColor: Colors.grey[200],
-                      backgroundImage: _avatarUrl != null ? NetworkImage(_avatarUrl!) : null,
-                      child: _avatarUrl == null 
-                          ? const Icon(Icons.person, size: 50, color: Colors.grey)
-                          : null,
+                    child: GestureDetector(
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => AvatarGalleryModal(
+                            onAvatarSelected: (url) => setState(() => _avatarUrl = url),
+                          ),
+                        );
+                      },
+                      child: Stack(
+                        children: [
+                          CircleAvatar(
+                            radius: 50,
+                            backgroundColor: Colors.grey[200],
+                            backgroundImage: (_avatarUrl != null && _avatarUrl!.isNotEmpty) 
+                                ? NetworkImage(_avatarUrl!) 
+                                : null,
+                            child: (_avatarUrl == null || _avatarUrl!.isEmpty)
+                                ? const Icon(Icons.person, size: 50, color: Colors.grey)
+                                : null,
+                          ),
+                          Positioned(
+                            bottom: 0,
+                            right: 0,
+                            child: Container(
+                              padding: const EdgeInsets.all(4),
+                              decoration: const BoxDecoration(color: AppTheme.primaryBrand, shape: BoxShape.circle),
+                              child: const Icon(Icons.edit, color: Colors.white, size: 16),
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                   const SizedBox(height: 16),
@@ -416,7 +445,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
                          context: context, 
                          initialDate: DateTime(2000), 
                          firstDate: DateTime(1950), 
-                         lastDate: DateTime.now()
+                         lastDate: DateTime.now(),
+                         builder: (context, child) => Theme(
+                           data: ThemeData.dark().copyWith(
+                             colorScheme: ColorScheme.dark(primary: AppTheme.primaryBrand),
+                           ),
+                           child: child!,
+                         ),
                        );
                        if (d != null) setState(() => _birthday = d);
                      },
@@ -428,43 +463,64 @@ class _ProfileScreenState extends State<ProfileScreen> {
                        ),
                        child: Text(
                          _birthday != null ? "${_birthday!.day}/${_birthday!.month}/${_birthday!.year}" : "Seleccionar fecha",
-                         style: TextStyle(color: _birthday != null ? Colors.black : Colors.grey[600]),
+                         style: TextStyle(color: _birthday != null ? Colors.white : Colors.grey[600]),
                        ),
                      ),
                    ),
 
-                  // Interests (from onboarding)
+                  // My Vibe Section (Merged Interests & Preferences)
                   const SizedBox(height: 24),
-                  const Text("Mis Intereses 🎯", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text("Mi Vibe ⚡", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 4),
-                  const Text("Esto personaliza el feed y las sugerencias del asistente.", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                  const Text("Define qué te gusta para sugerirte los mejores planes.", style: TextStyle(fontSize: 12, color: Colors.grey)),
                   const SizedBox(height: 12),
                   Wrap(
                     spacing: 8,
                     runSpacing: 8,
-                    children: _interestOptions.map((opt) {
-                      final isSelected = _selectedInterests.contains(opt['key']);
-                      return FilterChip(
-                        label: Text(opt['label']!),
-                        selected: isSelected,
-                        selectedColor: AppTheme.primaryBrand,
-                        labelStyle: TextStyle(color: isSelected ? Colors.white : AppTheme.bodyTextSoft),
-                        onSelected: (selected) {
-                          setState(() {
-                            if (selected) {
-                              _selectedInterests.add(opt['key']!);
-                            } else {
-                              _selectedInterests.remove(opt['key']);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
+                    children: [
+                      ..._interestOptions.map((opt) {
+                        final isSelected = _selectedInterests.contains(opt['key']);
+                        return FilterChip(
+                          label: Text(opt['label']!),
+                          selected: isSelected,
+                          selectedColor: AppTheme.primaryBrand,
+                          labelStyle: TextStyle(color: isSelected ? Colors.white : AppTheme.bodyTextSoft),
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedInterests.add(opt['key']!);
+                              } else {
+                                _selectedInterests.remove(opt['key']);
+                              }
+                            });
+                          },
+                        );
+                      }),
+                      ..._prefOptions.entries.map((entry) {
+                        final isSelected = _selectedPreferences.contains(entry.key);
+                        return FilterChip(
+                          label: Text(entry.key),
+                          avatar: Icon(entry.value, size: 16, color: isSelected ? Colors.white : AppTheme.bodyTextSoft),
+                          selected: isSelected,
+                          selectedColor: AppTheme.primaryBrand,
+                          labelStyle: TextStyle(color: isSelected ? Colors.white : AppTheme.bodyTextSoft),
+                          onSelected: (selected) {
+                            setState(() {
+                              if (selected) {
+                                _selectedPreferences.add(entry.key);
+                              } else {
+                                _selectedPreferences.remove(entry.key);
+                              }
+                            });
+                          },
+                        );
+                      }),
+                    ],
                   ),
 
                   // Budget level
                   const SizedBox(height: 24),
-                  const Text("Nivel de Presupuesto 💸", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  const Text("Estilo de Gasto 💸", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 12),
                   ..._budgetOptions.map((opt) {
                     final isSelected = _budgetLevel == opt['key'];
@@ -480,32 +536,6 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     );
                   }),
 
-                  const SizedBox(height: 24),
-                  const Text("Otras Preferencias ✨", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 8),
-                  Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: _prefOptions.entries.map((entry) {
-                      final isSelected = _selectedPreferences.contains(entry.key);
-                      return FilterChip(
-                        label: Text(entry.key),
-                        avatar: Icon(entry.value, size: 16, color: isSelected ? Colors.white : AppTheme.bodyTextSoft),
-                        selected: isSelected,
-                        selectedColor: AppTheme.primaryBrand,
-                        labelStyle: TextStyle(color: isSelected ? Colors.white : AppTheme.bodyTextSoft),
-                        onSelected: (selected) {
-                          setState(() {
-                            if (selected) {
-                              _selectedPreferences.add(entry.key);
-                            } else {
-                              _selectedPreferences.remove(entry.key);
-                            }
-                          });
-                        },
-                      );
-                    }).toList(),
-                  ),
                   
                   const SizedBox(height: 40),
                   SizedBox(

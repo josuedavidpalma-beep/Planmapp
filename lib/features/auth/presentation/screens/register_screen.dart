@@ -6,6 +6,8 @@ import 'package:planmapp/core/services/auth_service.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:planmapp/core/services/session_persistence_service.dart';
+import 'package:planmapp/features/plans/services/plan_members_service.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});
@@ -34,8 +36,18 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
       
       if (mounted) {
          if (response.user != null) {
-             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Cuenta creada!")));
-             context.go('/onboarding-setup');
+             // NEW: Check for pending plan invitation
+             final pendingPlanId = await SessionPersistenceService.getPendingPlanJoin();
+             if (pendingPlanId != null) {
+                 await PlanMembersService().addMember(pendingPlanId, response.user!.id);
+                 await SessionPersistenceService.clearPendingPlanJoin();
+                 if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Unido al plan con éxito!")));
+             }
+
+             if (mounted) {
+               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Cuenta creada!")));
+               context.go('/onboarding-setup');
+             }
          }
       }
     } on AuthException catch (e) {

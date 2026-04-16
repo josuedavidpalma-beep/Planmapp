@@ -106,10 +106,10 @@ class PlacesService {
     if (level == null) return null;
     // Google returns enum strings like 'PRICE_LEVEL_MODERATE' or potentially ints depending on lib versions
     final levelStr = level.toString();
-    if (levelStr.contains('INEXPENSIVE') || levelStr == '1') return '$';
-    if (levelStr.contains('MODERATE') || levelStr == '2') return '$$';
-    if (levelStr.contains('EXPENSIVE') || levelStr == '3') return '$$$';
-    if (levelStr.contains('VERY_EXPENSIVE') || levelStr == '4') return '$$$$';
+    if (levelStr.contains('INEXPENSIVE') || levelStr == '1') return '\$';
+    if (levelStr.contains('MODERATE') || levelStr == '2') return '\$\$';
+    if (levelStr.contains('EXPENSIVE') || levelStr == '3') return '\$\$\$';
+    if (levelStr.contains('VERY_EXPENSIVE') || levelStr == '4') return '\$\$\$\$';
     return null;
   }
 

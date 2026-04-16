@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:planmapp/core/utils/currency_formatter.dart';
 import 'package:planmapp/features/landing/services/guest_service.dart';
+import 'package:planmapp/core/services/session_persistence_service.dart';
 import 'package:intl/intl.dart';
 
 class PlanLandingScreen extends StatefulWidget {
@@ -155,17 +156,21 @@ class _PlanLandingScreenState extends State<PlanLandingScreen> {
                       ),
                       
                       const SizedBox(height: 24),
+                      const SizedBox(height: 12),
                       SizedBox(
                         width: double.infinity,
                         height: 50,
-                        child: ElevatedButton(
-                          onPressed: _findMyDebt,
-                          style: ElevatedButton.styleFrom(
-                            backgroundColor: AppTheme.primaryBrand,
-                            foregroundColor: Colors.white,
+                        child: OutlinedButton(
+                          onPressed: () async {
+                              // Save pending plan and go to login
+                              await SessionPersistenceService.setPendingPlanJoin(widget.planId);
+                              if (mounted) context.go('/login');
+                          },
+                          style: OutlinedButton.styleFrom(
+                            side: const BorderSide(color: AppTheme.primaryBrand),
                             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
                           ),
-                          child: const Text("Ver Cuánto Debo"),
+                          child: const Text("Soy Miembro (Iniciar Sesión)"),
                         ),
                       )
                     ],

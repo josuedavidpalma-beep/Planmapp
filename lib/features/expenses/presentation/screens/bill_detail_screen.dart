@@ -34,6 +34,7 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
   late TabController _tabController;
 
   late RealtimeChannel _itemsChannel;
+  late RealtimeChannel _assignmentsChannel;
 
   @override
   void initState() {
@@ -44,7 +45,9 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
   }
 
   void _setupRealtime() {
-      _itemsChannel = Supabase.instance.client
+      final client = Supabase.instance.client;
+      
+      _itemsChannel = client
           .channel('public:bill_items_live_${widget.billId}')
           .onPostgresChanges(
               event: PostgresChangeEvent.all, 
@@ -55,9 +58,21 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
                   column: 'bill_id', 
                   value: widget.billId
               ),
-              callback: (payload) {
-                  _loadData();
-              }
+              callback: (payload) => _loadData(),
+          )
+          .subscribe();
+
+      _assignmentsChannel = client
+          .channel('public:bill_assignments_live_${widget.billId}')
+          .onPostgresChanges(
+              event: PostgresChangeEvent.all, 
+              schema: 'public', 
+              table: 'bill_item_assignments',
+              // We can't filter by bill_id directly on assignments table if it doesn't have it, 
+              // but we can listen to all and filter in memory or rely on the fact that 
+              // assignments are linked to bill_items. 
+              // Efficiently: we listen to all because the table is relatively small per-session.
+              callback: (payload) => _loadData(),
           )
           .subscribe();
   }
@@ -66,6 +81,7 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
   void dispose() {
       _tabController.dispose();
       Supabase.instance.client.removeChannel(_itemsChannel);
+      Supabase.instance.client.removeChannel(_assignmentsChannel);
       super.dispose();
   }
 

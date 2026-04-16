@@ -85,6 +85,21 @@ class PlanMembersService {
       if (uid == null) return;
       await _supabase.from('plan_members').delete().eq('plan_id', planId).eq('user_id', uid);
   }
+
+  /// NEW: Add a member to a plan
+  Future<void> addMember(String planId, String userId, {String role = 'member'}) async {
+      try {
+          await _supabase.from('plan_members').upsert({
+              'plan_id': planId,
+              'user_id': userId,
+              'role': role,
+              'status': 'accepted'
+          });
+      } catch (e) {
+          print("Error adding member: $e");
+          rethrow;
+      }
+  }
 }
 
 class PlanMember {

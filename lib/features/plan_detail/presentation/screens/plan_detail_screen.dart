@@ -27,6 +27,7 @@ import 'package:planmapp/features/plan_detail/presentation/widgets/roulette_mess
 import 'package:planmapp/features/plan_detail/presentation/widgets/final_confirmation_bubble.dart';
 import 'package:planmapp/features/plan_detail/presentation/widgets/participants_list_sheet.dart'; 
 import 'package:url_launcher/url_launcher.dart';
+import 'package:planmapp/core/services/invitation_service.dart';
 // import 'package:planmapp/features/plan_detail/presentation/screens/games_plan_tab.dart'; // REMOVED
 
 class PlanDetailScreen extends StatefulWidget {
@@ -306,7 +307,12 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                   ),
               ),
               actions: [
-                IconButton(icon: const Icon(Icons.share), onPressed: () {}),
+                IconButton(
+                    icon: const Icon(Icons.share), 
+                    onPressed: () {
+                        if (_plan != null) InvitationService.inviteToPlan(_plan!);
+                    }
+                ),
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
                   onSelected: (value) async {

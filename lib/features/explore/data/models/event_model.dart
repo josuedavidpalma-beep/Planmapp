@@ -20,6 +20,8 @@ class Event {
   final String? status;
   final String? priceLevel;
   final bool? isOpen;
+  final String? googlePlaceId;
+  final double? ratingGoogle;
 
   Event({
     required this.id,
@@ -44,6 +46,9 @@ class Event {
     this.priceLevel,
     this.isOpen,
   });
+
+  final String? googlePlaceId;
+  final double? ratingGoogle;
 
   String get displayImageUrl {
     final searchSpace = "${visualKeyword ?? ''} ${title.toLowerCase()} ${description?.toLowerCase() ?? ''} ${category?.toLowerCase() ?? ''}";

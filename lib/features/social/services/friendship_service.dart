@@ -6,25 +6,23 @@ import 'package:planmapp/features/auth/domain/models/user_model.dart';
 class FriendshipService {
   final _supabase = Supabase.instance.client;
 
-  /// Search for users by email or display_name
-  /// Returns a list of UserProfile (mocked or real from profiles table)
+  /// Search for users by email, display_name or phone
   Future<List<UserProfile>> searchUsers(String query) async {
-    if (query.length < 3) return []; // Minimum 3 chars
+    if (query.length < 3) return []; 
 
     try {
-      // Search in profiles table
       final currentUserId = _supabase.auth.currentUser?.id;
       
+      // Attempt search by name or phone
       final res = await _supabase
           .from('profiles')
           .select()
-          .ilike('display_name', '%$query%') // or email if exposed
-          .neq('id', currentUserId!) // Don't show myself
-          .limit(10);
+          .or('display_name.ilike.%$query%,phone.ilike.%$query%')
+          .neq('id', currentUserId!) 
+          .limit(15);
 
       return (res as List).map((e) => UserProfile.fromJson(e)).toList();
     } catch (e) {
-      // If profiles table doesn't exist or error, return empty
       print("Search error: $e");
       return [];
     }

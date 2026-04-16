@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:planmapp/core/services/session_persistence_service.dart';
 
 class OnboardingSetupScreen extends StatefulWidget {
   const OnboardingSetupScreen({super.key});
@@ -23,9 +24,9 @@ class _OnboardingSetupScreenState extends State<OnboardingSetupScreen> {
   final PageController _pageController = PageController();
 
   static const _budgetOptions = [
-    {'key': 'economico', 'label': 'Económico', 'icon': '💰', 'desc': 'Planes sin gastar mucho'},
-    {'key': 'bacano',    'label': 'Bacano',     'icon': '🎉', 'desc': 'Disfruto bien gastando lo justo'},
-    {'key': 'play',      'label': 'Play',       'icon': '💎', 'desc': 'Sin límites, a disfrutar'},
+    {'key': 'economico', 'label': 'Ahorrador 💰', 'icon': '💰', 'desc': 'Planes tranqui y baratos'},
+    {'key': 'bacano',    'label': 'Equilibrado 🎉', 'icon': '🎉', 'desc': 'Calidad-precio, lo justo'},
+    {'key': 'play',      'label': 'Ilimitado 💎', 'icon': '💎', 'desc': 'No me preocupo por el precio'},
   ];
 
   static const _interestOptions = [
@@ -64,7 +65,16 @@ class _OnboardingSetupScreenState extends State<OnboardingSetupScreen> {
           'interests': _interests.toList(),
           'updated_at': DateTime.now().toIso8601String(),
         });
-        if (mounted) context.go('/');
+        // NEW: Check if there's a pending plan to go to after onboarding
+        final pendingId = await SessionPersistenceService.getPendingPlanJoin();
+        
+        if (mounted) {
+          if (pendingId != null) {
+            context.go('/plan/$pendingId');
+          } else {
+            context.go('/');
+          }
+        }
       }
     } catch (e) {
       if (mounted) {

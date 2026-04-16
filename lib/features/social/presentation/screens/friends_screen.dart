@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
+import 'package:share_plus/share_plus.dart';
 import '../../services/contacts_service.dart';
 import '../../services/friendship_service.dart';
 import '../../domain/models/friendship_model.dart';
@@ -311,8 +312,10 @@ class _ContactsTabState extends State<_ContactsTab> {
                    trailing: ElevatedButton(
                       style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black, elevation: 0, side: const BorderSide(color: Colors.grey)),
                       onPressed: () {
-                          // TODO: Integrate Share Plus
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Abriendo compartir...")));
+                          Share.share(
+                            "¡Oye! Descarga Planmapp para que organicemos nuestros planes sin estrés. 🚀\nhttps://planmapp.app",
+                            subject: "Invitación a Planmapp"
+                          );
                       },
                       child: const Text("Invitar"),
                    ),
