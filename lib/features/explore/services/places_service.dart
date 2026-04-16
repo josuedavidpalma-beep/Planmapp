@@ -49,8 +49,8 @@ class PlacesService {
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': _apiKey!,
-          // Optimized Field Masking as requested
-          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.photos,places.location,places.types',
+          // Optimized Field Masking: Added priceLevel and regularOpeningHours
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.photos,places.location,places.types,places.priceLevel,places.regularOpeningHours',
         },
         body: jsonEncode({
           "includedTypes": [category ?? "restaurant"],
@@ -82,6 +82,8 @@ class PlacesService {
             'latitude': p['location']?['latitude'],
             'longitude': p['location']?['longitude'],
             'category': category ?? 'restaurant',
+            'price_level': _mapPriceLevel(p['priceLevel']),
+            'open_now': p['regularOpeningHours']?['openNow'] ?? false,
             'last_updated': DateTime.now().toIso8601String(),
           };
 
@@ -98,6 +100,17 @@ class PlacesService {
       print('❌ PlacesService Error: $e');
       return [];
     }
+  }
+
+  String? _mapPriceLevel(dynamic level) {
+    if (level == null) return null;
+    // Google returns enum strings like 'PRICE_LEVEL_MODERATE' or potentially ints depending on lib versions
+    final levelStr = level.toString();
+    if (levelStr.contains('INEXPENSIVE') || levelStr == '1') return '$';
+    if (levelStr.contains('MODERATE') || levelStr == '2') return '$$';
+    if (levelStr.contains('EXPENSIVE') || levelStr == '3') return '$$$';
+    if (levelStr.contains('VERY_EXPENSIVE') || levelStr == '4') return '$$$$';
+    return null;
   }
 
   /// Generates a Photo URL with 400px max width as requested.

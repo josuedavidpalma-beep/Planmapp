@@ -138,30 +138,35 @@ def extract_events_with_gemini(results: list[dict], city: str, category: dict) -
         snippets_text += f"Contenido: {r.get('content', '')[:500]}\n"
 
     today_str = datetime.now().strftime("%Y-%m-%d")
+    weekday_str = datetime.now().strftime("%A")
     prompt = f"""
 Eres un agente experto en planes y eventos para la app Planmapp en Colombia.
 Analiza los siguientes resultados de búsqueda sobre la categoría "{category['label']}" en {city}.
+Hoy es {weekday_str}, {today_str}.
 
-INSTRUCCIONES:
-- Extrae máximo 4 eventos/planes/lugares reales y concretos
-- Si hay Happy Hour, 2x1, descuentos o promociones: priorízalos
-- Ignora noticias de política, crímenes o deportes puros
-- Si el evento ya pasó (antes de {today_str}), ignóralo
-- Si no hay fecha clara, usa null para date_start
+INSTRUCCIONES CRÍTICAS DE EXTRACCIÓN:
+- Extrae máximo 4 eventos/planes/lugares reales y concretos.
+- PRIORIDAD: Si hay Happy Hour, 2x1, descuentos o promociones destacadas: ponlas de primero.
+- DEDUCCIÓN DE FECHA: Si el texto dice "este viernes" o "mañana", calcula la fecha exacta basada en que hoy es {today_str}.
+- PRECIO: Intenta deducir el nivel de precio/costo. Usa "p" para el rango: "$" (barato), "$$" (medio), "$$$" (caro).
+- Ignora noticias de política, crímenes o deportes puros.
+- Si el evento ya pasó (antes de {today_str}), ignóralo completamente.
+- Si no hay fecha clara (ej. es un sitio permanente), usa null para date_start.
 
-Escribe un reporte estilo periodístico atractivo detallando "Cuándo", "Dónde", "Qué promociones existen", costo si se menciona, y si se requiere reserva.
+Escribe un reporte estilo periodístico atractivo detallando "Cuándo", "Dónde", "Qué promociones existen", y el "Vibe" del lugar.
 Devuelve ÚNICAMENTE un JSON array válido (sin markdown, sin explicación):
 [
   {{
     "title": "Nombre del evento/lugar",
-    "description": "Párrafo completo descriptivo: ¿De qué trata? ¿A qué hora? ¿Qué promos hay (2x1, happy hour)?",
+    "description": "Párrafo completo descriptivo en español: ¿De qué trata? ¿Qué promociones hay (2x1, happy hour)?",
     "date_start": "YYYY-MM-DD o null",
     "location_name": "Nombre exacto del lugar o teatro",
-    "address": "Dirección si está disponible o null",
+    "address": "Dirección completa si está disponible o null",
+    "price_level": "$, $$, o $$$ (basado en el costo del sitio)",
     "category": "{category['key']}",
     "source_url": "URL del resultado",
     "image_url": null,
-    "contact_info": "Número de teléfono o web encontrado en el texto (o null)"
+    "contact_info": "Teléfono o web (o null)"
   }}
 ]
 
@@ -186,9 +191,41 @@ Resultados a analizar:
         return []
 
 
-# ─── Paso 3: Geocodificación con Google Places ─────────────────────────────────
-def geocode_with_google_places(location_name: str, address: str, city: str) -> dict | None:
-    """Busca coordenadas, rating y foto con Google Places Text Search."""
+# ─── Paso 3: Geocodificación Inteligente (Supabase + Google) ─────────────────
+def geocode_with_google_places(supabase: Client, location_name: str, address: str, city: str) -> dict | None:
+    """
+    Busca coordenadas y metadatos. 
+    PRIMERO: Consulta nuestra propia BD para ver si el lugar ya es conocido (Ahorro de costos).
+    SEGUNDO: Si no existe, consulta Google Places API.
+    """
+    if not location_name:
+        return None
+
+    # 1. Intento de búsqueda en nuestra caché de Supabase
+    try:
+        # Buscamos por nombre aproximado en la ciudad correspondiente
+        cache_res = supabase.table("cached_places")\
+            .select("*")\
+            .ilike("name", f"%{location_name}%")\
+            .eq("city", city)\
+            .limit(1).execute()
+        
+        if cache_res.data and len(cache_res.data) > 0:
+            p = cache_res.data[0]
+            print(f"  ✨ [CACHE] Reutilizando datos de Supabase para '{location_name}'")
+            return {
+                "google_place_id": p.get("place_id"),
+                "latitude": p.get("latitude"),
+                "longitude": p.get("longitude"),
+                "rating_google": p.get("rating"),
+                "price_level": p.get("price_level"),
+                "google_image_url": None, # No replicamos la URL firmada para evitar expiración
+                "already_in_cache": True
+            }
+    except Exception as e:
+        print(f"  ⚠️  Error consultando caché: {e}")
+
+    # 2. Si no está en caché, procedemos a Google
     if not GOOGLE_PLACES_API_KEY or not HAS_REQUESTS:
         return None
 
@@ -225,32 +262,9 @@ def geocode_with_google_places(location_name: str, address: str, city: str) -> d
             "latitude": loc.get("lat"),
             "longitude": loc.get("lng"),
             "rating_google": place.get("rating"),
-            "user_ratings_total": place.get("user_ratings_total"),
             "google_image_url": image_url,
+            "already_in_cache": False
         }
-        
-        # Second Query: Get Details (Phone/Website) using Place ID. Non-blocking if fails.
-        try:
-            d_url = "https://maps.googleapis.com/maps/api/place/details/json"
-            d_params = {
-                "place_id": place.get("place_id"),
-                "fields": "formatted_phone_number,website",
-                "key": GOOGLE_PLACES_API_KEY,
-                "language": "es"
-            }
-            d_resp = _requests.get(d_url, params=d_params, timeout=5)
-            d_data = d_resp.json()
-            if d_data.get("status") == "OK":
-                res = d_data.get("result", {})
-                contact = res.get("formatted_phone_number")
-                if not contact:
-                    contact = res.get("website")
-                if contact:
-                    ret["contact_info"] = contact
-        except Exception:
-            pass # Ignore details fail
-
-        return ret
     except Exception as e:
         print(f"  [PLACES] Error geocodificando '{query}': {e}")
         return None
@@ -292,6 +306,7 @@ def upsert_event(supabase: Client, event: dict, city: str, category: dict, geo: 
         "latitude":         geo.get("latitude") if geo else None,
         "longitude":        geo.get("longitude") if geo else None,
         "rating_google":    geo.get("rating_google") if geo else None,
+        "price_level":      event.get("price_level"),
         "status":           "active"
     }
 
@@ -337,8 +352,9 @@ def run_research_agent():
 
             # 3. Para cada evento: geocodificar y guardar
             for event in events:
-                # Geocodificación Google Places (opcional: no bloquea si falla)
+                # Geocodificación Inteligente (Prioriza Caché de Supabase)
                 geo = geocode_with_google_places(
+                    supabase,
                     event.get("location_name", ""),
                     event.get("address", ""),
                     city,

@@ -16,10 +16,10 @@ class Event {
   final String? visualKeyword;
   final double? latitude;
   final double? longitude;
-  final String? googlePlaceId;
-  final double? ratingGoogle;
   final String? promoHighlights;
   final String? status;
+  final String? priceLevel;
+  final bool? isOpen;
 
   Event({
     required this.id,
@@ -41,6 +41,8 @@ class Event {
     this.ratingGoogle,
     this.promoHighlights,
     this.status = 'active',
+    this.priceLevel,
+    this.isOpen,
   });
 
   String get displayImageUrl {
@@ -126,10 +128,11 @@ class Event {
       visualKeyword: json['visual_keyword'] as String?,
       latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
       longitude: json['longitude'] != null ? (json['longitude'] as num).toDouble() : null,
-      googlePlaceId: json['google_place_id'] as String?,
       ratingGoogle: json['rating_google'] != null ? (json['rating_google'] as num).toDouble() : null,
       promoHighlights: json['promo_highlights'] as String?,
       status: json['status'] as String? ?? 'active',
+      priceLevel: json['price_level'] as String?,
+      isOpen: json['open_now'] as bool?,
     );
   }
 
@@ -154,6 +157,8 @@ class Event {
       'rating_google': ratingGoogle,
       'promo_highlights': promoHighlights,
       'status': status,
+      'price_level': priceLevel,
+      'open_now': isOpen,
     };
   }
 }

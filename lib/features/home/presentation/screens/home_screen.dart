@@ -339,8 +339,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
-          builder: (context) => Container(
-              constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+          builder: (context) => Stack(
+            children: [
+              Container(
+                  constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
               decoration: const BoxDecoration(
                   color: AppTheme.darkBackground,
                   borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
@@ -506,9 +508,28 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                         ),
                     ],
                 ),
+                      ),
+                  ),
+
+                  // Floating Close Icon (Premium Navigation)
+                  Positioned(
+                    top: 20,
+                    right: 20,
+                    child: GestureDetector(
+                      onTap: () => Navigator.pop(context),
+                      child: Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.black.withOpacity(0.5),
+                          shape: BoxShape.circle,
+                        ),
+                        child: const Icon(Icons.close_rounded, color: Colors.white, size: 24),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-          ),
-      );
+          );
   }
   Widget _buildCompleteProfileBanner() {
     // ... logic omitted ...
@@ -599,6 +620,26 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
                          child: const Center(child: Icon(Icons.flash_on_rounded, size: 50, color: Colors.white))
                     ),
                   ),
+
+                  // Premium Badges (Price & Status) - TOP LEFT
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        if (widget.event.priceLevel != null)
+                          _buildPremiumGlassBadge(widget.event.priceLevel!, Icons.payments_outlined, Colors.black.withOpacity(0.3)),
+                        const SizedBox(height: 8),
+                        if (widget.event.isOpen != null)
+                          _buildPremiumGlassBadge(
+                            widget.event.isOpen! ? "Abierto" : "Cerrado", 
+                            widget.event.isOpen! ? Icons.fiber_manual_record : Icons.cancel, 
+                            widget.event.isOpen! ? Colors.greenAccent.withOpacity(0.4) : Colors.redAccent.withOpacity(0.4)
+                          ),
+                      ],
+                    ),
+                  ),
                   Container(
                     decoration: BoxDecoration(
                       gradient: LinearGradient(
@@ -686,5 +727,29 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
       return (Icons.restaurant_menu_rounded, Colors.blueAccent);
     }
     return (Icons.flash_on_rounded, AppTheme.primaryBrand);
+  }
+
+  Widget _buildPremiumGlassBadge(String text, IconData icon, Color baseColor) {
+    return ClipRRect(
+      borderRadius: BorderRadius.circular(10),
+      child: BackdropFilter(
+        filter: ImageFilter.blur(sigmaX: 5, sigmaY: 5),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+          color: baseColor.withOpacity(0.2),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 12, color: icon == Icons.fiber_manual_record ? Colors.greenAccent : Colors.white),
+              const SizedBox(width: 4),
+              Text(
+                text, 
+                style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold)
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
   }
 }
