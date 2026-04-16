@@ -656,7 +656,7 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
                               const SizedBox(width: 6),
                               Text(
                                 widget.event.promoHighlights!.toUpperCase(),
-                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.black, letterSpacing: 0.5),
+                                style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.w900, letterSpacing: 0.5),
                               ),
                             ],
                           ).animate().shimmer(duration: 2.seconds, color: Colors.white.withOpacity(0.3)),
@@ -682,7 +682,7 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
     if (lower.contains('happy') || lower.contains('copa') || lower.contains('cóctel') || lower.contains('bar') || lower.contains('trago')) {
       return (Icons.local_bar_rounded, Colors.purpleAccent);
     }
-    if (lower.contains('gratis') || lower.contains('free') || lower.contains('regalo') || lower.contains('cortesía') || lower.contains('$0')) {
+    if (lower.contains('gratis') || lower.contains('free') || lower.contains('regalo') || lower.contains('cortesía') || lower.contains('\$0')) {
       return (Icons.confirmation_num_rounded, Colors.greenAccent);
     }
     if (lower.contains('almuerzo') || lower.contains('brunch') || lower.contains('menú') || lower.contains('desayuno')) {
