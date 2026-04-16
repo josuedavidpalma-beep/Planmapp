@@ -27,7 +27,7 @@ jobs:
             --dart-define=GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
             --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
             --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}" \
-            --dart-define=MAPS_API_KEY="${{ secrets.MAPS_API_KEY }}"
+            --dart-define=MAPS_API_KEY="${{ secrets.GOOGLE_PLACES_API_KEY }}"
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
