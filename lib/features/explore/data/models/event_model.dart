@@ -19,6 +19,7 @@ class Event {
   final String? googlePlaceId;
   final double? ratingGoogle;
   final String? promoHighlights;
+  final String? status;
 
   Event({
     required this.id,
@@ -39,6 +40,7 @@ class Event {
     this.googlePlaceId,
     this.ratingGoogle,
     this.promoHighlights,
+    this.status = 'active',
   });
 
   String get displayImageUrl {
@@ -127,6 +129,7 @@ class Event {
       googlePlaceId: json['google_place_id'] as String?,
       ratingGoogle: json['rating_google'] != null ? (json['rating_google'] as num).toDouble() : null,
       promoHighlights: json['promo_highlights'] as String?,
+      status: json['status'] as String? ?? 'active',
     );
   }
 
@@ -150,6 +153,7 @@ class Event {
       'google_place_id': googlePlaceId,
       'rating_google': ratingGoogle,
       'promo_highlights': promoHighlights,
+      'status': status,
     };
   }
 }

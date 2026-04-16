@@ -200,7 +200,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           FutureBuilder<List<Event>>(
             key: ValueKey(_selectedCity), 
-            future: EventsService().getDailyEvents(city: _selectedCity),
+            future: EventsService().getPlaces(city: _selectedCity, category: _selectedFilter == "Todo" ? null : _getPlacesCategory(_selectedFilter)),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                  return const Padding(
@@ -209,22 +209,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                  );
               }
               if (snapshot.hasError) {
-                 return Center(child: Text("Error cargando eventos: ${snapshot.error}"));
+                 return Center(child: Text("Error cargando locales: ${snapshot.error}"));
               }
     
-              final allEvents = snapshot.data ?? [];
-              final filteredEvents = allEvents.where((event) {
-                 if (_selectedFilter == "Todo") return true;
-                 final category = event.category?.toLowerCase() ?? "";
-                 switch (_selectedFilter) {
-                   case "Comida": return category == "food";
-                   case "Rumba": return category == "party";
-                   case "Aire Libre": return category == "outdoors";
-                   case "Cultura": return category == "culture";
-                   case "Música": return category == "music"; 
-                   default: return true;
-                 }
-              }).toList();
+              final filteredEvents = snapshot.data ?? [];
     
               return SingleChildScrollView(
                 padding: const EdgeInsets.all(16),
@@ -255,9 +243,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           _buildFilterChip("Todo"),
                           _buildFilterChip("Comida"),
                           _buildFilterChip("Rumba"),
-                          _buildFilterChip("Aire Libre"),
-                          _buildFilterChip("Cultura"),
-                          _buildFilterChip("Música"),
+                          _buildFilterChip("Actividades"),
+                          _buildFilterChip("Belleza"),
                         ],
                       ),
                     ),
@@ -271,7 +258,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                child: DiscoverMap(
                                    events: filteredEvents,
                                    city: _selectedCity,
-                                   onEventTap: (event) => _showPlanPreview(context, event.title, "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", event.displayImageUrl, event)
+                                   onEventTap: (event) => _showPlanPreview(context, event.title, "${event.ratingGoogle != null ? '⭐ ${event.ratingGoogle} • ' : ''}${event.address ?? ''}", event.imageUrl ?? event.displayImageUrl, event)
                                )
                            )
                        )
@@ -280,15 +267,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           const PremiumEmptyState(
                             icon: Icons.search_off_rounded,
                             title: "Mmm, está muy tranquilo",
-                            subtitle: "No encontramos planes para esta categoría hoy. ¿Por qué no creas tu propio plan?",
+                            subtitle: "No encontramos locales para esta categoría en tu zona.",
                           )
                        else
                           ...filteredEvents.map((event) => _AnimatedPlanCard(
                              title: event.title, 
-                             subtitle: "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", 
-                             imageUrl: event.displayImageUrl,
+                             subtitle: "${event.ratingGoogle != null ? '⭐ ${event.ratingGoogle} • ' : ''}${event.address ?? ''}", 
+                             imageUrl: event.imageUrl ?? event.displayImageUrl,
                              event: event,
-                             onTap: () => _showPlanPreview(context, event.title, "${event.location ?? 'Ubicación desconocida'} • ${event.date ?? ''}", event.displayImageUrl, event)
+                             onTap: () => _showPlanPreview(context, event.title, "${event.address ?? ''}", event.imageUrl ?? event.displayImageUrl, event)
                           )),
                     ],
                     const SizedBox(height: 80),
@@ -335,6 +322,16 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         ),
       ),
     );
+  }
+
+  String _getPlacesCategory(String filter) {
+    switch (filter) {
+      case "Comida": return "restaurant";
+      case "Rumba": return "bar";
+      case "Actividades": return "tourist_attraction";
+      case "Belleza": return "beauty_salon";
+      default: return "restaurant";
+    }
   }
 
   void _showPlanPreview(BuildContext context, String title, String subtitle, String imageUrl, Event event) {

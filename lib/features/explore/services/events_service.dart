@@ -1,37 +1,53 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/features/explore/data/models/event_model.dart';
+import 'package:planmapp/features/explore/services/places_service.dart';
 
 class EventsService {
   final SupabaseClient _supabase = Supabase.instance.client;
+  final PlacesService _placesService = PlacesService();
 
-  Future<List<Event>> getDailyEvents({String city = 'Bogotá'}) async {
+  /// NEW: Fetches static local businesses from Google Places (with caching)
+  Future<List<Event>> getPlaces({String city = 'Barranquilla', String? category}) async {
     try {
-      // 1. Fetch from legacy events
-      final eventsResponse = await _supabase
-          .from('events')
-          .select()
-          .eq('city', city)
-          .order('created_at', ascending: false)
-          .limit(15);
+      // coordinates for Barranquilla (Default)
+      double lat = 10.9685;
+      double lng = -74.7813;
 
-      // 2. Fetch from local_discovery_events
+      final places = await _placesService.getNearbyPlaces(lat: lat, lng: lng, category: category);
+      
+      return places.map((p) => Event(
+        id: p['place_id'],
+        title: p['name'],
+        address: p['address'],
+        location: p['name'],
+        imageUrl: _placesService.getPhotoUrl(p['photo_reference']),
+        ratingGoogle: p['rating'],
+        latitude: p['latitude'],
+        longitude: p['longitude'],
+        category: p['category'],
+        city: city,
+        googlePlaceId: p['place_id'],
+      )).toList();
+    } catch (e) {
+      print('❌ getPlaces Error: $e');
+      return [];
+    }
+  }
+
+  /// NEW: Fetches real-time events/promos from the scraper
+  Future<List<Event>> getDailyEvents({String city = 'Barranquilla'}) async {
+    try {
       final localResponse = await _supabase
           .from('local_events')
           .select()
           .eq('city', city)
-          .order('created_at', ascending: false)
-          .limit(10);
+          .eq('status', 'active') // Filter only active
+          .order('date', ascending: true) // Show upcoming first
+          .limit(20);
 
-      List<Event> allEvents = [];
-      
-      if (eventsResponse is List) {
-        allEvents.addAll(eventsResponse.map((e) => Event.fromJson(e)).toList());
-      }
-      
       if (localResponse is List) {
-        // Map local_events to Event model if fields match, or adapt
-        allEvents.addAll(localResponse.map((e) => Event(
-          id: e['id'],
+        return localResponse.map((e) => Event(
+          id: e['id'].toString(),
           title: e['event_name'],
           description: e['description'],
           date: e['date'],
@@ -40,21 +56,17 @@ class EventsService {
           address: e['address'],
           imageUrl: e['image_url'],
           category: e['vibe_tag']?.split('/')[0] ?? 'General',
-          ratingGoogle: null, // Scraped items don't have this yet
           sourceUrl: e['reservation_link'] ?? e['primary_source'],
           contactInfo: e['contact_phone'],
           latitude: e['latitude'],
           longitude: e['longitude'],
-          city: e['city']
-        )).toList());
+          city: e['city'],
+          promoHighlights: e['promo_highlights'],
+        )).toList();
       }
-
-      // Sort combined by created_at (if we had it in Event model? Event model might not have created_at).
-      // Let's just return merged.
-      return allEvents;
+      return [];
     } catch (e) {
-      print('=== EventsService Error ===');
-      print(e);
+      print('❌ getDailyEvents Error: $e');
       return [];
     }
   }

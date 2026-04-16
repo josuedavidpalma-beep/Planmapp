@@ -1,0 +1,109 @@
+import 'dart:convert';
+import 'package:http/http.dart' as http;
+import 'package:supabase_flutter/supabase_flutter.dart';
+
+class PlacesService {
+  final SupabaseClient _supabase = Supabase.instance.client;
+  
+  // WARNING: Ensure you pass this from a secure source (e.g. Supabase secrets or dart-define)
+  final String? _apiKey = const String.fromEnvironment('MAPS_API_KEY');
+
+  /// Fetches nearby places with caching logic (7-day TTL).
+  Future<List<Map<String, dynamic>>> getNearbyPlaces({
+    required double lat,
+    required double lng,
+    double radius = 5000.0,
+    String? category, // e.g. 'restaurant'
+  }) async {
+    try {
+      // 1. Try to fetch from Supabase cache first
+      final cacheResponse = await _supabase
+          .from('cached_places')
+          .select()
+          .filter('category', category == null ? 'not.is' : 'eq', category) // Simple filter
+          // In a real scenario, we'd use PostGIS to check distance.
+          // For now, let's just check the city/bounds or recent ones.
+          .order('last_updated', ascending: false)
+          .limit(20);
+
+      // Check TTL (7 days)
+      if (cacheResponse.isNotEmpty) {
+        final lastUpdate = DateTime.parse(cacheResponse[0]['last_updated']);
+        if (DateTime.now().difference(lastUpdate).inDays < 7) {
+          print('✅ Serving from Supabase Cache');
+          return List<Map<String, dynamic>>.from(cacheResponse);
+        }
+      }
+
+      if (_apiKey == null || _apiKey!.isEmpty) {
+        print('⚠️ MAPS_API_KEY not found. Returning empty list.');
+        return [];
+      }
+
+      print('🌐 Fetching from Google Places API (New)...');
+
+      // 2. Fetch from Google Places API (New)
+      final url = Uri.parse('https://places.googleapis.com/v1/places:searchNearby');
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': _apiKey!,
+          // Optimized Field Masking as requested
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.photos,places.location,places.types',
+        },
+        body: jsonEncode({
+          "includedTypes": [category ?? "restaurant"],
+          "maxResultCount": 15,
+          "locationRestriction": {
+            "circle": {
+              "center": {"latitude": lat, "longitude": lng},
+              "radius": radius
+            }
+          }
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List places = data['places'] ?? [];
+
+        final results = <Map<String, dynamic>>[];
+
+        for (var p in places) {
+          final mapped = {
+            'place_id': p['id'],
+            'name': p['displayName']?['text'] ?? 'Lugar desconocido',
+            'address': p['formattedAddress'],
+            'rating': p['rating']?.toDouble(),
+            'photo_reference': (p['photos'] != null && p['photos'].isNotEmpty) 
+                ? p['photos'][0]['name'] 
+                : null,
+            'latitude': p['location']?['latitude'],
+            'longitude': p['location']?['longitude'],
+            'category': category ?? 'restaurant',
+            'last_updated': DateTime.now().toIso8601String(),
+          };
+
+          // 3. Update Supabase Cache
+          await _supabase.from('cached_places').upsert(mapped);
+          results.add(mapped);
+        }
+
+        return results;
+      } else {
+        throw Exception('Google Places API Error: ${response.body}');
+      }
+    } catch (e) {
+      print('❌ PlacesService Error: $e');
+      return [];
+    }
+  }
+
+  /// Generates a Photo URL with 400px max width as requested.
+  String getPhotoUrl(String? photoName) {
+    if (photoName == null || _apiKey == null) return '';
+    // photoName is in format: "places/PLACE_ID/photos/PHOTO_ID"
+    return 'https://places.googleapis.com/v1/$photoName/media?maxHeightPx=400&maxWidthPx=400&key=$_apiKey';
+  }
+}

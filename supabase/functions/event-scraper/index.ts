@@ -21,16 +21,17 @@ serve(async (req) => {
         if (!tavilyKey || !geminiKey) throw new Error("API Keys not set");
         const supabase = createClient(supabaseUrl!, supabaseServiceRoleKey!);
 
-        // 1. Tavily Search
+        // 1. Tavily Search optimized for Spontaneous (Plan Ya) results
+        const today = new Date().toISOString().split('T')[0];
         const searchResponse = await fetch("https://api.tavily.com/search", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 api_key: tavilyKey,
-                query: "eventos próximos en Barranquilla y Atlántico contacto reservas boletas 2026",
+                query: `eventos y promociones HOY ${today} Barranquilla 2x1 Happy Hour conciertos festivales proximos`,
                 search_depth: "advanced",
                 include_images: true,
-                max_results: 10
+                max_results: 15
             }),
         });
 
@@ -40,29 +41,32 @@ serve(async (req) => {
         }
         const searchData = await searchResponse.json();
         
-        // 2. Extracts with Gemini
+        // 2. Extracts with Gemini (Acting as Categorizer)
         const prompt = `
-            Contexto: Eres un experto en extracción de datos de eventos para Planmapp.
-            Analiza los siguientes resultados de búsqueda y extrae una lista de eventos reales en Barranquilla o el Atlántico.
+            Contexto: Eres un experto en extracción y categorización de eventos para Planmapp.
+            Fecha Actual: ${today} (Excluye cualquier evento que ya haya pasado o esté marcado como AGOTADO/SOLD OUT).
+            
+            Analiza los siguientes resultados de búsqueda y extrae una lista de eventos REALES y VIGENTES en Barranquilla o el Atlántico.
             
             Resultados de Búsqueda:
             ${JSON.stringify(searchData.results)}
             
              Requerimientos para cada evento:
-            - Solo eventos que ocurran pronto.
+            - Solo eventos que ocurran HOY (${today}) o en el futuro cercano.
             - DEBES encontrar el contacto real: Teléfono (WhatsApp preferiblemente) y link de acción (Reserva, Ticketera, Menú o Web oficial).
             - Asigna un 'vibe_tag' entre: ["Rumba/Party", "Chill/Café", "Comida/Gastro", "Aventura/Outdoor", "Cine/Cultura"].
-            - Genera un 'visual_keyword': Un término de búsqueda en INGLÉS corto y preciso para Unsplash que represente la imagen ideal del evento (ej: "night club neon", "luxury steakhouse", "beach sunset", "cinema theater seats"). Se lo más específico posible.
-            - La 'description' debe ser atractiva.
-            - DEBES extraer un campo 'promo_highlights': DEBE SER MUY CORTO (máximo 15 caracteres) para que quepa en un símbolo o insignia. Ejemplos: "2x1", "30% OFF", "Happy Hour", "Entrada Libre", "Cóctel Gratis", "Cover $0". Si ves cualquier beneficio por mínimo que sea, extráelo. Si no hay nada, deja vacío.
+            - Genera un 'visual_keyword': Un término de búsqueda en INGLÉS corto y preciso para Unsplash (ej: "night club neon", "luxury steakhouse", "beach sunset").
+            - La 'description' debe ser atractiva y persuasiva.
+            - DEBES extraer un campo 'promo_highlights': MUY CORTO (máz 12 chars). Ej: "2x1", "Happy Hour", "30% OFF", "Free Entry", "Cover $0". Si no hay promo, deja vacío.
+            - IMPORTANTE: Si un evento dice "SOLD OUT", "Entradas Agotadas" o "Aforo Completo", IGNÓRALO.
             
             Formato de salida (JSON):
             {
                 "events": [
                     {
                         "event_name": "Nombre",
-                        "description": "Descripción persuasiva",
-                        "promo_highlights": "Resumen MUY CORTO de promo (ej: 2x1)",
+                        "description": "Descripción",
+                        "promo_highlights": "2x1",
                         "date": "YYYY-MM-DD",
                         "venue_name": "Lugar",
                         "address": "Dirección",
@@ -70,10 +74,9 @@ serve(async (req) => {
                         "reservation_link": "URL",
                         "contact_phone": "+57...",
                         "price_range": "Ej: $50.000",
-                        "image_url": "URL de imagen original si existe",
+                        "image_url": "URL original si existe",
                         "vibe_tag": "Vibe",
-                        "visual_keyword": "unsplash search term",
-                        "primary_source": "Nombre del sitio fuente"
+                        "status": "active"
                     }
                 ]
             }

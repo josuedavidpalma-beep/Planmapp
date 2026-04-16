@@ -49,7 +49,14 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
           List<Map<String, dynamic>> loaded = [];
 
           // 1. Fetch from 'local_events' (The new AI discoveries)
-          var localQuery = Supabase.instance.client.from('local_events').select('*');
+          // 1. Fetch from 'local_events' (Plan Ya / Real-time Discoveries)
+          final today = DateTime.now().toIso8601String().split('T')[0];
+          var localQuery = Supabase.instance.client
+              .from('local_events')
+              .select('*')
+              .eq('status', 'active')
+              .gte('date', today); // Only today or future
+              
           if (widget.category != 'Dados') {
               // Map UI labels to DB vibe_tags
               String vibeMapping = widget.category;
@@ -61,7 +68,7 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
               localQuery = localQuery.ilike('vibe_tag', '%$vibeMapping%');
           }
           
-          final localRes = await localQuery.limit(20);
+          final localRes = await localQuery.order('date', ascending: true).limit(15);
           for (var row in localRes) {
               _processRow(row, loaded, isLocal: true);
           }
