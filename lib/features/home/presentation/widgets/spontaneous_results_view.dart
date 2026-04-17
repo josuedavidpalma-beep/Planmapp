@@ -111,14 +111,11 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
              _places = loaded.length > 8 ? loaded.sublist(0, 8) : loaded;
           }
 
-          if (_places.isEmpty) {
-              _places = [{ 'name': 'Vibe Tranquilo', 'rating': '5.0', 'dist': 'Pronto', 'tag': 'Tip Planmapp', 'desc': 'No hay eventos masivos ahora, pero es el momento perfecto para una caminata por el Malecón del Río.', 'image': 'https://images.unsplash.com/photo-1519331379826-f947873d63bd?auto=format&fit=crop&w=500' }];
-          }
+          // We removed the confusing fallback "Vibe Tranquilo" dummy plan.
+          // Now _places is just an empty list if nothing is found, which triggers the empty state UI.
 
-      } catch (e) {
-         print("Error fetching spontaneous places: $e");
-         _places = [{ 'name': 'Error de conexión', 'rating': '0.0', 'dist': '0 m', 'tag': 'Error', 'desc': 'Verifica tu conexión a internet.', 'image': 'https://images.unsplash.com/photo-1519331379826-f947873d63bd?auto=format&fit=crop&w=500' }];
-      }
+         // Do nothing, _places will be empty and trigger the empty state.
+         _places = [];
 
       if (mounted) setState(() => _isLoading = false);
   }
@@ -160,7 +157,9 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
           'dist_val': distMeters,
           'tag': hasDiscount ? 'OFERTA 🏷️' : (isLocal ? 'FRESH ✨' : 'TOP 🔥'),
           'desc': desc,
-          'image': event.imageUrl ?? event.displayImageUrl,
+          'image': (event.imageUrl != null && event.imageUrl!.contains('unsplash.com')) 
+                    ? 'https://wsrv.nl/?url=${Uri.encodeComponent(event.imageUrl!)}' 
+                    : event.imageUrl ?? event.displayImageUrl,
           'reservation_link': row['reservation_link'] ?? row['source_url'],
           'date': row['date'],
           'address': row['address'] ?? row['venue_name'],
@@ -297,10 +296,12 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                  Expanded(
                      child: _isLoading 
                         ? const Center(child: CircularProgressIndicator())
-                        : PageView.builder(
-                             controller: _pageController,
-                             itemCount: _places.length,
-                             itemBuilder: (context, index) {
+                        : _places.isEmpty
+                            ? _buildEmptyState()
+                            : PageView.builder(
+                                 controller: _pageController,
+                                 itemCount: _places.length,
+                                 itemBuilder: (context, index) {
                                  final place = _places[index];
                                  return _buildPlaceCard(place);
                              },
@@ -310,6 +311,38 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
              ],
          ),
     );
+  }
+
+  Widget _buildEmptyState() {
+      return Center(
+          child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                  Container(
+                      padding: const EdgeInsets.all(24),
+                      decoration: BoxDecoration(color: Colors.grey[100], shape: BoxShape.circle),
+                      child: const Icon(Icons.search_off_rounded, size: 48, color: Colors.grey),
+                  ),
+                  const SizedBox(height: 24),
+                  const Text("¡Ups! No hay planes aquí", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                  const SizedBox(height: 8),
+                  Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 32),
+                      child: Text(
+                          "En este momento no detectamos eventos de esta categoría en tu ciudad. ¡Prueba otra vibra!", 
+                          textAlign: TextAlign.center,
+                          style: TextStyle(color: Colors.grey[600], height: 1.5)
+                      ),
+                  ),
+                  const SizedBox(height: 24),
+                  ElevatedButton(
+                      onPressed: () => Navigator.pop(context), 
+                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))),
+                      child: const Text("Explorar otras opciones")
+                  )
+              ],
+          )
+      ).animate().fade().slideY(begin: 0.1);
   }
 
   Widget _buildPlaceCard(Map<String, dynamic> place) {
