@@ -84,21 +84,19 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
     }
   }
 
-  void _updateQuantity(String itemId, String? userId, String? guestName, double newQty) {
-    setState(() {
-      final list = _assignments[itemId]!;
-      final index = list.indexWhere((a) => (userId != null && a.userId == userId) || (guestName != null && a.guestName == guestName));
-      
-      if (newQty <= 0.001) {
-        if (index != -1) list.removeAt(index);
-      } else {
-        if (index != -1) {
-          list[index] = AssignmentModel(userId: userId, guestName: guestName, quantity: newQty);
+  void _updateQuantity(String itemId, String? userId, String? guestName, double newQty) async {
+    final assignment = AssignmentModel(userId: userId, guestName: guestName, quantity: newQty);
+    
+    // Immediate DB Update (Live effect)
+    try {
+        if (newQty <= 0.001) {
+            await _expenseRepository.deleteAssignment(itemId, userId: userId, guestName: guestName);
         } else {
-          list.add(AssignmentModel(userId: userId, guestName: guestName, quantity: newQty));
+            await _expenseRepository.upsertAssignment(itemId, assignment);
         }
-      }
-    });
+    } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
   }
 
   // Gets explicitly assigned quantity (fraction of item)
@@ -145,13 +143,18 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
       });
   }
 
-  void _markAsMine(String itemId, int itemQuantity) {
+  void _markAsMine(String itemId, int itemQuantity) async {
       final currentUid = Supabase.instance.client.auth.currentUser?.id;
       if (currentUid == null) return;
       
-      setState(() {
-          _assignments[itemId] = [AssignmentModel(userId: currentUid, quantity: itemQuantity.toDouble())];
-      });
+      final currentQty = _getAssignedQty(itemId, currentUid, null);
+      
+      // Toggle logic: If already assigned (even partially), unassign. If not, assign full.
+      if (currentQty > 0) {
+          await _expenseRepository.deleteAssignment(itemId, userId: currentUid);
+      } else {
+          await _expenseRepository.upsertAssignment(itemId, AssignmentModel(userId: currentUid, quantity: itemQuantity.toDouble()));
+      }
   }
 
   void _markAsShared(ExpenseItem item) {
@@ -371,9 +374,27 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
         ),
         body: _isLoading 
           ? const Center(child: CircularProgressIndicator())
-          : TabBarView(
-              controller: _tabController,
-              children: [
+          : StreamBuilder<List<Map<String, dynamic>>>(
+              stream: _expenseRepository.getAssignmentsStream(widget.expenseData['id']),
+              builder: (context, snapshot) {
+                // Update internal state from stream
+                if (snapshot.hasData) {
+                    final allRaw = snapshot.data!;
+                    // First clear
+                    for (var key in _assignments.keys) { _assignments[key] = []; }
+                    
+                    final itemIds = _items.map((i) => i.id).toSet();
+                    for (var raw in allRaw) {
+                        final iid = raw['expense_item_id'] as String;
+                        if (itemIds.contains(iid)) {
+                            _assignments[iid]!.add(AssignmentModel.fromJson(raw));
+                        }
+                    }
+                }
+
+                return TabBarView(
+                  controller: _tabController,
+                  children: [
                 Column(
                   children: [
                       Expanded(

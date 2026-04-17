@@ -112,6 +112,71 @@ class PlacesService {
     }
   }
 
+  /// NEW: Searches for specific places by name in a city.
+  Future<List<Map<String, dynamic>>> searchPlacesByName(String query, String city) async {
+    if (_apiKey == null || _apiKey!.isEmpty) return [];
+    
+    try {
+      // 1. First check cache for similar names in the same city
+      final cacheRes = await _supabase
+          .from('cached_places')
+          .select()
+          .eq('city', city)
+          .ilike('name', '%$query%')
+          .limit(10);
+      
+      if (cacheRes.isNotEmpty) {
+          return List<Map<String, dynamic>>.from(cacheRes);
+      }
+
+      // 2. Search via Google Places Text Search
+      final url = Uri.parse('https://places.googleapis.com/v1/places:searchText');
+      final response = await http.post(
+        url,
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Goog-Api-Key': _apiKey!,
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.photos,places.location,places.types,places.priceLevel',
+        },
+        body: jsonEncode({
+          "textQuery": "$query in $city",
+          "maxResultCount": 10,
+        }),
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final List places = data['places'] ?? [];
+        final results = <Map<String, dynamic>>[];
+
+        for (var p in places) {
+          final mapped = {
+            'place_id': p['id'],
+            'name': p['displayName']?['text'] ?? 'Lugar desconocido',
+            'address': p['formattedAddress'],
+            'rating': p['rating']?.toDouble(),
+            'photo_reference': (p['photos'] != null && p['photos'].isNotEmpty) 
+                ? p['photos'][0]['name'] 
+                : null,
+            'latitude': p['location']?['latitude'],
+            'longitude': p['location']?['longitude'],
+            'city': city,
+            'category': 'search_result', // Marking to avoid categorization bugs
+            'price_level': _mapPriceLevel(p['priceLevel']),
+            'last_updated': DateTime.now().toIso8601String(),
+          };
+          await _supabase.from('cached_places').upsert(mapped);
+          results.add(mapped);
+        }
+        return results;
+      }
+      return [];
+    } catch (e) {
+      print('❌ searchPlacesByName Error: $e');
+      return [];
+    }
+  }
+
   String? _mapPriceLevel(dynamic level) {
     if (level == null) return null;
     // Google returns enum strings like 'PRICE_LEVEL_MODERATE' or potentially ints depending on lib versions

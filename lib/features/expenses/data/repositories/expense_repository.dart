@@ -282,6 +282,46 @@ class ExpenseRepository {
     }
   }
 
+  /// NEW: Stream assignments for an entire expense
+  Stream<List<Map<String, dynamic>>> getAssignmentsStream(String expenseId) {
+    // We join with expense_items to filter by expense_id
+    // But since Supabase Realtime doesn't support complex joins easily,
+    // we can either filter by a list of item IDs or just listen to the whole table and filter locally.
+    // However, the best way for a 'live' feel is listening to the table.
+    return _supabase
+        .from('expense_assignments')
+        .stream(primaryKey: ['id'])
+        .map((data) => data); // We will filter this in the UI or fetch item IDs first
+  }
+
+  /// NEW: Upsert a single assignment (Granular)
+  Future<void> upsertAssignment(String itemId, AssignmentModel assignment) async {
+      try {
+          final data = assignment.toJson(itemId);
+          // If it's a user, we match by user_id and item_id
+          // If it's a guest, we match by guest_name and item_id
+          if (assignment.userId != null) {
+              await _supabase.from('expense_assignments').upsert(data, onConflict: 'expense_item_id,user_id');
+          } else {
+              await _supabase.from('expense_assignments').upsert(data, onConflict: 'expense_item_id,guest_name');
+          }
+      } catch (e) {
+          throw Exception('Failed to upsert assignment: $e');
+      }
+  }
+
+  /// NEW: Delete a single assignment (Granular)
+  Future<void> deleteAssignment(String itemId, {String? userId, String? guestName}) async {
+      try {
+          var query = _supabase.from('expense_assignments').delete().eq('expense_item_id', itemId);
+          if (userId != null) query = query.eq('user_id', userId);
+          if (guestName != null) query = query.eq('guest_name', guestName);
+          await query;
+      } catch (e) {
+          throw Exception('Failed to delete assignment: $e');
+      }
+  }
+
   // Fetch debts owed TO the current user (Receivables)
   Future<List<Map<String, dynamic>>> getReceivables(String? planId) async {
       try {

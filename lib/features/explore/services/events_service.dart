@@ -148,6 +148,30 @@ class EventsService {
     }
   }
 
+  /// NEW: Search for places by name
+  Future<List<Event>> searchPlaces({required String query, required String city}) async {
+    try {
+      final results = await _placesService.searchPlacesByName(query, city);
+      return results.map((p) => Event(
+        id: p['place_id'],
+        title: p['name'],
+        address: p['address'],
+        location: p['name'],
+        imageUrl: _placesService.getPhotoUrl(p['photo_reference']),
+        ratingGoogle: p['rating'],
+        latitude: p['latitude'],
+        longitude: p['longitude'],
+        category: p['category'],
+        city: city,
+        googlePlaceId: p['place_id'],
+        priceLevel: p['price_level'],
+      )).toList();
+    } catch (e) {
+      print('❌ searchPlaces Error: $e');
+      return [];
+    }
+  }
+
   /// NEW: Fetches real-time events/promos with personalized ranking
   Future<List<Event>> getDailyEvents({
     String city = 'Barranquilla',

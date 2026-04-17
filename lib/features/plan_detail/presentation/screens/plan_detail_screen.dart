@@ -195,32 +195,49 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
            }
       }
-  }
-
-  Future<void> _exportToCalendar() async {
+  }  Future<void> _exportToCalendar() async {
       if (_plan == null || _plan!.eventDate == null) return;
       
-      final title = Uri.encodeComponent("Planmapp: ${_plan!.title}");
-      final loc = Uri.encodeComponent(_plan!.locationName);
-      final details = Uri.encodeComponent("Enlace del plan: https://planmapp.app/invite/${_plan!.id}");
-      
-      // format dates to YYYYMMDDTHHmmSSZ
+      final title = "Planmapp: ${_plan!.title}";
+      final loc = _plan!.locationName;
+      final details = "Enlace del plan: https://planmapp.app/invite/${_plan!.id}";
       final start = _plan!.eventDate!.toUtc();
-      final String startDateStr = "${start.year}${start.month.toString().padLeft(2,'0')}${start.day.toString().padLeft(2,'0')}T${start.hour.toString().padLeft(2,'0')}${start.minute.toString().padLeft(2,'0')}00Z";
-      
       final end = start.add(const Duration(hours: 3));
-      final String endDateStr = "${end.year}${end.month.toString().padLeft(2,'0')}${end.day.toString().padLeft(2,'0')}T${end.hour.toString().padLeft(2,'0')}${end.minute.toString().padLeft(2,'0')}00Z";
 
-      final url = Uri.parse("https://calendar.google.com/calendar/render?action=TEMPLATE&text=$title&dates=$startDateStr/$endDateStr&details=$details&location=$loc");
-      
+      // Build ICS content
+      final icsContent = 
+          "BEGIN:VCALENDAR\n"
+          "VERSION:2.0\n"
+          "BEGIN:VEVENT\n"
+          "DTSTART:${_formatICSDate(start)}\n"
+          "DTEND:${_formatICSDate(end)}\n"
+          "SUMMARY:$title\n"
+          "LOCATION:$loc\n"
+          "DESCRIPTION:$details\n"
+          "END:VEVENT\n"
+          "END:VCALENDAR";
+
       try {
-          if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
-              throw 'Could not launch $url';
+          // On Web, use file download approach
+          final bytes = utf8.encode(icsContent);
+          final blob = Uri.dataFromBytes(bytes, mimeType: 'text/calendar').toString();
+          
+          if (!await launchUrl(Uri.parse(blob), mode: LaunchMode.externalApplication)) {
+              // Fallback to Google Calendar URL if data URI fails
+              final startDateStr = _formatICSDate(start);
+              final endDateStr = _formatICSDate(end);
+              final gUrl = Uri.parse("https://calendar.google.com/calendar/render?action=TEMPLATE&text=${Uri.encodeComponent(title)}&dates=$startDateStr/$endDateStr&details=${Uri.encodeComponent(details)}&location=${Uri.encodeComponent(loc)}");
+              await launchUrl(gUrl, mode: LaunchMode.externalApplication);
           }
       } catch (e) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo abrir el calendario.')));
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo abrir el calendario.')));
       }
   }
+
+  String _formatICSDate(DateTime date) {
+      return "${date.year}${date.month.toString().padLeft(2,'0')}${date.day.toString().padLeft(2,'0')}T${date.hour.toString().padLeft(2,'0')}${date.minute.toString().padLeft(2,'0')}00Z";
+  }
+}
 
   @override
   Widget build(BuildContext context) {
@@ -563,6 +580,21 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
               child: StreamBuilder<List<Message>>(
                 stream: _chatStream,
                 builder: (context, snapshot) {
+                  if (snapshot.hasError) {
+                      return Center(
+                        child: Column(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            const Icon(Icons.refresh_rounded, color: Colors.grey),
+                            const SizedBox(height: 8),
+                            const Text("Error de conexión al chat", style: TextStyle(color: Colors.grey)),
+                            TextButton(onPressed: () => setState(() {
+                                _chatStream = _chatService.getMessagesValues(widget.planId);
+                            }), child: const Text("Reconectar"))
+                          ],
+                        ),
+                      );
+                  }
                   if (snapshot.connectionState == ConnectionState.waiting) {
                     return const Center(child: CircularProgressIndicator());
                   }
@@ -884,16 +916,6 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
 
                         // AI SUGGESTION (Only for Text)
                         if (localPollType == 0)
-                            TextButton.icon(
-                              onPressed: () async {
-                                  if (titleController.text.isEmpty) return; 
-                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("✨ Pensando opciones...")));
-                                  // Call AI logic (omitted for brevity, keep existing flow essentially)
-                                  // I will skip re-implementing full AI call here to save token space unless requested.
-                              },
-                              icon: const Icon(Icons.auto_awesome, color: Colors.purple),
-                              label: const Text("Sugerir Opciones (IA)", style: TextStyle(color: Colors.purple)),
-                            ),
                             
                         // Use existing Deadline Logic
                         ListTile(
@@ -999,6 +1021,9 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
           child: StreamBuilder<List<Message>>(
             stream: _chatStream,
             builder: (context, snapshot) {
+              if (snapshot.hasError) {
+                return Center(child: Text("Error al cargar chat: ${snapshot.error}"));
+              }
               if (snapshot.connectionState == ConnectionState.waiting) {
                 return const Center(child: CircularProgressIndicator());
               }

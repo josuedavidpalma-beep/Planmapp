@@ -199,7 +199,7 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
                               children: [
                                   Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
                                   SizedBox(width: 8),
-                                  Expanded(child: Text("La IA puede tardar unos segundos en leer y procesar la factura. Verifica que los montos sean correctos después de la lectura automática.", style: TextStyle(color: Colors.orange, fontSize: 12)))
+                                  Expanded(child: Text("El proceso automático puede tardar unos segundos en leer la factura. Verifica que los montos sean correctos.", style: TextStyle(color: Colors.orange, fontSize: 12)))
                               ],
                           ),
                       )
@@ -255,7 +255,7 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
                       children: [
                           CircularProgressIndicator(),
                           SizedBox(height: 16),
-                          Text("Analizando factura con Gemini AI... 🧠\n(Esto puede tardar unos segundos)"),
+                          Text("Analizando factura automágicamente... ✨\n(Esto puede tardar unos segundos)"),
                       ],
                   )
               )
@@ -285,19 +285,6 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
               addedCount++;
           }
           
-          // 5. Update Totals
-          if (_bill != null) {
-               bool needsUpdate = false;
-               double startTip = _bill!.tipAmount;
-               
-               // Logic to prompt user if major diff? For now auto-apply if current is 0
-               if ((receipt.tip ?? 0) > 0 && startTip == 0) {
-                   // We need rate, not amount for backend logic currently unless we change backend.
-                   // Assuming backend takes rate. We can't set amount directly in current service.
-                   // Just skipping auto-tip update to avoid calc errors, let user set it.
-               }
-          }
-
           if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("¡$addedCount ítems detectados!")));
               _loadData();
@@ -434,8 +421,8 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
             actions: [
                 IconButton(
                     icon: const Icon(Icons.camera_alt_outlined),
-                    tooltip: "Escanear Factura (IA)",
-                    onPressed: _scanReceipt, // NEW SCAN ACTION
+                    tooltip: "Lectura Automática",
+                    onPressed: _scanReceipt, 
                 ),
                 IconButton(
                     icon: const Icon(Icons.settings_outlined),

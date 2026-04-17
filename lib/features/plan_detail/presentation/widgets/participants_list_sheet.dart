@@ -20,16 +20,24 @@ class ParticipantsListBottomSheet extends StatefulWidget {
   State<ParticipantsListBottomSheet> createState() => _ParticipantsListBottomSheetState();
 }
 
-class _ParticipantsListBottomSheetState extends State<ParticipantsListBottomSheet> {
+class _ParticipantsListBottomSheetState extends State<ParticipantsListBottomSheet> with SingleTickerProviderStateMixin {
   final PlanMembersService _membersService = PlanMembersService();
   final PlanService _planService = PlanService();
+  late TabController _tabController;
   bool _isLoading = true;
   List<PlanMember> _members = [];
 
   @override
   void initState() {
     super.initState();
+    _tabController = TabController(length: 3, vsync: this);
     _loadMembers();
+  }
+
+  @override
+  void dispose() {
+    _tabController.dispose();
+    super.dispose();
   }
 
   Future<void> _loadMembers() async {
@@ -69,12 +77,14 @@ class _ParticipantsListBottomSheetState extends State<ParticipantsListBottomShee
 
   @override
   Widget build(BuildContext context) {
+    final isDark = Theme.of(context).brightness == Brightness.dark;
+    
     return Container(
-        height: MediaQuery.of(context).size.height * 0.7,
-        padding: const EdgeInsets.all(24),
-        decoration: const BoxDecoration(
-            color: Colors.white,
-            borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24))
+        height: MediaQuery.of(context).size.height * 0.8,
+        padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 24),
+        decoration: BoxDecoration(
+            color: Theme.of(context).scaffoldBackgroundColor,
+            borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24))
         ),
         child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -88,33 +98,31 @@ class _ParticipantsListBottomSheetState extends State<ParticipantsListBottomShee
                 ),
                 const SizedBox(height: 16),
                 
-                // Stats
-                Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceAround,
-                    children: [
-                        _buildStat(Icons.check_circle, Colors.green, "Van", _members.where((m) => m.status == 'accepted').length),
-                        _buildStat(Icons.help, Colors.orange, "Pendientes", _members.where((m) => m.status == 'pending').length),
-                        _buildStat(Icons.cancel, Colors.red, "No van", _members.where((m) => m.status == 'declined').length),
+                TabBar(
+                    controller: _tabController,
+                    isScrollable: false,
+                    labelColor: AppTheme.primaryBrand,
+                    unselectedLabelColor: Colors.grey,
+                    indicatorColor: AppTheme.primaryBrand,
+                    indicatorSize: TabBarIndicatorSize.label,
+                    tabs: [
+                        Tab(text: "Van (${_members.where((m) => m.status == 'accepted').length})"),
+                        Tab(text: "Pnd (${_members.where((m) => m.status == 'pending').length})"),
+                        Tab(text: "No (${_members.where((m) => m.status == 'declined').length})"),
                     ],
                 ),
-                const Divider(height: 32),
+                const SizedBox(height: 16),
 
                 Expanded(
                     child: _isLoading 
                     ? const Center(child: CircularProgressIndicator())
-                    : ListView.builder(
-                        itemCount: _members.length,
-                        itemBuilder: (context, index) {
-                            final member = _members[index];
-                            return ListTile(
-                                leading: CircleAvatar(
-                                    backgroundImage: member.avatarUrl != null ? NetworkImage(member.avatarUrl!) : null,
-                                    child: member.avatarUrl == null ? Text(member.name[0]) : null,
-                                ),
-                                title: Text(member.name + (member.role == 'admin' ? " (Admin)" : "")),
-                                trailing: _buildStatusChip(member.status),
-                            );
-                        },
+                    : TabBarView(
+                        controller: _tabController,
+                        children: [
+                            _buildMembersList('accepted'),
+                            _buildMembersList('pending'),
+                            _buildMembersList('declined'),
+                        ],
                     )
                 ),
 
@@ -142,14 +150,35 @@ class _ParticipantsListBottomSheetState extends State<ParticipantsListBottomShee
     );
   }
 
-  Widget _buildStat(IconData icon, Color color, String label, int count) {
-      return Column(
-          children: [
-              Icon(icon, color: color, size: 28),
-              const SizedBox(height: 4),
-              Text(count.toString(), style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-              Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey))
-          ],
+  Widget _buildMembersList(String status) {
+      final filtered = _members.where((m) => m.status == status).toList();
+      if (filtered.isEmpty) {
+          return Center(
+              child: Column(
+                  mainAxisAlignment: MainAxisAlignment.center,
+                  children: [
+                      Icon(Icons.people_outline, size: 48, color: Colors.grey.withOpacity(0.5)),
+                      const SizedBox(height: 12),
+                      Text("Aún no hay nadie en esta lista", style: TextStyle(color: Colors.grey.withOpacity(0.8))),
+                  ],
+              ),
+          );
+      }
+      return ListView.builder(
+          itemCount: filtered.length,
+          itemBuilder: (context, index) {
+              final member = filtered[index];
+              return ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: CircleAvatar(
+                      backgroundImage: member.avatarUrl != null ? NetworkImage(member.avatarUrl!) : null,
+                      child: member.avatarUrl == null ? Text(member.name[0].toUpperCase()) : null,
+                  ),
+                  title: Text(member.name, style: const TextStyle(fontWeight: FontWeight.bold)),
+                  subtitle: Text(member.role == 'admin' ? "Organizador" : "Invitado", style: const TextStyle(fontSize: 12)),
+                  trailing: _buildStatusChip(member.status),
+              );
+          },
       );
   }
 

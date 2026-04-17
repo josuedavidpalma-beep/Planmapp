@@ -92,8 +92,8 @@ class _DashboardScreenState extends State<DashboardScreen> {
                 ),
                 _buildToolCard(
                     context,
-                    title: "Dividir Factura con IA",
-                    subtitle: "Toma la foto a un ticket de restaurante y deja que escaneemos y dividamos la cuenta.",
+                    title: "Escaneo Automático de Factura",
+                    subtitle: "Toma la foto a un ticket de restaurante y deja que planmapp procese la cuenta.",
                     icon: Icons.document_scanner_outlined,
                     color: Colors.deepPurpleAccent,
                     onTap: _openScannerTool,

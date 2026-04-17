@@ -79,7 +79,11 @@ class _SubmitTicketScreenState extends State<SubmitTicketScreen> {
 
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al enviar: $e')));
+        String msg = e.toString();
+        if (msg.contains('400') || msg.contains('RESEND_API_KEY')) {
+           msg = '⚠️ Configuración incompleta: El sistema de correos aún no está activado. Contacta al administrador para configurar la RESEND_API_KEY.';
+        }
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg), duration: const Duration(seconds: 5)));
       }
     } finally {
       if (mounted) setState(() => _isSubmitting = false);
@@ -161,6 +165,7 @@ class _SubmitTicketScreenState extends State<SubmitTicketScreen> {
                           Icon(Icons.add_photo_alternate_rounded, size: 32, color: AppTheme.primaryBrand),
                           const SizedBox(height: 8),
                           const Text("Toca para subir una foto", style: TextStyle(color: Colors.white70)),
+                          const Spacer(),
                         ],
                       ),
               ),

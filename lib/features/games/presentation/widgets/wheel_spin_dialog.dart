@@ -183,12 +183,7 @@ class _WheelSpinDialogState extends State<WheelSpinDialog> {
                     const SizedBox(height: 16),
                     
                     if (!_isReplay) ...[
-                        if (_options.isEmpty)
-                             ElevatedButton.icon(
-                                 onPressed: _isThinking ? null : _askAGenie, 
-                                 icon: _isThinking ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2)) : const Icon(Icons.auto_awesome),
-                                 label: const Text("Sugerencias IA")
-                             ),
+                        const SizedBox(height: 8),
                         
                         // Input
                         Row(

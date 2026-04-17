@@ -40,6 +40,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<String> _userInterests = [];
   String? _budgetLevel;
   int? _userAge;
+  
+  // Search state
+  final TextEditingController _searchController = TextEditingController();
+  bool _isSearching = false;
+  String _searchQuery = "";
+  List<Event> _searchResults = [];
+  bool _isSearchLoading = false;
 
   @override
   void initState() {
@@ -189,6 +196,18 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         centerTitle: true,
         actions: [
           IconButton(
+            icon: Icon(_isSearching ? Icons.close_rounded : Icons.search_rounded),
+            onPressed: () {
+                setState(() {
+                  _isSearching = !_isSearching;
+                  if (!_isSearching) {
+                    _searchController.clear();
+                    _searchQuery = "";
+                  }
+                });
+            },
+          ),
+          IconButton(
             icon: Icon(_isMapView ? Icons.view_agenda_rounded : Icons.map_rounded, color: AppTheme.primaryBrand),
             onPressed: () {
                 setState(() => _isMapView = !_isMapView);
@@ -219,97 +238,184 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       body: Stack(
         children: [
-          FutureBuilder<List<Event>>(
-            key: ValueKey(_selectedCity), 
-            future: EventsService().getPlaces(
-              city: _selectedCity, 
-              category: _selectedFilter == "Todo" ? null : _getPlacesCategory(_selectedFilter),
-              userInterests: _userInterests,
-              budgetLevel: _budgetLevel,
-            ),
-            builder: (context, snapshot) {
-              if (snapshot.connectionState == ConnectionState.waiting) {
-                 return const Padding(
-                   padding: EdgeInsets.all(16.0), 
-                   child: SkeletonList(count: 3)
-                 );
-              }
-              if (snapshot.hasError) {
-                 return Center(child: Text("Error cargando locales: ${snapshot.error}"));
-              }
-    
-              final filteredEvents = snapshot.data ?? [];
-    
-              return SingleChildScrollView(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      _userName.isNotEmpty ? "Hola, $_userName 👋" : "Hola 👋",
-                      style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
-                    ),
-                    Text(
-                      "¿Qué sale hoy en $_selectedCity?",
-                      style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.w500),
-                    ),
-                    const SizedBox(height: 24),
-    
-                    if (_showCompleteProfileBanner)
-                      GestureDetector(
-                        onTap: () => context.push('/profile'),
-                        child: _buildCompleteProfileBanner(),
+          CustomScrollView(
+            key: ValueKey("$_selectedCity-$_isSearching-$_searchQuery"),
+            slivers: [
+              if (_isSearching)
+                SliverToBoxAdapter(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                    child: Container(
+                      decoration: BoxDecoration(
+                        color: Theme.of(context).cardColor,
+                        borderRadius: BorderRadius.circular(16),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)]
                       ),
-    
-                    SizedBox(
-                      height: 40,
-                      child: ListView(
-                        scrollDirection: Axis.horizontal,
-                        children: [
-                          _buildFilterChip("Todo"),
-                          _buildFilterChip("Comida"),
-                          _buildFilterChip("Rumba"),
-                          _buildFilterChip("Cine & Arte"),
-                          _buildFilterChip("Aventura"),
-                          _buildFilterChip("Preventas"),
-                        ],
+                      child: TextField(
+                        controller: _searchController,
+                        autofocus: true,
+                        decoration: const InputDecoration(
+                          hintText: "Buscar un lugar (ej. Phortos, McDonald's...)",
+                          prefixIcon: Icon(Icons.search, color: AppTheme.primaryBrand),
+                          border: InputBorder.none,
+                          contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 12)
+                        ),
+                        onSubmitted: (val) async {
+                          if (val.isEmpty) return;
+                          setState(() {
+                            _searchQuery = val;
+                            _isSearchLoading = true;
+                          });
+                          final results = await EventsService().searchPlaces(query: val, city: _selectedCity);
+                          setState(() {
+                            _searchResults = results;
+                            _isSearchLoading = false;
+                          });
+                        },
                       ),
                     ),
-                    const SizedBox(height: 24),
-                    
+                  ),
+                ),
+
+              SliverToBoxAdapter(
+                child: Padding(
+                  padding: const EdgeInsets.all(16),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      if (!_isSearching) ...[
+                        Text(
+                          _userName.isNotEmpty ? "Hola, $_userName 👋" : "Hola 👋",
+                          style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w900),
+                        ),
+                        Text(
+                          "¿Qué sale hoy en $_selectedCity?",
+                          style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.w500),
+                        ),
+                        const SizedBox(height: 24),
+                        if (_showCompleteProfileBanner)
+                          GestureDetector(
+                            onTap: () => context.push('/profile'),
+                            child: _buildCompleteProfileBanner(),
+                          ),
+                        SizedBox(
+                          height: 40,
+                          child: ListView(
+                            scrollDirection: Axis.horizontal,
+                            children: [
+                              _buildFilterChip("Todo"),
+                              _buildFilterChip("Comida"),
+                              _buildFilterChip("Rumba"),
+                              _buildFilterChip("Cine & Arte"),
+                              _buildFilterChip("Aventura"),
+                              _buildFilterChip("Preventas"),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 24),
+                      ],
+                    ],
+                  ),
+                ),
+              ),
+
+              if (_isSearching && _searchQuery.isNotEmpty)
+                _isSearchLoading 
+                ? const SliverFillRemaining(child: Center(child: CircularProgressIndicator()))
+                : _searchResults.isEmpty
+                  ? const SliverFillRemaining(
+                      child: PremiumEmptyState(
+                        icon: Icons.sentiment_dissatisfied,
+                        title: "No encontramos ese lugar",
+                        subtitle: "Intenta con otro nombre o revisa la ciudad.",
+                      )
+                    )
+                  : SliverPadding(
+                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      sliver: SliverList(
+                        delegate: SliverChildBuilderDelegate(
+                          (context, i) => _AnimatedPlanCard(
+                            title: _searchResults[i].title,
+                            subtitle: _searchResults[i].address ?? "",
+                            imageUrl: _searchResults[i].imageUrl ?? _searchResults[i].displayImageUrl,
+                            event: _searchResults[i],
+                            onTap: () => _showPlanPreview(context, _searchResults[i].title, _searchResults[i].address ?? "", _searchResults[i].imageUrl ?? _searchResults[i].displayImageUrl, _searchResults[i]),
+                          ),
+                          childCount: _searchResults.length,
+                        ),
+                      ),
+                    )
+              else 
+                FutureBuilder<List<Event>>(
+                  key: ValueKey("$_selectedCity-$_selectedFilter"), 
+                  future: EventsService().getPlaces(
+                    city: _selectedCity, 
+                    category: _selectedFilter == "Todo" ? null : _getPlacesCategory(_selectedFilter),
+                    userInterests: _userInterests,
+                    budgetLevel: _budgetLevel,
+                  ),
+                  builder: (context, snapshot) {
+                    if (snapshot.connectionState == ConnectionState.waiting) {
+                       return const SliverToBoxAdapter(
+                         child: Padding(
+                           padding: EdgeInsets.all(16.0), 
+                           child: SkeletonList(count: 3)
+                         ),
+                       );
+                    }
+                    if (snapshot.hasError) {
+                       return SliverFillRemaining(child: Center(child: Text("Error: ${snapshot.error}")));
+                    }
+          
+                    final filteredEvents = snapshot.data ?? [];
+          
                     if (_isMapView)
-                       SizedBox(
-                           height: MediaQuery.of(context).size.height * 0.6,
-                           child: ClipRRect(
-                               borderRadius: BorderRadius.circular(20),
-                               child: DiscoverMap(
-                                   events: filteredEvents,
-                                   city: _selectedCity,
-                                   onEventTap: (event) => _showPlanPreview(context, event.title, "${event.ratingGoogle != null ? '⭐ ${event.ratingGoogle} • ' : ''}${event.address ?? ''}", event.imageUrl ?? event.displayImageUrl, event)
+                       return SliverToBoxAdapter(
+                         child: Padding(
+                           padding: const EdgeInsets.all(16),
+                           child: SizedBox(
+                               height: MediaQuery.of(context).size.height * 0.6,
+                               child: ClipRRect(
+                                   borderRadius: BorderRadius.circular(20),
+                                   child: DiscoverMap(
+                                       events: filteredEvents,
+                                       city: _selectedCity,
+                                       onEventTap: (event) => _showPlanPreview(context, event.title, "${event.ratingGoogle != null ? '⭐ ${event.ratingGoogle} • ' : ''}${event.address ?? ''}", event.imageUrl ?? event.displayImageUrl, event)
+                                   )
                                )
-                           )
+                           ),
+                         ),
                        )
                     else ...[
                        if (filteredEvents.isEmpty)
-                          const PremiumEmptyState(
-                            icon: Icons.search_off_rounded,
-                            title: "Mmm, está muy tranquilo",
-                            subtitle: "No encontramos locales para esta categoría en tu zona.",
+                          const SliverFillRemaining(
+                            child: PremiumEmptyState(
+                              icon: Icons.search_off_rounded,
+                              title: "Mmm, está muy tranquilo",
+                              subtitle: "No encontramos locales para esta categoría en tu zona.",
+                            ),
                           )
                        else
-                          ...filteredEvents.map((event) => _AnimatedPlanCard(
-                             title: event.title, 
-                             subtitle: "${event.ratingGoogle != null ? '⭐ ${event.ratingGoogle} • ' : ''}${event.address ?? ''}", 
-                             imageUrl: event.imageUrl ?? event.displayImageUrl,
-                             event: event,
-                             onTap: () => _showPlanPreview(context, event.title, "${event.address ?? ''}", event.imageUrl ?? event.displayImageUrl, event)
-                          )),
-                    ],
-                    const SizedBox(height: 80),
-                  ],
+                          SliverPadding(
+                            padding: const EdgeInsets.symmetric(horizontal: 16),
+                            sliver: SliverList(
+                              delegate: SliverChildBuilderDelegate(
+                                (context, i) => _AnimatedPlanCard(
+                                   title: filteredEvents[i].title, 
+                                   subtitle: "${filteredEvents[i].ratingGoogle != null ? '⭐ ${filteredEvents[i].ratingGoogle} • ' : ''}${filteredEvents[i].address ?? ''}", 
+                                   imageUrl: filteredEvents[i].imageUrl ?? filteredEvents[i].displayImageUrl,
+                                   event: filteredEvents[i],
+                                   onTap: () => _showPlanPreview(context, filteredEvents[i].title, "${filteredEvents[i].address ?? ''}", filteredEvents[i].imageUrl ?? filteredEvents[i].displayImageUrl, filteredEvents[i])
+                                ),
+                                childCount: filteredEvents.length,
+                              ),
+                            ),
+                          ),
+                    ];
+                  }
                 ),
-              );
-            }
+              const SliverToBoxAdapter(child: SizedBox(height: 100)),
+            ],
           ),
           
           // Subtle PWA Guide Tooltip
@@ -753,24 +859,49 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
                       ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
-                        children: [
-                          const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
-                          const SizedBox(width: 6),
-                          Text(
-                            "RECOMENDADO PARA TI",
-                            style: TextStyle(
-                              color: Colors.white, 
-                              fontSize: 9, 
-                              fontWeight: FontWeight.w900, 
-                              letterSpacing: 0.5,
-                              shadows: [Shadow(color: Colors.black.withOpacity(0.3), blurRadius: 2)]
-                            ),
+                    child: GestureDetector(
+                      onTap: () {
+                        showModalBottomSheet(
+                          context: context,
+                          isScrollControlled: true,
+                          backgroundColor: Colors.transparent,
+                          builder: (context) => SpontaneousResultsView(category: _filterIcons[i]['label']!, position: _currentPos!, city: _selectedCity),
+                        );
+                      },
+                      child: Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                        decoration: BoxDecoration(
+                          gradient: LinearGradient(
+                            colors: [AppTheme.primaryBrand, AppTheme.primaryBrand.withOpacity(0.7)],
+                            begin: Alignment.topLeft,
+                            end: Alignment.bottomRight,
                           ),
-                        ],
-                      ),
-                    ).animate(onPlay: (ctrl) => ctrl.repeat(reverse: true))
-                     .shimmer(duration: 3.seconds, delay: 1.seconds)
-                     .scale(duration: 400.ms, curve: Curves.elasticOut),
+                          borderRadius: BorderRadius.circular(12),
+                          boxShadow: [
+                             BoxShadow(color: AppTheme.primaryBrand.withOpacity(0.5), blurRadius: 8)
+                          ],
+                        ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
+                            const SizedBox(width: 6),
+                            Text(
+                              "RECOMENDADO PARA TI",
+                              style: TextStyle(
+                                color: Colors.white, 
+                                fontSize: 9, 
+                                fontWeight: FontWeight.w900, 
+                                letterSpacing: 0.5,
+                                shadows: [Shadow(color: Colors.black.withOpacity(0.3), blurRadius: 2)]
+                              ),
+                            ),
+                          ],
+                        ),
+                      ).animate(onPlay: (ctrl) => ctrl.repeat(reverse: true))
+                       .shimmer(duration: 3.seconds, delay: 1.seconds)
+                       .scale(duration: 400.ms, curve: Curves.elasticOut),
+                    ),
                   ),
                ]
             ),

@@ -11,11 +11,11 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/features/explore/data/models/event_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-class SpontaneousResultsView extends StatefulWidget {
   final String category;
   final Position position;
+  final String city;
 
-  const SpontaneousResultsView({super.key, required this.category, required this.position});
+  const SpontaneousResultsView({super.key, required this.category, required this.position, required this.city});
 
   @override
   State<SpontaneousResultsView> createState() => _SpontaneousResultsViewState();
@@ -72,7 +72,8 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
               .from('local_events')
               .select('*')
               .eq('status', 'active')
-              .gte('date', today); // Only today or future
+              .eq('city', widget.city) // STRICT CITY FILTER
+              .gte('date', today);
               
           if (widget.category != 'Dados') {
               // Map UI labels to DB vibe_tags
