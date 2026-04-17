@@ -107,15 +107,14 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
           if (widget.category == 'Dados') {
              loaded.shuffle(); // Real dice Randomness
              _places = loaded.isNotEmpty ? [loaded.first] : []; // Only show ONE event at a time!
-          } else {
+         } else {
              _places = loaded.length > 8 ? loaded.sublist(0, 8) : loaded;
           }
 
-          // We removed the confusing fallback "Vibe Tranquilo" dummy plan.
-          // Now _places is just an empty list if nothing is found, which triggers the empty state UI.
-
-         // Do nothing, _places will be empty and trigger the empty state.
-         _places = [];
+      } catch (e) {
+          debugPrint("Error fetching spontaneous places: $e");
+          _places = [];
+      }
 
       if (mounted) setState(() => _isLoading = false);
   }
