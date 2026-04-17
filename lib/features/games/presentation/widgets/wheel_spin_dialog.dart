@@ -31,7 +31,6 @@ class _WheelSpinDialogState extends State<WheelSpinDialog> {
   
   List<String> _options = [];
   bool _isSpinning = false;
-  bool _isThinking = false; 
   String? _finalResult;
 
   bool get _isReplay => widget.replayWinner != null;
@@ -98,28 +97,6 @@ class _WheelSpinDialogState extends State<WheelSpinDialog> {
       // We can't easily retrieve the last value from StreamController generic.
       // Wait! We can just track specific target index in _spin();
       // Refactoring _spin slightly.
-  }
-
-  Future<void> _askAGenie() async {
-      setState(() => _isThinking = true);
-      try {
-           final supabase = Supabase.instance.client;
-           final response = await supabase.functions.invoke('ai-assistant', body: {
-               'action': 'suggest_poll_options',
-               'payload': { 'question': 'Opciones divertidas para tomar una decisión en grupo', 'location': 'general' }
-           });
-           
-           final List<dynamic> suggestions = response.data;
-           if (mounted) {
-               setState(() {
-                   for (var s in suggestions) _options.add(s.toString());
-               });
-           }
-      } catch (e) {
-           if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("El genio está ocupado.")));
-      } finally {
-           if(mounted) setState(() => _isThinking = false);
-      }
   }
 
   Future<void> _postToChat(String winner) async {
