@@ -73,7 +73,7 @@ serve(async (req) => {
         "Authorization": `Bearer ${resendApiKey}`,
       },
       body: JSON.stringify({
-        from: "Planmapp Support <noreply@planmapp.app>", // Ensure your Resend domain is verified or use onboarding@resend.dev
+        from: "Planmapp Support <onboarding@resend.dev>", // Uses Resend's free testing domain to avoid verification errors
         to: ["josuedavidpalma@gmail.com"],
         reply_to: userEmail !== "Email Desconocido" ? userEmail : undefined,
         subject: subject,
