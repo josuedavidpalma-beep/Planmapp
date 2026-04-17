@@ -525,14 +525,17 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
               ],
           ),
           if (isCreator) _buildSummaryTab(),
-        ]),
-        floatingActionButton: _tabController.index == 0 
-           ? FloatingActionButton(
-                onPressed: _addItemManual,
-                child: const Icon(Icons.add),
-             )
-           : null,
-    );
+        ],
+      );
+    },
+  ),
+  floatingActionButton: _tabController.index == 0 
+     ? FloatingActionButton(
+          onPressed: _addItemManual,
+          child: const Icon(Icons.add),
+       )
+     : null,
+);
   }
 
   Widget _buildSummaryTab() {

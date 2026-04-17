@@ -237,7 +237,6 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
   String _formatICSDate(DateTime date) {
       return "${date.year}${date.month.toString().padLeft(2,'0')}${date.day.toString().padLeft(2,'0')}T${date.hour.toString().padLeft(2,'0')}${date.minute.toString().padLeft(2,'0')}00Z";
   }
-}
 
   @override
   Widget build(BuildContext context) {

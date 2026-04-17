@@ -11,6 +11,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/features/explore/data/models/event_model.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+class SpontaneousResultsView extends StatefulWidget {
   final String category;
   final Position position;
   final String city;

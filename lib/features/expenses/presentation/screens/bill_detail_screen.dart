@@ -402,43 +402,6 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
       );
   }
 
-  Future<void> _scanReceipt() async {
-      try {
-          final ImagePicker picker = ImagePicker();
-          final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-          
-          if (image == null) return;
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Leyendo recibo con IA...")));
-          
-          final scanner = ReceiptScannerService();
-          final receipt = await scanner.scanReceipt(image);
-
-          if (receipt.items.isNotEmpty) {
-               // Assuming items are parsed, we can iteratively add them to the bill
-               for (var item in receipt.items) {
-                   await _billService.addItem(
-                       widget.billId, 
-                       item.name, 
-                       item.price * item.quantity, 
-                       [] // Unassigned initially
-                   );
-               }
-
-               if (receipt.tip != null || receipt.tax != null) {
-                    await _billService.updateBillTotals(widget.billId, tipRate: receipt.tip, taxRate: receipt.tax);
-               }
-               
-               if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Recibo procesado y guardado.")));
-               _loadData();
-          } else {
-               if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No se detectaron ítems.")));
-          }
-
-      } catch (e) {
-          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error escaneando: $e")));
-      }
-  }
-
   @override
   Widget build(BuildContext context) {
     if (_isLoading || _bill == null) {

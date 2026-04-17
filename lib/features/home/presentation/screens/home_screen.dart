@@ -346,32 +346,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                       ),
                     )
               else 
-                FutureBuilder<List<Event>>(
-                  key: ValueKey("$_selectedCity-$_selectedFilter"), 
-                  future: EventsService().getPlaces(
-                    city: _selectedCity, 
-                    category: _selectedFilter == "Todo" ? null : _getPlacesCategory(_selectedFilter),
-                    userInterests: _userInterests,
-                    budgetLevel: _budgetLevel,
-                  ),
-                  builder: (context, snapshot) {
-                    if (snapshot.connectionState == ConnectionState.waiting) {
-                       return const SliverToBoxAdapter(
-                         child: Padding(
+                SliverToBoxAdapter(
+                  child: FutureBuilder<List<Event>>(
+                    key: ValueKey("$_selectedCity-$_selectedFilter"), 
+                    future: EventsService().getPlaces(
+                      city: _selectedCity, 
+                      category: _selectedFilter == "Todo" ? null : _getPlacesCategory(_selectedFilter),
+                      userInterests: _userInterests,
+                      budgetLevel: _budgetLevel,
+                    ),
+                    builder: (context, snapshot) {
+                      if (snapshot.connectionState == ConnectionState.waiting) {
+                         return const Padding(
                            padding: EdgeInsets.all(16.0), 
                            child: SkeletonList(count: 3)
-                         ),
-                       );
-                    }
-                    if (snapshot.hasError) {
-                       return SliverFillRemaining(child: Center(child: Text("Error: ${snapshot.error}")));
-                    }
-          
-                    final filteredEvents = snapshot.data ?? [];
-          
-                    if (_isMapView)
-                       return SliverToBoxAdapter(
-                         child: Padding(
+                         );
+                      }
+                      if (snapshot.hasError) {
+                         return Padding(
+                           padding: const EdgeInsets.all(16),
+                           child: Center(child: Text("Error: ${snapshot.error}")),
+                         );
+                      }
+            
+                      final filteredEvents = snapshot.data ?? [];
+            
+                      if (_isMapView) {
+                         return Padding(
                            padding: const EdgeInsets.all(16),
                            child: SizedBox(
                                height: MediaQuery.of(context).size.height * 0.6,
@@ -384,35 +385,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                    )
                                )
                            ),
-                         ),
-                       )
-                    else ...[
-                       if (filteredEvents.isEmpty)
-                          const SliverFillRemaining(
-                            child: PremiumEmptyState(
-                              icon: Icons.search_off_rounded,
-                              title: "Mmm, está muy tranquilo",
-                              subtitle: "No encontramos locales para esta categoría en tu zona.",
+                         );
+                      }
+                      
+                      if (filteredEvents.isEmpty) {
+                         return const SizedBox(
+                           height: 400,
+                           child: PremiumEmptyState(
+                             icon: Icons.search_off_rounded,
+                             title: "Mmm, está muy tranquilo",
+                             subtitle: "No encontramos locales para esta categoría en tu zona.",
+                           ),
+                         );
+                      }
+                      
+                      return Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: Column(
+                          children: filteredEvents.map((event) => Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: _AnimatedPlanCard(
+                               title: event.title, 
+                               subtitle: "${event.ratingGoogle != null ? '⭐ ${event.ratingGoogle} • ' : ''}${event.address ?? ''}", 
+                               imageUrl: event.imageUrl ?? event.displayImageUrl,
+                               event: event,
+                               isRecommended: _userInterests.isNotEmpty,
+                               onTap: () => _showPlanPreview(context, event.title, "${event.address ?? ''}", event.imageUrl ?? event.displayImageUrl, event)
                             ),
-                          )
-                       else
-                          SliverPadding(
-                            padding: const EdgeInsets.symmetric(horizontal: 16),
-                            sliver: SliverList(
-                              delegate: SliverChildBuilderDelegate(
-                                (context, i) => _AnimatedPlanCard(
-                                   title: filteredEvents[i].title, 
-                                   subtitle: "${filteredEvents[i].ratingGoogle != null ? '⭐ ${filteredEvents[i].ratingGoogle} • ' : ''}${filteredEvents[i].address ?? ''}", 
-                                   imageUrl: filteredEvents[i].imageUrl ?? filteredEvents[i].displayImageUrl,
-                                   event: filteredEvents[i],
-                                   onTap: () => _showPlanPreview(context, filteredEvents[i].title, "${filteredEvents[i].address ?? ''}", filteredEvents[i].imageUrl ?? filteredEvents[i].displayImageUrl, filteredEvents[i])
-                                ),
-                                childCount: filteredEvents.length,
-                              ),
-                            ),
-                          ),
-                    ];
-                  }
+                          )).toList(),
+                        ),
+                      );
+                    }
+                  ),
                 ),
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
@@ -858,32 +862,7 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
                         ],
                       ),
                       child: Row(
-                        mainAxisSize: MainAxisSize.min,
-                    child: GestureDetector(
-                      onTap: () {
-                        showModalBottomSheet(
-                          context: context,
-                          isScrollControlled: true,
-                          backgroundColor: Colors.transparent,
-                          builder: (context) => SpontaneousResultsView(category: _filterIcons[i]['label']!, position: _currentPos!, city: _selectedCity),
-                        );
-                      },
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                        decoration: BoxDecoration(
-                          gradient: LinearGradient(
-                            colors: [AppTheme.primaryBrand, AppTheme.primaryBrand.withOpacity(0.7)],
-                            begin: Alignment.topLeft,
-                            end: Alignment.bottomRight,
-                          ),
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                             BoxShadow(color: AppTheme.primaryBrand.withOpacity(0.5), blurRadius: 8)
-                          ],
-                        ),
-                        child: Row(
-                          mainAxisSize: MainAxisSize.min,
-                          children: [
+                        children: [
                             const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
                             const SizedBox(width: 6),
                             Text(
