@@ -358,13 +358,26 @@ class ExpenseRepository {
   // Report a payment as a debtor
   Future<void> reportPayment(String expenseId) async {
        try {
-           final currentUid = _supabase.auth.currentUser?.id;
-           if (currentUid == null) throw Exception("No estás autenticado");
+           final currentUser = _supabase.auth.currentUser;
+           if (currentUser == null) throw Exception("No estás autenticado");
            
            await _supabase.from('expense_participant_status')
                .update({'status': 'reported'})
                .eq('expense_id', expenseId)
-               .eq('user_id', currentUid);
+               .eq('user_id', currentUser.id);
+
+           // Notify Creditor
+           final exp = await _supabase.from('expenses').select('title, created_by').eq('id', expenseId).single();
+           final profile = await _supabase.from('profiles').select('full_name, nickname').eq('id', currentUser.id).maybeSingle();
+           final senderName = profile?['nickname'] ?? profile?['full_name'] ?? 'Un amigo';
+
+           await _supabase.from('notifications').insert({
+               'user_id': exp['created_by'],
+               'title': '💰 Pago Reportado',
+               'body': '$senderName ha marcado como pagada su parte de "${exp['title']}". Confirma si ya recibiste el dinero.',
+               'type': 'general',
+               'data': {'action': 'payment_reported', 'expense_id': expenseId}
+           });
        } catch (e) {
            throw Exception("Error reportando pago: $e");
        }
@@ -382,6 +395,17 @@ class ExpenseRepository {
            } else if (guestName != null) {
                await query.eq('guest_name', guestName);
            }
+
+           if (userId != null) {
+               final exp = await _supabase.from('expenses').select('title').eq('id', expenseId).single();
+               await _supabase.from('notifications').insert({
+                   'user_id': userId,
+                   'title': '❌ Pago No Recibido',
+                   'body': 'El organizador no ha confirmado la recepción de tu pago para "${exp['title']}". Por favor revisa y ponte en contacto.',
+                   'type': 'general',
+                   'data': {'action': 'payment_denied', 'expense_id': expenseId}
+               });
+           }
        } catch (e) {
            throw Exception("Error denegando pago: $e");
        }
@@ -398,6 +422,17 @@ class ExpenseRepository {
                await query.eq('user_id', userId);
            } else if (guestName != null) {
                await query.eq('guest_name', guestName);
+           }
+
+           if (userId != null) {
+               final exp = await _supabase.from('expenses').select('title').eq('id', expenseId).single();
+               await _supabase.from('notifications').insert({
+                   'user_id': userId,
+                   'title': '✅ Paz y Salvo',
+                   'body': 'El organizador ha confirmado el pago de tu parte en "${exp['title']}".',
+                   'type': 'general',
+                   'data': {'action': 'payment_confirmed', 'expense_id': expenseId}
+               });
            }
        } catch (e) {
            throw Exception("Error updating debt: $e");

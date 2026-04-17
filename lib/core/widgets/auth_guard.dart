@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
+import 'package:planmapp/core/services/session_persistence_service.dart';
 
 class AuthGuard extends StatelessWidget {
   final Widget child;
@@ -102,9 +103,17 @@ class AuthGuard extends StatelessWidget {
                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
                                       elevation: 0,
                                   ),
-                                  onPressed: () {
+                                  onPressed: () async {
                                       Navigator.pop(c);
-                                      context.go('/onboarding'); 
+                                      final rawUri = GoRouterState.of(context).uri.toString();
+                                      if (rawUri.contains('/plan/')) {
+                                          final segments = rawUri.split('/');
+                                          final pId = segments.last.split('?').first;
+                                          if (pId.isNotEmpty) {
+                                              await SessionPersistenceService.setPendingPlanJoin(pId);
+                                          }
+                                      }
+                                      if (context.mounted) context.go('/onboarding'); 
                                   }, 
                                   child: const Text("Crear mi cuenta gratis", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
                               ),

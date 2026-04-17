@@ -6,6 +6,7 @@ import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:planmapp/core/services/session_persistence_service.dart';
+import 'package:planmapp/features/plans/services/plan_members_service.dart';
 
 class OnboardingSetupScreen extends StatefulWidget {
   const OnboardingSetupScreen({super.key});
@@ -70,6 +71,10 @@ class _OnboardingSetupScreenState extends State<OnboardingSetupScreen> {
         
         if (mounted) {
           if (pendingId != null) {
+            try {
+               await PlanMembersService().addMember(pendingId, user.id, role: 'member');
+               await SessionPersistenceService.clearPendingPlanJoin();
+            } catch (_) {}
             context.go('/plan/$pendingId');
           } else {
             context.go('/');

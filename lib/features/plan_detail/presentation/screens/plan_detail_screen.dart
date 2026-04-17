@@ -197,6 +197,31 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
       }
   }
 
+  Future<void> _exportToCalendar() async {
+      if (_plan == null || _plan!.eventDate == null) return;
+      
+      final title = Uri.encodeComponent("Planmapp: ${_plan!.title}");
+      final loc = Uri.encodeComponent(_plan!.locationName);
+      final details = Uri.encodeComponent("Enlace del plan: https://planmapp.app/invite/${_plan!.id}");
+      
+      // format dates to YYYYMMDDTHHmmSSZ
+      final start = _plan!.eventDate!.toUtc();
+      final String startDateStr = "${start.year}${start.month.toString().padLeft(2,'0')}${start.day.toString().padLeft(2,'0')}T${start.hour.toString().padLeft(2,'0')}${start.minute.toString().padLeft(2,'0')}00Z";
+      
+      final end = start.add(const Duration(hours: 3));
+      final String endDateStr = "${end.year}${end.month.toString().padLeft(2,'0')}${end.day.toString().padLeft(2,'0')}T${end.hour.toString().padLeft(2,'0')}${end.minute.toString().padLeft(2,'0')}00Z";
+
+      final url = Uri.parse("https://calendar.google.com/calendar/render?action=TEMPLATE&text=$title&dates=$startDateStr/$endDateStr&details=$details&location=$loc");
+      
+      try {
+          if (!await launchUrl(url, mode: LaunchMode.externalApplication)) {
+              throw 'Could not launch $url';
+          }
+      } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('No se pudo abrir el calendario.')));
+      }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -329,10 +354,18 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                                   isCancelled: _plan?.status == PlanStatus.cancelled
                               )
                           );
+                      } else if (value == 'calendar') {
+                          _exportToCalendar();
                       }
                   },
                   itemBuilder: (BuildContext context) {
                     return [
+                      const PopupMenuItem<String>(
+                        value: 'calendar',
+                        child: Row(
+                            children: [Icon(Icons.calendar_month, color: Colors.orange), SizedBox(width: 8), Text('Añadir a Google Calendar')],
+                        ),
+                      ),
                       const PopupMenuItem<String>(
                         value: 'participants',
                         child: Row(
@@ -1485,7 +1518,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                          msg.content, 
                          textAlign: isSystem ? TextAlign.center : TextAlign.start,
                          style: TextStyle(
-                           color: isSystem ? Colors.black87 : (isMe ? Colors.white : Colors.black87),
+                           color: isSystem ? Colors.white : (isMe ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color),
                            fontSize: 15,
                          ),
                        ),

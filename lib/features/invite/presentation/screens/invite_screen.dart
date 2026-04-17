@@ -71,8 +71,9 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
   void _handleDecision(bool accept) {
     if (accept) {
       final session = Supabase.instance.client.auth.currentSession;
-      if (session == null) {
-          _showExpressRegistration();
+      if (session == null || session.user.isAnonymous) {
+          // Send anonymous or null users directly into the plan as guests.
+          context.go('/plan/${widget.planId}?guest=true');
       } else {
           _joinPlan();
       }

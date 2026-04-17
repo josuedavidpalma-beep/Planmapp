@@ -43,11 +43,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       final isLoggedIn = session != null;
       
       final isLoggingIn = state.uri.path == '/login' || state.uri.path == '/register' || state.uri.path == '/forgot-password' || state.uri.path == '/onboarding';
-    // 1. PUBLIC CHECK UPDATE
     final isPublic = state.uri.path.startsWith('/join') || 
                      state.uri.path.startsWith('/invite') || 
                      state.uri.path.startsWith('/pago') || 
                      state.uri.path.startsWith('/vaca') || 
+                     state.uri.queryParameters['guest'] == 'true' || 
                      state.uri.path == '/onboarding-setup';
 
       if (!isLoggedIn && !isLoggingIn && !isPublic) {
@@ -169,7 +169,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/invite/:id',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => PlanLandingScreen(planId: state.pathParameters['id']!),
+        builder: (context, state) => InviteScreen(planId: state.pathParameters['id']!),
       ),
       GoRoute(
         path: '/vaca/:id',
