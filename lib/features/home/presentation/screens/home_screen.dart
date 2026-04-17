@@ -881,7 +881,6 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
                        .shimmer(duration: 3.seconds, delay: 1.seconds)
                        .scale(duration: 400.ms, curve: Curves.elasticOut),
                     ),
-                  ),
                ]
             ),
           ),

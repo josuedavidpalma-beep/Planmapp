@@ -62,7 +62,7 @@ class _SpontaneousPlanSheetState extends State<SpontaneousPlanSheet> {
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
-          builder: (c) => SpontaneousResultsView(category: category, position: _currentPosition!)
+          builder: (c) => SpontaneousResultsView(category: category, position: _currentPosition!, city: "")
       );
   }
 
