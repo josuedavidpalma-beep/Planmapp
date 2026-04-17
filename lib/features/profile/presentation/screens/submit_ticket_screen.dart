@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
@@ -15,7 +16,7 @@ class SubmitTicketScreen extends StatefulWidget {
 class _SubmitTicketScreenState extends State<SubmitTicketScreen> {
   final _subjectController = TextEditingController();
   final _descController = TextEditingController();
-  File? _selectedImage;
+  XFile? _selectedImage;
   bool _isSubmitting = false;
 
   Future<void> _pickImage() async {
@@ -23,7 +24,7 @@ class _SubmitTicketScreenState extends State<SubmitTicketScreen> {
     final picked = await picker.pickImage(source: ImageSource.gallery, imageQuality: 70);
     if (picked != null) {
       setState(() {
-        _selectedImage = File(picked.path);
+        _selectedImage = picked;
       });
     }
   }
@@ -44,12 +45,13 @@ class _SubmitTicketScreenState extends State<SubmitTicketScreen> {
 
       // Upload image if selected
       if (_selectedImage != null) {
-        final fileExt = p.extension(_selectedImage!.path);
+        final bytes = await _selectedImage!.readAsBytes();
+        final fileExt = p.extension(_selectedImage!.name);
         final fileName = '${user.id}_${DateTime.now().millisecondsSinceEpoch}$fileExt';
         
         await Supabase.instance.client.storage
             .from('support_images')
-            .upload(fileName, _selectedImage!);
+            .uploadBinary(fileName, bytes);
             
         imageUrl = Supabase.instance.client.storage
             .from('support_images')
@@ -92,7 +94,7 @@ class _SubmitTicketScreenState extends State<SubmitTicketScreen> {
         centerTitle: true,
       ),
       body: SingleChildScrollView(
-        padding: const EdgeInsets.all(24.0),
+        padding: EdgeInsets.only(left: 24.0, right: 24.0, top: 24.0, bottom: MediaQuery.of(context).padding.bottom + 40),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -149,7 +151,9 @@ class _SubmitTicketScreenState extends State<SubmitTicketScreen> {
                 child: _selectedImage != null
                     ? ClipRRect(
                         borderRadius: BorderRadius.circular(16),
-                        child: Image.file(_selectedImage!, fit: BoxFit.cover),
+                        child: kIsWeb 
+                            ? Image.network(_selectedImage!.path, fit: BoxFit.cover)
+                            : Image.file(File(_selectedImage!.path), fit: BoxFit.cover),
                       )
                     : Column(
                         mainAxisAlignment: MainAxisAlignment.center,

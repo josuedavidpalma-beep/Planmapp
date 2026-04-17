@@ -31,23 +31,7 @@ ADD COLUMN IF NOT EXISTS status attendance_status DEFAULT 'pending',
 ADD COLUMN IF NOT EXISTS late_cancellation boolean DEFAULT false;
 
 -- C. Tablas para "El Tocheo" y Gastos Transversales:
-CREATE TABLE IF NOT EXISTS public.invoice_item_selections (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  item_id uuid REFERENCES public.invoice_items(id) ON DELETE CASCADE,
-  user_id uuid REFERENCES auth.users(id),
-  portions decimal DEFAULT 1.0,
-  created_at timestamp with time zone DEFAULT now(),
-  UNIQUE(item_id, user_id)
-);
-
-CREATE TABLE IF NOT EXISTS public.invoice_fees (
-  id uuid DEFAULT gen_random_uuid() PRIMARY KEY,
-  invoice_id uuid REFERENCES public.invoices(id) ON DELETE CASCADE,
-  name text NOT NULL,
-  amount numeric NOT NULL,
-  fee_type fee_application_type DEFAULT 'proportional',
-  created_at timestamp with time zone DEFAULT now()
-);
+-- C. (Se removió la parte C de Invoices debido a que fue reemplazado por la arquitectura de Expenses en las migraciones posteriores)
 
 -- D. Storage y Limpieza Automática:
 INSERT INTO storage.buckets (id, name, public) 

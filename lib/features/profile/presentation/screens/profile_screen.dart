@@ -669,7 +669,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     subtitle: const Text("Reportar un problema, enviar feedback"),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                     onTap: () {
-                         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SubmitTicketScreen()));
+                         Navigator.of(context, rootNavigator: true).push(
+                             MaterialPageRoute(builder: (ctx) => const SubmitTicketScreen())
+                         );
                     },
                   ),
                   const SizedBox(height: 24),

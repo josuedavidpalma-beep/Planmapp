@@ -26,9 +26,21 @@ CREATE TABLE IF NOT EXISTS public.local_events (
 -- RLS
 ALTER TABLE public.local_events ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Allow public read access to local_events" ON public.local_events;
 CREATE POLICY "Allow public read access to local_events" 
 ON public.local_events FOR SELECT 
 USING (true);
+
+DROP POLICY IF EXISTS "Allow authenticated users to insert local_events" ON public.local_events;
+CREATE POLICY "Allow authenticated users to insert local_events"
+ON public.local_events FOR INSERT
+WITH CHECK (auth.role() = 'authenticated');
+
+DROP POLICY IF EXISTS "Allow individual update to local_events" ON public.local_events;
+CREATE POLICY "Allow individual update to local_events"
+ON public.local_events FOR UPDATE
+USING (auth.role() = 'authenticated')
+WITH CHECK (auth.role() = 'authenticated');
 
 -- Indexes for performance
 CREATE INDEX IF NOT EXISTS idx_local_events_city ON public.local_events(city);
