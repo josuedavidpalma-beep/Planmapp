@@ -5,6 +5,7 @@ import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:planmapp/features/profile/presentation/widgets/avatar_gallery_modal.dart';
+import 'package:planmapp/features/profile/presentation/screens/submit_ticket_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -661,6 +662,16 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     ),
                   ),
 
+                  const Divider(),
+                  ListTile(
+                    leading: const Icon(Icons.support_agent_rounded, color: AppTheme.secondaryBrand),
+                    title: const Text("Ayuda y Soporte Técnico", style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: const Text("Reportar un problema, enviar feedback"),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () {
+                         Navigator.push(context, MaterialPageRoute(builder: (ctx) => const SubmitTicketScreen()));
+                    },
+                  ),
                   const SizedBox(height: 24),
                   SwitchListTile(
                       title: const Text("Idioma / Language"),

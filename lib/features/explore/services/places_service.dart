@@ -10,6 +10,7 @@ class PlacesService {
 
   /// Fetches nearby places with caching logic (7-day TTL).
   Future<List<Map<String, dynamic>>> getNearbyPlaces({
+    required String city,
     required double lat,
     required double lng,
     double radius = 5000.0,
@@ -20,6 +21,7 @@ class PlacesService {
       final cacheResponse = await _supabase
           .from('cached_places')
           .select()
+          .eq('city', city)
           .filter('category', category == null ? 'not.is' : 'eq', category) // Simple filter
           // In a real scenario, we'd use PostGIS to check distance.
           // For now, let's just check the city/bounds or recent ones.
@@ -88,6 +90,7 @@ class PlacesService {
                 : null,
             'latitude': p['location']?['latitude'],
             'longitude': p['location']?['longitude'],
+            'city': city,
             'category': category ?? 'restaurant',
             'price_level': _mapPriceLevel(p['priceLevel']),
             'open_now': p['regularOpeningHours']?['openNow'] ?? false,

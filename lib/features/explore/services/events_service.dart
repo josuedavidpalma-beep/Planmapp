@@ -58,7 +58,7 @@ class EventsService {
       double lat = coords[city]?[0] ?? 10.9685;
       double lng = coords[city]?[1] ?? -74.7813;
 
-      final places = await _placesService.getNearbyPlaces(lat: lat, lng: lng, category: category);
+      final places = await _placesService.getNearbyPlaces(city: city, lat: lat, lng: lng, category: category);
       
       List<Event> events = places.map((p) => Event(
         id: p['place_id'],
