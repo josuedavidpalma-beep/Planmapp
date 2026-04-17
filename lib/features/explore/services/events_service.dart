@@ -98,21 +98,47 @@ class EventsService {
         events = events.where((e) => (e.priceLevel?.length ?? 0) <= 3).toList();
       }
 
-      // 2. INTEREST RANKING
+      // 2. STRICT INTEREST FILTERING & RANKING
       if (userInterests != null && userInterests.isNotEmpty) {
-        events.sort((a, b) {
-          bool aMatches = userInterests.any((interest) => 
-             (a.category?.toLowerCase().contains(interest.toLowerCase()) ?? false) ||
-             (a.title.toLowerCase().contains(interest.toLowerCase()))
-          );
-          bool bMatches = userInterests.any((interest) => 
-             (b.category?.toLowerCase().contains(interest.toLowerCase()) ?? false) ||
-             (b.title.toLowerCase().contains(interest.toLowerCase()))
-          );
-          if (aMatches && !bMatches) return -1;
-          if (!aMatches && bMatches) return 1;
-          return 0;
-        });
+          // Translate user vibes (Spanish) to Google Places tags (English)
+          final Set<String> validTags = {};
+          for (final raw in userInterests) {
+              final interest = raw.toLowerCase();
+              if (interest.contains('comida') || interest.contains('gastro') || interest.contains('restaurante')) { validTags.addAll(['restaurant', 'food', 'cafe']); }
+              if (interest.contains('rumba') || interest.contains('party') || interest.contains('fiesta')) { validTags.addAll(['bar', 'night_club']); }
+              if (interest.contains('aventura') || interest.contains('outdoor')) { validTags.addAll(['park', 'amusement_park', 'campground']); }
+              if (interest.contains('cultura') || interest.contains('cine') || interest.contains('arte')) { validTags.addAll(['museum', 'tourist_attraction', 'movie_theater', 'art_gallery']); }
+              if (interest.contains('chill') || interest.contains('café')) { validTags.addAll(['cafe', 'spa', 'park']); }
+              if (interest.contains('belleza')) { validTags.addAll(['beauty_salon', 'spa', 'hair_care']); }
+          }
+          
+          if (category == null && validTags.isNotEmpty) {
+             // Strict Profile mode (Tab "Todo"): Drop any location that does not match their vibe.
+             events = events.where((e) {
+                final cat = e.category?.toLowerCase() ?? '';
+                // Exceptions: Never block the National Billboard injection
+                if (e.id == 'cartelera_nacional') return true; 
+                return validTags.any((t) => cat.contains(t));
+             }).toList();
+             
+             // Still rank by title match just in case
+             events.sort((a,b) {
+                if (a.id == 'cartelera_nacional') return -1;
+                if (b.id == 'cartelera_nacional') return 1;
+                return 0;
+             });
+          } else {
+             // Category mode (e.g. Tab "Rumba"): Let it show all rumbas, but push exact matches higher
+             events.sort((a, b) {
+                if (a.id == 'cartelera_nacional') return -1;
+                if (b.id == 'cartelera_nacional') return 1;
+                bool aMatches = userInterests.any((interest) => a.title.toLowerCase().contains(interest.toLowerCase()));
+                bool bMatches = userInterests.any((interest) => b.title.toLowerCase().contains(interest.toLowerCase()));
+                if (aMatches && !bMatches) return -1;
+                if (!aMatches && bMatches) return 1;
+                return 0;
+             });
+          }
       }
 
       return events;
@@ -174,21 +200,39 @@ class EventsService {
           events = events.where((e) => (e.priceLevel?.length ?? 0) <= 3).toList();
         }
 
-        // 3. PERSONALIZED RANKING (Interests match)
+        // 3. STRICT INTEREST FILTERING & RANKING
         if (userInterests != null && userInterests.isNotEmpty) {
-          events.sort((a, b) {
-            bool aMatches = userInterests.any((interest) => 
-               (a.category?.toLowerCase().contains(interest.toLowerCase()) ?? false) ||
-               (a.title.toLowerCase().contains(interest.toLowerCase()))
-            );
-            bool bMatches = userInterests.any((interest) => 
-               (b.category?.toLowerCase().contains(interest.toLowerCase()) ?? false) ||
-               (b.title.toLowerCase().contains(interest.toLowerCase()))
-            );
-            if (aMatches && !bMatches) return -1;
-            if (!aMatches && bMatches) return 1;
-            return 0;
-          });
+            final Set<String> validTags = {};
+            for (final raw in userInterests) {
+                final interest = raw.toLowerCase();
+                if (interest.contains('comida') || interest.contains('gastro')) { validTags.addAll(['comida', 'gastro', 'food', 'restaurant']); }
+                if (interest.contains('rumba') || interest.contains('party')) { validTags.addAll(['rumba', 'party', 'bar', 'club', 'nightlife']); }
+                if (interest.contains('aventura') || interest.contains('outdoor')) { validTags.addAll(['aventura', 'outdoor', 'park']); }
+                if (interest.contains('cultura') || interest.contains('cine')) { validTags.addAll(['cultura', 'cine', 'museum', 'art']); }
+                if (interest.contains('chill') || interest.contains('café')) { validTags.addAll(['chill', 'cafe', 'coffee']); }
+                if (interest.contains('belleza')) { validTags.addAll(['belleza', 'spa', 'wellness']); }
+            }
+            
+            // In DailyEvents there is no "category == null" passed from the UI normally because it's called globally, or if it's called with 'Todo', we just filter.
+            // Since we want strictness, we'll enforce that the local event category matches their vibes.
+            if (validTags.isNotEmpty) {
+               events = events.where((e) {
+                  final cat = e.category?.toLowerCase() ?? '';
+                  if (e.id == 'cartelera_nacional') return true;
+                  return validTags.any((t) => cat.contains(t));
+               }).toList();
+            }
+
+            // Always push exact title matches higher
+            events.sort((a, b) {
+              if (a.id == 'cartelera_nacional') return -1;
+              if (b.id == 'cartelera_nacional') return 1;
+              bool aMatches = userInterests.any((interest) => a.title.toLowerCase().contains(interest.toLowerCase()));
+              bool bMatches = userInterests.any((interest) => b.title.toLowerCase().contains(interest.toLowerCase()));
+              if (aMatches && !bMatches) return -1;
+              if (!aMatches && bMatches) return 1;
+              return 0;
+            });
         }
 
         return events;
