@@ -9,6 +9,7 @@ import 'package:planmapp/core/services/plan_service.dart';
 import 'package:planmapp/features/plan_detail/presentation/screens/plan_detail_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/features/explore/data/models/event_model.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class SpontaneousResultsView extends StatefulWidget {
   final String category;
@@ -50,6 +51,22 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
 
           // 1. Fetch from 'local_events' (The new AI discoveries)
           // 1. Fetch from 'local_events' (Plan Ya / Real-time Discoveries)
+          // PREFERENCES FILTERING
+          int? userAge;
+          String? budgetLevel;
+          final user = Supabase.instance.client.auth.currentUser;
+          if (user != null) {
+              final profile = await Supabase.instance.client.from('profiles').select('budget_level, birth_date, birthday').eq('id', user.id).maybeSingle();
+              if (profile != null) {
+                  budgetLevel = profile['budget_level'];
+                  final birthStr = profile['birth_date'] ?? profile['birthday'];
+                  if (birthStr != null) {
+                      final birth = DateTime.tryParse(birthStr);
+                      if (birth != null) userAge = DateTime.now().year - birth.year;
+                  }
+              }
+          }
+
           final today = DateTime.now().toIso8601String().split('T')[0];
           var localQuery = Supabase.instance.client
               .from('local_events')
@@ -68,34 +85,30 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
               localQuery = localQuery.ilike('vibe_tag', '%$vibeMapping%');
           }
           
-          final localRes = await localQuery.order('date', ascending: true).limit(15);
+          final localRes = await localQuery.order('date', ascending: true).limit(30); // Need more pool for dice randomization
           for (var row in localRes) {
+              // Age Filter Constraint
+              if (userAge != null && userAge < 18) {
+                  final tag = (row['vibe_tag'] ?? '').toString().toLowerCase();
+                  if (tag.contains('rumba') || tag.contains('party') || tag.contains('bar') || tag.contains('nightlife')) continue;
+              }
+              // Budget Filter Constraint
+              if (budgetLevel == 'economico' && (row['price_level']?.length ?? 0) > 1) continue;
+              if (budgetLevel == 'bacano' && (row['price_level']?.length ?? 0) > 3) continue;
+
               _processRow(row, loaded, isLocal: true);
           }
 
-          // 2. Fetch from legacy 'events' if needed
-          if (loaded.length < 5) {
-              String dbCategory = 'food';
-              if (widget.category == 'Rumba') dbCategory = 'party';
-              else if (widget.category == 'Chill') dbCategory = 'cafe';
-              else if (widget.category == 'Cultura') dbCategory = 'culture';
-              else if (widget.category == 'Aventura') dbCategory = 'outdoors';
+          // (Removed legacy 'events' fallback to ensure ONLY upcoming events with dates are shown)
 
-              final res = await Supabase.instance.client
-                  .from('events')
-                  .select('*')
-                  .eq('category', dbCategory)
-                  .limit(10);
-              
-              for (var row in res) {
-                  _processRow(row, loaded, isLocal: false);
-              }
-          }
-
-          // Sort by distance
           loaded.sort((a, b) => (a['dist_val'] as double).compareTo(b['dist_val'] as double));
           
-          _places = loaded.length > 8 ? loaded.sublist(0, 8) : loaded;
+          if (widget.category == 'Dados') {
+             loaded.shuffle(); // Real dice Randomness
+             _places = loaded.isNotEmpty ? [loaded.first] : []; // Only show ONE event at a time!
+          } else {
+             _places = loaded.length > 8 ? loaded.sublist(0, 8) : loaded;
+          }
 
           if (_places.isEmpty) {
               _places = [{ 'name': 'Vibe Tranquilo', 'rating': '5.0', 'dist': 'Pronto', 'tag': 'Tip Planmapp', 'desc': 'No hay eventos masivos ahora, pero es el momento perfecto para una caminata por el Malecón del Río.', 'image': 'https://images.unsplash.com/photo-1519331379826-f947873d63bd?auto=format&fit=crop&w=500' }];
@@ -148,7 +161,11 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
           'tag': hasDiscount ? 'OFERTA 🏷️' : (isLocal ? 'FRESH ✨' : 'TOP 🔥'),
           'desc': desc,
           'image': event.displayImageUrl,
-          'reservation_link': row['reservation_link'] ?? row['source_url']
+          'reservation_link': row['reservation_link'] ?? row['source_url'],
+          'date': row['date'],
+          'address': row['address'] ?? row['venue_name'],
+          'contact_phone': row['contact_phone'],
+          'promo_highlights': row['promo_highlights']
       });
   }
 
@@ -265,7 +282,7 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                        const SizedBox(width: 8),
                        IconButton(
                            onPressed: _fetchCuratedPlaces, 
-                           icon: const Icon(Icons.refresh_rounded, color: AppTheme.primaryBrand)
+                           icon: const Icon(Icons.casino, color: AppTheme.primaryBrand, size: 28)
                        ).animate(onPlay: (controller) => controller.repeat()).shimmer(duration: 2.seconds)
                      ]
                    ],
@@ -296,7 +313,9 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
   }
 
   Widget _buildPlaceCard(Map<String, dynamic> place) {
-      return Container(
+      return GestureDetector(
+          onTap: () => _showPlaceDetails(place),
+          child: Container(
           margin: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
           decoration: BoxDecoration(
               color: Colors.black, // Fallback dark
@@ -408,6 +427,126 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                   )
               ],
           ),
+      ));
+  }
+
+  void _showPlaceDetails(Map<String, dynamic> place) {
+      showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => Stack(
+            children: [
+              Container(
+                 constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.85),
+                 decoration: const BoxDecoration(
+                    color: AppTheme.darkBackground,
+                    borderRadius: BorderRadius.vertical(top: Radius.circular(30)),
+                 ),
+                 child: SingleChildScrollView(
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                             ClipRRect(
+                                 borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                                 child: Image.network(
+                                     place['image'], 
+                                     height: 200, 
+                                     width: double.infinity, 
+                                     fit: BoxFit.cover,
+                                     errorBuilder: (c,e,s) => Container(height: 200, color: Colors.grey[900])
+                                 ),
+                             ),
+                             Padding(
+                                 padding: const EdgeInsets.all(24.0),
+                                 child: SafeArea(
+                                   child: Column(
+                                       crossAxisAlignment: CrossAxisAlignment.start,
+                                       children: [
+                                           Text(place['name'], style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+                                           const SizedBox(height: 12),
+                                           
+                                           // DONDE Y CUANDO
+                                           if (place['address'] != null)
+                                              Row(children: [
+                                                  const Icon(Icons.location_on, size: 18, color: AppTheme.secondaryBrand),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(child: Text(place['address'], style: const TextStyle(color: Colors.white70, fontSize: 15))),
+                                              ]),
+                                           const SizedBox(height: 8),
+                                           if (place['date'] != null)
+                                              Row(children: [
+                                                  const Icon(Icons.calendar_month, size: 18, color: AppTheme.primaryBrand),
+                                                  const SizedBox(width: 8),
+                                                  Expanded(child: Text('Fecha del Plan: ${place['date']}', style: const TextStyle(color: Colors.white70, fontSize: 15, fontWeight: FontWeight.bold))),
+                                              ]),
+                                           const SizedBox(height: 16),
+                                           
+                                           // DESCRIPCION
+                                           Text(place['desc'], style: const TextStyle(fontSize: 15, height: 1.5, color: Colors.white)),
+                                           const SizedBox(height: 24),
+                                           
+                                           // COMO VOY (CTAs)
+                                           if (place['reservation_link'] != null && place['reservation_link']!.toString().isNotEmpty)
+                                              Container(
+                                                width: double.infinity,
+                                                margin: const EdgeInsets.only(bottom: 12),
+                                                child: ElevatedButton.icon(
+                                                   onPressed: () async {
+                                                       try {
+                                                           final u = Uri.parse(place['reservation_link']);
+                                                           if (await canLaunchUrl(u)) {
+                                                               await launchUrl(u, mode: LaunchMode.externalApplication);
+                                                           }
+                                                       } catch (_) {}
+                                                   },
+                                                   icon: const Icon(Icons.confirmation_number, color: AppTheme.primaryBrand),
+                                                   style: ElevatedButton.styleFrom(
+                                                     backgroundColor: AppTheme.primaryBrand.withOpacity(0.15),
+                                                     foregroundColor: AppTheme.primaryBrand,
+                                                     padding: const EdgeInsets.symmetric(vertical: 14),
+                                                     elevation: 0,
+                                                   ),
+                                                   label: const Text("Ver Entradas / Reservas", style: TextStyle(fontWeight: FontWeight.bold))
+                                                ),
+                                              ),
+                                              
+                                           // VAMOS BUTTON
+                                           SizedBox(
+                                               width: double.infinity,
+                                               height: 54,
+                                               child: ElevatedButton(
+                                                   onPressed: () {
+                                                       Navigator.pop(context); // Close detail sheet
+                                                       _createSpontaneousPlan(place);
+                                                   }, 
+                                                   style: ElevatedButton.styleFrom(
+                                                       backgroundColor: AppTheme.primaryBrand, 
+                                                       foregroundColor: Colors.white,
+                                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))
+                                                   ),
+                                                   child: const Text("¡VAMOS! Crear el Plan 🚀", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                                               ),
+                                           ),
+                                           const SizedBox(height: 16),
+                                       ],
+                                   ),
+                                 ),
+                             ),
+                        ]
+                    )
+                 )
+              ),
+              Positioned(
+                 top: 16, right: 16,
+                 child: IconButton(
+                    icon: const Icon(Icons.close, color: Colors.white),
+                    onPressed: () => Navigator.pop(context)
+                 )
+              )
+            ]
+          )
       );
   }
 }

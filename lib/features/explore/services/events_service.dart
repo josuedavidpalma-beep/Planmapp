@@ -14,6 +14,38 @@ class EventsService {
     String? budgetLevel,
   }) async {
     try {
+      // 0. INTERCEPT: Preventas (Nationwide Future Events)
+      if (category == 'preventas') {
+          final next30Days = DateTime.now().add(const Duration(days: 15)).toIso8601String().split('T')[0];
+          
+          final localRes = await _supabase
+              .from('local_events')
+              .select()
+              .eq('status', 'active')
+              .gte('date', next30Days) // Far into the future
+              .order('date', ascending: true)
+              .limit(20);
+              
+          if (localRes is List) {
+              return localRes.map((e) => Event(
+                  id: e['id'].toString(),
+                  title: e['event_name'],
+                  description: e['description'],
+                  date: e['date'],
+                  endDate: e['end_date'],
+                  location: e['venue_name'],
+                  address: e['address'],
+                  imageUrl: e['image_url'],
+                  category: 'Preventa',
+                  sourceUrl: e['reservation_link'] ?? e['primary_source'],
+                  city: e['city'],
+                  promoHighlights: e['promo_highlights'],
+                  contactInfo: e['contact_phone']
+              )).toList();
+          }
+          return [];
+      }
+
       // coordinates for Barranquilla (Default) - In a real scenario, this would be dynamic
       final coords = {
         "Bogotá": [4.711, -74.072],
@@ -42,6 +74,22 @@ class EventsService {
         googlePlaceId: p['place_id'],
         priceLevel: p['price_level'],
       )).toList();
+
+      // INTERCEPT: Cine & Arte Custom Billboard Injection
+      if (category == 'movie_theater') {
+          events.insert(0, Event(
+              id: 'cartelera_nacional',
+              title: "🍿 En Cartelera Hoy (Estrenos)",
+              description: "Revisa los horarios y estrenos de películas en las principales cadenas de cine: Cine Colombia, Royal Films, Cinemark.",
+              address: "Múltiples opciones de cines y salas VIP.",
+              location: "Nacional",
+              imageUrl: "https://images.unsplash.com/photo-1536440136628-849c177e76a1?q=80&w=1000&auto=format&fit=crop",
+              category: "Cine & Arte",
+              city: city,
+              sourceUrl: "https://www.cinecolombia.com", 
+              promoHighlights: "🍿 COMPRAR BOLETAS ONLINE",
+          ));
+      }
 
       // 1. BUDGET FILTERING
       if (budgetLevel == 'economico') {

@@ -53,7 +53,14 @@ class PlacesService {
           'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.photos,places.location,places.types,places.priceLevel,places.regularOpeningHours',
         },
         body: jsonEncode({
-          "includedTypes": [category ?? "restaurant"],
+          "includedTypes": category != null 
+              ? [category] 
+              : ["restaurant", "bar", "cafe", "tourist_attraction", "park", "museum", "shopping_mall", "beauty_salon", "spa", "movie_theater"],
+          "excludedPrimaryTypes": [
+              "dentist", "doctor", "school", "bank", "hospital", "pharmacy", 
+              "police", "laundry", "car_repair", "hair_care", "hardware_store", 
+              "veterinary_care", "real_estate_agency", "lawyer", "atm"
+          ],
           "maxResultCount": 15,
           "locationRestriction": {
             "circle": {

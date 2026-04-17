@@ -55,7 +55,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           final isAnon = user.isAnonymous ?? false;
           final data = await Supabase.instance.client
               .from('profiles')
-              .select('full_name, display_name, nickname, interests, budget_level, birth_date, birthday')
+              .select('full_name, display_name, nickname, interests, preferences, budget_level, birth_date, birthday')
               .eq('id', user.id)
               .maybeSingle();
               
@@ -82,7 +82,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               setState(() {
                 _isGuest = isAnon;
                 _userName = name.split(" ")[0];
-                _userInterests = List<String>.from(data['interests'] ?? []);
+                _userInterests = List<String>.from(data['preferences'] ?? data['interests'] ?? []);
                 _budgetLevel = data['budget_level'];
                 _userAge = age;
                 _showCompleteProfileBanner = !isAnon && (nickname == null || nickname.isEmpty);
@@ -269,8 +269,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           _buildFilterChip("Todo"),
                           _buildFilterChip("Comida"),
                           _buildFilterChip("Rumba"),
-                          _buildFilterChip("Actividades"),
-                          _buildFilterChip("Belleza"),
+                          _buildFilterChip("Cine & Arte"),
+                          _buildFilterChip("Aventura"),
+                          _buildFilterChip("Preventas"),
                         ],
                       ),
                     ),
@@ -354,8 +355,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     switch (filter) {
       case "Comida": return "restaurant";
       case "Rumba": return "bar";
-      case "Actividades": return "tourist_attraction";
-      case "Belleza": return "beauty_salon";
+      case "Cine & Arte": return "movie_theater";
+      case "Aventura": return "park";
+      case "Preventas": return "preventas"; // Handled explicitly in EventsService
       default: return "restaurant";
     }
   }
