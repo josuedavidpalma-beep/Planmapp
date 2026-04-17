@@ -37,39 +37,59 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   bool _isMapView = false;
   bool _showPwaTip = true;
   bool _isGuest = false;
+  List<String> _userInterests = [];
+  String? _budgetLevel;
+  int? _userAge;
 
   @override
   void initState() {
     super.initState();
     _loadPersistedCity();
-    _fetchUserName();
+    _fetchUserData();
   }
 
-  Future<void> _fetchUserName() async {
+  Future<void> _fetchUserData() async {
       try {
           final user = Supabase.instance.client.auth.currentUser;
           if (user == null) return;
           final isAnon = user.isAnonymous ?? false;
           final data = await Supabase.instance.client
               .from('profiles')
-              .select('full_name, display_name, nickname')
+              .select('full_name, display_name, nickname, interests, budget_level, birth_date, birthday')
               .eq('id', user.id)
               .maybeSingle();
+              
           if (data == null) return;
+          
           final nickname = data['nickname'] as String?;
           final name = nickname?.isNotEmpty == true
               ? nickname!
               : (data['display_name'] ?? data['full_name'] ?? "");
+              
+          int? age;
+          final birthStr = data['birth_date'] ?? data['birthday'];
+          if (birthStr != null) {
+              final birth = DateTime.tryParse(birthStr);
+              if (birth != null) {
+                  age = DateTime.now().year - birth.year;
+                  if (DateTime.now().month < birth.month || (DateTime.now().month == birth.month && DateTime.now().day < birth.day)) {
+                      age--;
+                  }
+              }
+          }
+
           if (mounted) {
               setState(() {
                 _isGuest = isAnon;
                 _userName = name.split(" ")[0];
-                // Show banner if registered (non-anon) user has no nickname yet
+                _userInterests = List<String>.from(data['interests'] ?? []);
+                _budgetLevel = data['budget_level'];
+                _userAge = age;
                 _showCompleteProfileBanner = !isAnon && (nickname == null || nickname.isEmpty);
               });
           }
       } catch (e) {
-          // Fallback to empty
+          print("Error fetching user data: $e");
       }
   }
 
@@ -201,7 +221,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
         children: [
           FutureBuilder<List<Event>>(
             key: ValueKey(_selectedCity), 
-            future: EventsService().getPlaces(city: _selectedCity, category: _selectedFilter == "Todo" ? null : _getPlacesCategory(_selectedFilter)),
+            future: EventsService().getPlaces(
+              city: _selectedCity, 
+              category: _selectedFilter == "Todo" ? null : _getPlacesCategory(_selectedFilter),
+              userInterests: _userInterests,
+              budgetLevel: _budgetLevel,
+            ),
             builder: (context, snapshot) {
               if (snapshot.connectionState == ConnectionState.waiting) {
                  return const Padding(
@@ -561,6 +586,7 @@ class _AnimatedPlanCard extends StatefulWidget {
   final String subtitle;
   final String imageUrl;
   final Event event;
+  final bool isRecommended;
   final VoidCallback onTap;
 
   const _AnimatedPlanCard({
@@ -568,6 +594,7 @@ class _AnimatedPlanCard extends StatefulWidget {
     required this.subtitle,
     required this.imageUrl,
     required this.event,
+    this.isRecommended = false,
     required this.onTap,
   });
 
@@ -702,6 +729,46 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
                         ).animate().scale(delay: 400.ms, duration: 400.ms, curve: Curves.elasticOut),
                       );
                     }
+                  ),
+                
+                // NEW: Personalized "For You" Badge
+                if (widget.isRecommended)
+                  Positioned(
+                    top: 16,
+                    left: 16,
+                    child: Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [AppTheme.primaryBrand, AppTheme.primaryBrand.withOpacity(0.7)],
+                          begin: Alignment.topLeft,
+                          end: Alignment.bottomRight,
+                        ),
+                        borderRadius: BorderRadius.circular(12),
+                        boxShadow: [
+                           BoxShadow(color: AppTheme.primaryBrand.withOpacity(0.5), blurRadius: 8)
+                        ],
+                      ),
+                      child: Row(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
+                          const SizedBox(width: 6),
+                          Text(
+                            "RECOMENDADO PARA TI",
+                            style: TextStyle(
+                              color: Colors.white, 
+                              fontSize: 9, 
+                              fontWeight: FontWeight.w900, 
+                              letterSpacing: 0.5,
+                              shadows: [Shadow(color: Colors.black.withOpacity(0.3), blurRadius: 2)]
+                            ),
+                          ),
+                        ],
+                      ),
+                    ).animate(onPlay: (ctrl) => ctrl.repeat(reverse: true))
+                     .shimmer(duration: 3.seconds, delay: 1.seconds)
+                     .scale(duration: 400.ms, curve: Curves.elasticOut),
                   ),
                ]
             ),

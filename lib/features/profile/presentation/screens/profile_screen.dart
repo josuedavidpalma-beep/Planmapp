@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:flutter/services.dart';
+import 'package:image_picker/image_picker.dart';
 import 'package:planmapp/features/profile/presentation/widgets/avatar_gallery_modal.dart';
 
 class ProfileScreen extends StatefulWidget {
@@ -141,6 +142,43 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
+  Future<void> _pickProfileImage() async {
+    final picker = ImagePicker();
+    final XFile? image = await picker.pickImage(
+      source: ImageSource.gallery,
+      maxWidth: 512,
+      maxHeight: 512,
+      imageQuality: 75,
+    );
+
+    if (image != null) {
+      setState(() => _isLoading = true);
+      try {
+        final userId = Supabase.instance.client.auth.currentUser!.id;
+        final bytes = await image.readAsBytes();
+        final fileExt = image.path.split('.').last;
+        final fileName = '$userId-${DateTime.now().millisecondsSinceEpoch}.$fileExt';
+        final filePath = 'avatars/$fileName';
+
+        // NOTE: This assumes a 'profiles' bucket exists with public access
+        await Supabase.instance.client.storage.from('profiles').uploadBinary(
+          filePath,
+          bytes,
+          fileOptions: const FileOptions(cacheControl: '3600', upsert: true),
+        );
+
+        final publicUrl = Supabase.instance.client.storage.from('profiles').getPublicUrl(filePath);
+        
+        setState(() => _avatarUrl = publicUrl);
+        await _saveProfile(); // Instant save
+      } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error subiendo imagen: $e')));
+      } finally {
+        if (mounted) setState(() => _isLoading = false);
+      }
+    }
+  }
+
   Future<void> _deleteAccount() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -247,32 +285,81 @@ class _ProfileScreenState extends State<ProfileScreen> {
   }
 
   Future<Map<String, dynamic>?> _addPaymentMethodForm(BuildContext parentContext) async {
-      final typeCtrl = TextEditingController();
       final detailsCtrl = TextEditingController();
+      String? selectedProvider;
+      
+      final providers = [
+        {'name': 'Nequi', 'icon': Icons.phone_android},
+        {'name': 'DaviPlata', 'icon': Icons.account_balance_wallet_rounded},
+        {'name': 'Bancolombia', 'icon': Icons.account_balance},
+        {'name': 'Cuenta de Ahorros', 'icon': Icons.savings},
+        {'name': 'Efecty', 'icon': Icons.money},
+      ];
       
       return showDialog<Map<String, dynamic>>(
           context: parentContext,
-          builder: (ctx) => AlertDialog(
-              title: const Text("Nuevo Medio de Pago"),
-              content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                      TextField(controller: typeCtrl, decoration: const InputDecoration(labelText: "App o Banco (Ej. Nequi)")),
-                      const SizedBox(height: 12),
-                      TextField(controller: detailsCtrl, decoration: const InputDecoration(labelText: "Número, Cédula o Cuenta")),
-                  ],
-              ),
-              actions: [
-                  TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
-                  ElevatedButton(
-                      onPressed: () {
-                          if (typeCtrl.text.isNotEmpty && detailsCtrl.text.isNotEmpty) {
-                              Navigator.pop(ctx, {'type': typeCtrl.text, 'details': detailsCtrl.text});
-                          }
-                      },
-                      child: const Text("Agregar")
+          builder: (ctx) => StatefulBuilder(
+            builder: (context, setDialogState) {
+              return AlertDialog(
+                  title: const Text("Nuevo Medio de Pago"),
+                  content: SingleChildScrollView(
+                    child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                            const Text("Selecciona tu proveedor:", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                            const SizedBox(height: 12),
+                            Wrap(
+                              spacing: 8,
+                              runSpacing: 8,
+                              children: providers.map((p) {
+                                final isSelected = selectedProvider == p['name'];
+                                return InkWell(
+                                  onTap: () => setDialogState(() => selectedProvider = p['name'] as String),
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                                    decoration: BoxDecoration(
+                                      color: isSelected ? AppTheme.primaryBrand : Colors.white10,
+                                      borderRadius: BorderRadius.circular(20),
+                                      border: Border.all(color: isSelected ? AppTheme.primaryBrand : Colors.grey.shade800),
+                                    ),
+                                    child: Row(
+                                      mainAxisSize: MainAxisSize.min,
+                                      children: [
+                                        Icon(p['icon'] as IconData, size: 16, color: isSelected ? Colors.white : Colors.grey),
+                                        const SizedBox(width: 8),
+                                        Text(p['name'] as String, style: TextStyle(fontSize: 12, color: isSelected ? Colors.white : Colors.grey)),
+                                      ],
+                                    ),
+                                  ),
+                                );
+                              }).toList(),
+                            ),
+                            const SizedBox(height: 24),
+                            TextField(
+                              controller: detailsCtrl, 
+                              decoration: const InputDecoration(
+                                labelText: "Número o detalles",
+                                hintText: "ej. 300 123 4567"
+                              )
+                            ),
+                        ],
+                    ),
                   ),
-              ],
+                  actions: [
+                      TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
+                      ElevatedButton(
+                          onPressed: () {
+                              if (selectedProvider != null && detailsCtrl.text.isNotEmpty) {
+                                  Navigator.pop(ctx, {'type': selectedProvider, 'details': detailsCtrl.text});
+                              } else {
+                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Selecciona un proveedor y pon los detalles")));
+                              }
+                          },
+                          child: const Text("Agregar")
+                      ),
+                  ],
+              );
+            }
           )
       );
   }
@@ -297,7 +384,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           isScrollControlled: true,
                           backgroundColor: Colors.transparent,
                           builder: (context) => AvatarGalleryModal(
-                            onAvatarSelected: (url) => setState(() => _avatarUrl = url),
+                            onAvatarSelected: (url) async {
+                              setState(() => _avatarUrl = url);
+                              await _saveProfile(); // Instant save for avatars
+                            },
                           ),
                         );
                       },
@@ -324,6 +414,14 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           ),
                         ],
                       ),
+                    ),
+                  ),
+                  const SizedBox(height: 12),
+                  Center(
+                    child: TextButton.icon(
+                      onPressed: _pickProfileImage,
+                      icon: const Icon(Icons.add_a_photo_outlined, size: 16),
+                      label: const Text("Subir Foto Real", style: TextStyle(fontSize: 12)),
                     ),
                   ),
                   const SizedBox(height: 16),
