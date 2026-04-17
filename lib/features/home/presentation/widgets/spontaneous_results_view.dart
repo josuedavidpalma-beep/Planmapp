@@ -143,12 +143,11 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
       final desc = row['description'] ?? title;
       bool hasDiscount = desc.toLowerCase().contains('desc') || desc.toLowerCase().contains('%') || desc.toLowerCase().contains('promo');
 
-      // NEW: Use Event model logic for images
       final event = Event(
           id: row['id']?.toString() ?? 'temp_${title.hashCode}',
           title: title,
           description: desc,
-          imageUrl: row['image_url'],
+          imageUrl: (row['image_url'] != null && row['image_url'].toString().isNotEmpty) ? row['image_url'] : null,
           visualKeyword: row['visual_keyword'],
           category: row['category'] ?? row['vibe_tag'],
       );
@@ -160,7 +159,7 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
           'dist_val': distMeters,
           'tag': hasDiscount ? 'OFERTA 🏷️' : (isLocal ? 'FRESH ✨' : 'TOP 🔥'),
           'desc': desc,
-          'image': event.displayImageUrl,
+          'image': event.imageUrl ?? event.displayImageUrl,
           'reservation_link': row['reservation_link'] ?? row['source_url'],
           'date': row['date'],
           'address': row['address'] ?? row['venue_name'],
