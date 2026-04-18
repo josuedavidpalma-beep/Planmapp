@@ -75,6 +75,19 @@ class _ParticipantsListBottomSheetState extends State<ParticipantsListBottomShee
       }
   }
 
+  Future<void> _openInternalInviteSearch() async {
+      await showModalBottomSheet(
+          context: context,
+          isScrollControlled: true,
+          backgroundColor: Colors.transparent,
+          builder: (context) => _InternalUserSearchSheet(
+              planId: widget.planId, 
+              currentMembers: _members,
+              onUserInvited: _loadMembers,
+          )
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -93,7 +106,19 @@ class _ParticipantsListBottomSheetState extends State<ParticipantsListBottomShee
                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
                    children: [
                        const Text("Participantes", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                       IconButton(icon: const Icon(Icons.close), onPressed: ()=>Navigator.pop(context))
+                       Row(
+                           children: [
+                               if (widget.isAdmin && !widget.isCancelled)
+                                  IconButton(
+                                      icon: const Icon(Icons.person_add_alt_1, color: AppTheme.primaryBrand), 
+                                      tooltip: "Buscar amigos en Planmapp",
+                                      onPressed: () {
+                                          _openInternalInviteSearch();
+                                      }
+                                  ),
+                               IconButton(icon: const Icon(Icons.close), onPressed: ()=>Navigator.pop(context))
+                           ]
+                       )
                    ],
                 ),
                 const SizedBox(height: 16),
@@ -206,4 +231,113 @@ class _ParticipantsListBottomSheetState extends State<ParticipantsListBottomShee
           ),
       );
   }
+}
+
+class _InternalUserSearchSheet extends StatefulWidget {
+  final String planId;
+  final List<PlanMember> currentMembers;
+  final VoidCallback onUserInvited;
+
+  const _InternalUserSearchSheet({
+      required this.planId, 
+      required this.currentMembers, 
+      required this.onUserInvited
+  });
+
+  @override
+  State<_InternalUserSearchSheet> createState() => _InternalUserSearchSheetState();
+}
+
+class _InternalUserSearchSheetState extends State<_InternalUserSearchSheet> {
+    final TextEditingController _searchController = TextEditingController();
+    bool _isSearching = false;
+    List<Map<String, dynamic>> _results = [];
+
+    Future<void> _performSearch(String query) async {
+        if (query.length < 3) {
+            setState(() { _results = []; _isSearching = false; });
+            return;
+        }
+
+        setState(() => _isSearching = true);
+        try {
+            final data = await Supabase.instance.client
+                .from('profiles')
+                .select('id, nickname, full_name')
+                .or('nickname.ilike.%$query%,full_name.ilike.%$query%')
+                .limit(10);
+            
+            // Filter out existing members
+            final currentIds = widget.currentMembers.map((m) => m.id).toSet();
+            final filtered = (data as List<dynamic>)
+                .where((user) => !currentIds.contains(user['id']))
+                .cast<Map<String,dynamic>>()
+                .toList();
+
+            setState(() { _results = filtered; _isSearching = false; });
+        } catch (e) {
+            setState(() => _isSearching = false);
+        }
+    }
+
+    Future<void> _inviteUser(String userId, String userName) async {
+        try {
+            await PlanMembersService().addMember(widget.planId, userId, role: 'member', status: 'pending');
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Invitación enviada a $userName", style: const TextStyle(color: Colors.white)), backgroundColor: Colors.green));
+            widget.onUserInvited();
+            Navigator.pop(context);
+        } catch (e) {
+             ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error al invitar: $e")));
+        }
+    }
+
+    @override
+    Widget build(BuildContext context) {
+        return Container(
+            height: MediaQuery.of(context).size.height * 0.7,
+            padding: EdgeInsets.only(left: 20, right: 20, top: 24, bottom: MediaQuery.of(context).viewInsets.bottom),
+            decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24))),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.stretch,
+                children: [
+                    const Text("Buscar Usuario", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    TextField(
+                        controller: _searchController,
+                        onChanged: _performSearch,
+                        decoration: InputDecoration(
+                            hintText: "Nombre o Apodo...",
+                            prefixIcon: const Icon(Icons.search),
+                            filled: true,
+                            fillColor: Colors.grey[100],
+                            border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)
+                        ),
+                    ),
+                    const SizedBox(height: 16),
+                    Expanded(
+                        child: _isSearching 
+                        ? const Center(child: CircularProgressIndicator())
+                        : _results.isEmpty 
+                            ? Center(child: Text(_searchController.text.length < 3 ? "Ingresa 3 letras para buscar" : "No se encontraron usuarios libres", style: const TextStyle(color: Colors.grey)))
+                            : ListView.builder(
+                                itemCount: _results.length,
+                                itemBuilder: (c, i) {
+                                    final u = _results[i];
+                                    final name = u['nickname']?.isNotEmpty == true ? u['nickname'] : u['full_name'];
+                                    return ListTile(
+                                        leading: CircleAvatar(backgroundColor: AppTheme.primaryBrand.withOpacity(0.1), child: const Icon(Icons.person, color: AppTheme.primaryBrand)),
+                                        title: Text(name ?? "Usuario", style: const TextStyle(fontWeight: FontWeight.bold)),
+                                        trailing: ElevatedButton(
+                                            onPressed: () => _inviteUser(u['id'], name),
+                                            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white),
+                                            child: const Text("Invitar")
+                                        ),
+                                    );
+                                }
+                            )
+                    )
+                ]
+            )
+        );
+    }
 }

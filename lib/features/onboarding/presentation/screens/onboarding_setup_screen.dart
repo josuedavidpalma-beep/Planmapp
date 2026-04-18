@@ -76,11 +76,11 @@ class _OnboardingSetupScreenState extends State<OnboardingSetupScreen> {
         
         if (mounted) {
           if (pendingId != null) {
+            // Remove the auto-joining so the user can land on the Invite UX
             try {
-               await PlanMembersService().addMember(pendingId, user.id, role: 'member');
                await SessionPersistenceService.clearPendingPlanJoin();
             } catch (_) {}
-            context.go('/plan/$pendingId');
+            context.go('/invite/$pendingId');
           } else {
             context.go('/');
           }

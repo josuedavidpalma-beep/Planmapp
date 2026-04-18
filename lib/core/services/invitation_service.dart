@@ -19,7 +19,7 @@ class InvitationService {
 🗓️ Fecha: $dateStr$locationInfo
 
 Para ver los detalles, votar en encuestas y confirmar tu asistencia, abre este enlace:
-https://planmapp.app/invite/${plan.id}
+https://planmapp.app/?invite=${plan.id}
 
 ¡Nos vemos allá! 🚀
 """;

@@ -202,7 +202,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
       
       final title = "Planmapp: ${_plan!.title}";
       final loc = _plan!.locationName;
-      final details = "Enlace del plan: https://planmapp.app/invite/${_plan!.id}";
+      final details = "Enlace del plan: https://planmapp.app/?invite=${_plan!.id}";
       final start = _plan!.eventDate!.toUtc();
       final end = start.add(const Duration(hours: 3));
 

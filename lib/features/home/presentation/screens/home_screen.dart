@@ -50,6 +50,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   List<Event> _searchResults = [];
   bool _isSearchLoading = false;
   int _refreshCounter = 0;
+  
+  List<Map<String, dynamic>> _dbPendingInvites = [];
 
   @override
   void initState() {
@@ -81,7 +83,20 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                   });
               }
               // Redirect to wait screen
-              if (mounted) context.push('/guest/wait/$expenseId');
+              if (mounted) {
+                 context.push('/guest/wait/$expenseId');
+                 return;
+              }
+          }
+      }
+
+      // Check pending plan join
+      final pendingPlan = await SessionPersistenceService.getPendingPlanJoin();
+      if (pendingPlan != null) {
+          final user = Supabase.instance.client.auth.currentUser;
+          if (user != null && !user.isAnonymous) {
+              await SessionPersistenceService.clearPendingPlanJoin();
+              if (mounted) context.push('/invite/$pendingPlan');
           }
       }
   }
@@ -129,6 +144,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               // NEW: Solicitar permiso automáticamente al iniciar sesión a usuarios antiguos
               if (!isAnon) {
                  PushNotificationService().requestPermissionAndSaveToken();
+              }
+          }
+
+          // Fetch internal database invites
+          if (!isAnon) {
+              try {
+                  final pendingRes = await Supabase.instance.client
+                      .from('plan_members')
+                      .select('plan_id, plans!inner(title, event_date)')
+                      .eq('user_id', user.id)
+                      .eq('status', 'pending');
+                      
+                  if (mounted) {
+                      setState(() {
+                          _dbPendingInvites = (pendingRes as List<dynamic>).cast<Map<String,dynamic>>();
+                      });
+                  }
+              } catch (e) {
+                 // Ignore
               }
           }
       } catch (e) {
@@ -343,6 +377,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             onTap: () => context.push('/profile'),
                             child: _buildCompleteProfileBanner(),
                           ),
+                        if (_dbPendingInvites.isNotEmpty)
+                          _buildPendingInvites(),
                         SizedBox(
                           height: 40,
                           child: ListView(
@@ -718,6 +754,54 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   Widget _buildCompleteProfileBanner() {
     // ... logic omitted ...
     return Container(); // Placeholder or actual logic
+  }
+
+  Widget _buildPendingInvites() {
+      return Column(
+          children: _dbPendingInvites.map((invite) {
+              final plan = invite['plans'] as Map<String,dynamic>?;
+              final title = plan?['title'] ?? 'Plan en Planmapp';
+              final pid = invite['plan_id'];
+
+              return Container(
+                  margin: const EdgeInsets.only(bottom: 12),
+                  padding: const EdgeInsets.all(16),
+                  decoration: BoxDecoration(
+                      gradient: const LinearGradient(colors: [AppTheme.primaryBrand, AppTheme.secondaryBrand]),
+                      borderRadius: BorderRadius.circular(16),
+                      boxShadow: [BoxShadow(color: AppTheme.primaryBrand.withOpacity(0.3), blurRadius: 12, offset: const Offset(0, 4))]
+                  ),
+                  child: Row(
+                      children: [
+                          Container(
+                              padding: const EdgeInsets.all(10),
+                              decoration: BoxDecoration(color: Colors.white.withOpacity(0.2), shape: BoxShape.circle),
+                              child: const Icon(Icons.mail_outline_rounded, color: Colors.white)
+                          ),
+                          const SizedBox(width: 16),
+                          Expanded(
+                              child: Column(
+                                  crossAxisAlignment: CrossAxisAlignment.start,
+                                  children: [
+                                      const Text("¡Tienes una invitación!", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                                      Text("Te invitaron a '$title'", style: TextStyle(color: Colors.white.withOpacity(0.9), fontSize: 13), maxLines: 1),
+                                  ],
+                              )
+                          ),
+                          ElevatedButton(
+                              style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.white,
+                                  foregroundColor: AppTheme.primaryBrand,
+                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
+                              ),
+                              onPressed: () => context.push('/invite/$pid'),
+                              child: const Text("Ver", style: TextStyle(fontWeight: FontWeight.bold))
+                          )
+                      ],
+                  ),
+              ).animate().fade().slideY(begin: 0.1, end: 0);
+          }).toList()
+      );
   }
 
   // Static version of the helper for state management if needed or just use consistent logic

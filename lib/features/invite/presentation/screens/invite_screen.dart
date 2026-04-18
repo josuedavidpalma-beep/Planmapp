@@ -68,7 +68,7 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
 
   bool _accepted = false;
 
-  void _handleDecision(bool accept) {
+  void _handleDecision(bool accept) async {
     if (accept) {
       final session = Supabase.instance.client.auth.currentSession;
       if (session == null || session.user.isAnonymous) {
@@ -78,7 +78,18 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
           _joinPlan();
       }
     } else {
-      context.go('/');
+      try {
+          final uid = Supabase.instance.client.auth.currentUser?.id;
+          if (uid != null) {
+              await Supabase.instance.client.from('plan_members').upsert({
+                  'plan_id': widget.planId,
+                  'user_id': uid,
+                  'role': 'member',
+                  'status': 'declined', // Record rejection
+              });
+          }
+      } catch (_) {}
+      if (mounted) context.go('/');
     }
   }
 
@@ -155,6 +166,7 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
               'plan_id': widget.planId,
               'user_id': uid,
               'role': 'member',
+              'status': 'accepted', // Crucial to override pending status
           });
           if (mounted) {
              setState(() => _accepted = true); // Show CTA instead of navigating immediately

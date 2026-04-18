@@ -40,6 +40,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
     refreshListenable: _StreamRouterRefresh(Supabase.instance.client.auth.onAuthStateChange),
     redirect: (context, state) async {
+      // 1. Anti-404 Query Parameter Interceptor (GitHub Pages Fix)
+      if (state.uri.queryParameters.containsKey('invite')) {
+          return '/invite/${state.uri.queryParameters['invite']}';
+      }
+      if (state.uri.queryParameters.containsKey('vaca')) {
+          return '/vaca/${state.uri.queryParameters['vaca']}';
+      }
+
       final session = Supabase.instance.client.auth.currentSession;
       final isLoggedIn = session != null;
       
