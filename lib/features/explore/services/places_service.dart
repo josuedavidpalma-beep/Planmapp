@@ -18,13 +18,16 @@ class PlacesService {
   }) async {
     try {
       // 1. Try to fetch from Supabase cache first
-      final cacheResponse = await _supabase
+      var query = _supabase
           .from('cached_places')
           .select()
-          .eq('city', city)
-          .filter('category', category == null ? 'not.is' : 'eq', category) // Simple filter
-          // In a real scenario, we'd use PostGIS to check distance.
-          // For now, let's just check the city/bounds or recent ones.
+          .eq('city', city);
+          
+      if (category != null) {
+          query = query.eq('category', category);
+      }
+      
+      final cacheResponse = await query
           .order('last_updated', ascending: false)
           .limit(20);
 

@@ -73,7 +73,7 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
               .from('local_events')
               .select('*')
               .eq('status', 'active')
-              .gte('date', today);
+              .or('date.gte.$today,date.is.null');
               
           // SOFT CITY FILTER: Only apply if a valid city string is available
           if (widget.city.trim().isNotEmpty && widget.city.toLowerCase() != 'desconocida') {
@@ -161,9 +161,7 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
           'dist_val': distMeters,
           'tag': hasDiscount ? 'OFERTA 🏷️' : (isLocal ? 'FRESH ✨' : 'TOP 🔥'),
           'desc': desc,
-          'image': (event.imageUrl != null && event.imageUrl!.contains('unsplash.com')) 
-                    ? 'https://wsrv.nl/?url=${Uri.encodeComponent(event.imageUrl!)}' 
-                    : event.imageUrl ?? event.displayImageUrl,
+          'image': event.imageUrl ?? event.displayImageUrl,
           'reservation_link': row['reservation_link'] ?? row['source_url'],
           'date': row['date'],
           'address': row['address'] ?? row['venue_name'],
