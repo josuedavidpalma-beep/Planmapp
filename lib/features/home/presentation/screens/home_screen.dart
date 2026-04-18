@@ -69,7 +69,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               await SessionPersistenceService.clearPendingExpenseAssignment();
               
               // Process the background RPCs since we are logged in!
-              final realName = (await Supabase.instance.client.from('profiles').select('full_name').eq('id', user.id).maybeSingle())?['full_name'] ?? 'Usuario';
+              final profile = await Supabase.instance.client.from('profiles').select('nickname, full_name').eq('id', user.id).maybeSingle();
+              final realName = (profile?['nickname']?.toString().isNotEmpty == true ? profile!['nickname'] : profile?['full_name']) ?? 'Usuario';
               for (var entry in portions.entries) {
                   await Supabase.instance.client.rpc('toggle_expense_assignment', params: {
                       'p_item_id': entry.key,

@@ -187,7 +187,8 @@ class _GuestSplitScreenState extends State<GuestSplitScreen> {
           
           final user = supabase.auth.currentUser;
           final realUid = user!.id;
-          final realName = (await supabase.from('profiles').select('full_name').eq('id', realUid).maybeSingle())?['full_name'] ?? 'Usuario';
+          final profile = await supabase.from('profiles').select('nickname, full_name').eq('id', realUid).maybeSingle();
+          final realName = (profile?['nickname']?.toString().isNotEmpty == true ? profile!['nickname'] : profile?['full_name']) ?? 'Usuario';
 
           // Use atomic RPC to toggle assignments!
           for (var entry in _mySelectedPortions.entries) {

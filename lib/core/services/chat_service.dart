@@ -22,8 +22,8 @@ class ChatService {
     final user = _supabase.auth.currentUser;
     if (user == null) throw Exception("No autenticado");
     
-    final profile = await _supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
-    final senderName = profile?['full_name'] ?? 'Usuario';
+    final profile = await _supabase.from('profiles').select('nickname, full_name').eq('id', user.id).maybeSingle();
+    final senderName = (profile?['nickname']?.toString().isNotEmpty == true ? profile!['nickname'] : profile?['full_name']) ?? 'Usuario';
 
     await _supabase.from('messages').insert({
       'plan_id': planId,
