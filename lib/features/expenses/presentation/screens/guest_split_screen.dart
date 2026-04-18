@@ -4,6 +4,7 @@ import 'dart:convert';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:planmapp/core/utils/currency_formatter.dart';
 import 'package:planmapp/features/expenses/presentation/screens/payment_summary_screen.dart';
+import 'package:planmapp/core/widgets/auth_guard.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GuestSplitScreen extends StatefulWidget {
@@ -176,8 +177,6 @@ class _GuestSplitScreenState extends State<GuestSplitScreen> {
       try {
           final supabase = Supabase.instance.client;
           // BEFORE processing, demand AUTHENTICATION!
-          import 'package:planmapp/core/widgets/auth_guard.dart';
-          
           bool authenticated = await AuthGuard.ensureAuthenticated(context);
           if (!authenticated) {
               if (mounted) setState(() => _isSaving = false);
