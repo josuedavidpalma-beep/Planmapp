@@ -83,6 +83,13 @@ class PlacesService {
         final results = <Map<String, dynamic>>[];
 
         for (var p in places) {
+          final types = List<String>.from(p['types'] ?? []);
+          final nameStr = p['displayName']?['text']?.toString().toLowerCase() ?? '';
+          
+          // Strict block against parsing neighborhoods/zones as if they were commercial places
+          if (nameStr.contains('barrio') || types.contains('neighborhood') || types.contains('sublocality') || types.contains('locality') || types.contains('political') || types.contains('administrative_area_level_1') || types.contains('administrative_area_level_2')) {
+              continue;
+          }
           final mapped = {
             'place_id': p['id'],
             'name': p['displayName']?['text'] ?? 'Lugar desconocido',
@@ -156,6 +163,12 @@ class PlacesService {
         final results = <Map<String, dynamic>>[];
 
         for (var p in places) {
+          final types = List<String>.from(p['types'] ?? []);
+          final nameStr = p['displayName']?['text']?.toString().toLowerCase() ?? '';
+          
+          if (nameStr.contains('barrio') || types.contains('neighborhood') || types.contains('sublocality') || types.contains('locality') || types.contains('political') || types.contains('administrative_area_level_1') || types.contains('administrative_area_level_2')) {
+              continue;
+          }
           final mapped = {
             'place_id': p['id'],
             'name': p['displayName']?['text'] ?? 'Lugar desconocido',

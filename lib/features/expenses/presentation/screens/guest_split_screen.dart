@@ -1,10 +1,11 @@
 import 'package:flutter/material.dart';
-// import 'package:go_router/go_router.dart';
+import 'package:go_router/go_router.dart';
 import 'dart:convert';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:planmapp/core/utils/currency_formatter.dart';
 import 'package:planmapp/features/expenses/presentation/screens/payment_summary_screen.dart';
 import 'package:planmapp/core/widgets/auth_guard.dart';
+import 'package:planmapp/core/services/session_persistence_service.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GuestSplitScreen extends StatefulWidget {
@@ -177,6 +178,7 @@ class _GuestSplitScreenState extends State<GuestSplitScreen> {
       try {
           final supabase = Supabase.instance.client;
           // BEFORE processing, demand AUTHENTICATION!
+          await SessionPersistenceService.setPendingExpenseAssignment(widget.expenseId, _mySelectedPortions);
           bool authenticated = await AuthGuard.ensureAuthenticated(context);
           if (!authenticated) {
               if (mounted) setState(() => _isSaving = false);
@@ -202,30 +204,7 @@ class _GuestSplitScreenState extends State<GuestSplitScreen> {
 
           if (mounted) {
               // INSTEAD of going to PaymentSummary, go to Wait Room!
-              Navigator.pushReplacement(context, MaterialPageRoute(
-                  builder: (_) => Scaffold(
-                      appBar: AppBar(title: const Text("Tus partes seleccionadas")),
-                      body: Padding(
-                          padding: const EdgeInsets.all(24.0),
-                          child: Column(
-                              mainAxisAlignment: MainAxisAlignment.center,
-                              children: [
-                                  const Icon(Icons.check_circle, size: 80, color: AppTheme.primaryBrand),
-                                  const SizedBox(height: 24),
-                                  Text("¡Todo listo, $realName!", textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                                  const SizedBox(height: 8),
-                                  const Text("Tus selecciones han sido transmitidas al creador. Por favor, espera a que finalice el cierre de cuenta para recibir tu saldo final y las opciones de pago.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
-                                  const SizedBox(height: 32),
-                                  ElevatedButton(
-                                      onPressed: () => Navigator.pop(context),
-                                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 50)),
-                                      child: const Text("Volver al Inicio", style: TextStyle(fontWeight: FontWeight.bold)),
-                                  )
-                              ]
-                          )
-                      )
-                  )
-              ));
+              context.go('/vaca/${widget.expenseId}/wait?name=${Uri.encodeComponent(realName)}');
           }
 
       } catch (e) {

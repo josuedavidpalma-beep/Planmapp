@@ -14,6 +14,7 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:planmapp/core/services/session_persistence_service.dart';
 import 'package:planmapp/core/presentation/widgets/premium_empty_state.dart';
 import 'package:planmapp/core/presentation/widgets/guest_barrier.dart';
 import 'package:planmapp/core/presentation/widgets/skeleton_loader.dart';
@@ -54,6 +55,33 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     super.initState();
     _loadPersistedCity();
     _fetchUserData();
+    _checkPendingActions();
+  }
+
+  Future<void> _checkPendingActions() async {
+      final pendingExpense = await SessionPersistenceService.getPendingExpenseAssignment();
+      if (pendingExpense != null && pendingExpense['expenseId'] != null) {
+          final expenseId = pendingExpense['expenseId'];
+          final portions = pendingExpense['portions'] as Map<String, double>;
+          
+          final user = Supabase.instance.client.auth.currentUser;
+          if (user != null && !user.isAnonymous) {
+              await SessionPersistenceService.clearPendingExpenseAssignment();
+              
+              // Process the background RPCs since we are logged in!
+              final realName = (await Supabase.instance.client.from('profiles').select('full_name').eq('id', user.id).maybeSingle())?['full_name'] ?? 'Usuario';
+              for (var entry in portions.entries) {
+                  await Supabase.instance.client.rpc('toggle_expense_assignment', params: {
+                      'p_item_id': entry.key,
+                      'p_user_id': user.id,
+                      'p_guest_name': realName,
+                      'p_qty': entry.value
+                  });
+              }
+              // Redirect to wait screen
+              if (mounted) context.push('/guest/wait/$expenseId');
+          }
+      }
   }
 
   Future<void> _fetchUserData() async {

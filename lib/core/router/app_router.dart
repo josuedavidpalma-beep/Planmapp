@@ -189,6 +189,35 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         }
       ),
       GoRoute(
+        path: '/vaca/:id/wait',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+           final profileName = state.uri.queryParameters['name'] ?? 'Usuario';
+           return Scaffold(
+               appBar: AppBar(title: const Text("Tus partes seleccionadas")),
+               body: Padding(
+                   padding: const EdgeInsets.all(24.0),
+                   child: Column(
+                       mainAxisAlignment: MainAxisAlignment.center,
+                       children: [
+                           const Icon(Icons.check_circle, size: 80, color: AppTheme.primaryBrand),
+                           const SizedBox(height: 24),
+                           Text("¡Todo listo, $profileName!", textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                           const SizedBox(height: 8),
+                           const Text("Tus selecciones han sido transmitidas al creador. Por favor, espera a que finalice el cierre de cuenta para recibir tu saldo final y las opciones de pago.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                           const SizedBox(height: 32),
+                           ElevatedButton(
+                               onPressed: () => context.go('/home'),
+                               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 50)),
+                               child: const Text("Volver al Inicio", style: TextStyle(fontWeight: FontWeight.bold)),
+                           )
+                       ]
+                   )
+               )
+           );
+        }
+      ),
+      GoRoute(
         path: '/pago/:id',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => PlanLandingScreen(planId: state.pathParameters['id']!),

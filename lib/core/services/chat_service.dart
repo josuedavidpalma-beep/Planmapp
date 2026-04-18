@@ -21,13 +21,19 @@ class ChatService {
   Future<void> sendMessage(String planId, String content, {String type = 'text', Map<String, dynamic>? metadata}) async {
     final user = _supabase.auth.currentUser;
     if (user == null) throw Exception("No autenticado");
+    
+    final profile = await _supabase.from('profiles').select('full_name').eq('id', user.id).maybeSingle();
+    final senderName = profile?['full_name'] ?? 'Usuario';
 
     await _supabase.from('messages').insert({
       'plan_id': planId,
       'content': content,
       'user_id': user.id,
       'type': type,
-      'metadata': metadata,
+      'metadata': {
+          ...(metadata ?? {}),
+          'sender_name': senderName,
+      },
     });
   }
 

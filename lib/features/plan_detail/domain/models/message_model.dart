@@ -34,6 +34,7 @@ class Message {
       isSystemMessage: json['is_system_message'] ?? false,
       type: json['type'] ?? 'text',
       metadata: json['metadata'] != null ? Map<String, dynamic>.from(json['metadata']) : null,
+      userDisplayName: json['metadata']?['sender_name'] ?? (json['profiles']?['full_name'] ?? 'Usuario'),
     );
   }
 
