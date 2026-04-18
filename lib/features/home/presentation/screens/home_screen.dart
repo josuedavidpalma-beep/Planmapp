@@ -47,6 +47,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   String _searchQuery = "";
   List<Event> _searchResults = [];
   bool _isSearchLoading = false;
+  int _refreshCounter = 0;
 
   @override
   void initState() {
@@ -238,8 +239,17 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       ),
       body: Stack(
         children: [
-          CustomScrollView(
-            key: ValueKey("$_selectedCity-$_isSearching-$_searchQuery"),
+          RefreshIndicator(
+            color: AppTheme.primaryBrand,
+            backgroundColor: AppTheme.darkBackground,
+            onRefresh: () async {
+                setState(() {
+                    _refreshCounter++;
+                });
+            },
+            child: CustomScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              key: ValueKey("$_selectedCity-$_isSearching-$_searchQuery-$_refreshCounter"),
             slivers: [
               if (_isSearching)
                 SliverToBoxAdapter(
@@ -348,7 +358,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               else 
                 SliverToBoxAdapter(
                   child: FutureBuilder<List<Event>>(
-                    key: ValueKey("$_selectedCity-$_selectedFilter"), 
+                    key: ValueKey("$_selectedCity-$_selectedFilter-$_refreshCounter"), 
                     future: EventsService().getPlaces(
                       city: _selectedCity, 
                       category: _selectedFilter == "Todo" ? null : _getPlacesCategory(_selectedFilter),
@@ -420,6 +430,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 ),
               const SliverToBoxAdapter(child: SizedBox(height: 100)),
             ],
+          ),
           ),
           
           // Subtle PWA Guide Tooltip
