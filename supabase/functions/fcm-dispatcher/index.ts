@@ -40,75 +40,84 @@ serve(async (req) => {
     const payload = await req.json()
     console.log("Webhook Payload Received:", payload);
 
-    // This webhook expects an insertion mapped from the messages table
-    const { record, old_record, type } = payload;
+    const { record, old_record, type, table } = payload;
     
     // Safety check: only handle INSERTS
     if (type !== 'INSERT' || !record) {
        return new Response(JSON.stringify({ status: "ignored", reason: "not an insert" }), { headers: reqCorsHeaders })
     }
 
-    const planId = record.plan_id;
-    const senderId = record.user_id;
-    const content = record.content;
-    const senderName = record.metadata?.sender_name || 'Alguien';
-    const isSystem = record.is_system_message || false;
-
-    if (isSystem) {
-       return new Response(JSON.stringify({ status: "ignored", reason: "system message" }), { headers: reqCorsHeaders })
-    }
-
-    // Connect to Supabase to fetch FCM tokens of members in this plan
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // 1. Get all members of the plan EXCEPT the sender
-    const { data: members, error: memError } = await supabaseClient
-       .from('plan_members')
-       .select('user_id')
-       .eq('plan_id', planId)
-       .neq('user_id', senderId);
+    let fcmTokensArray: string[] = [];
+    let notificationPayload: any = null;
 
-    if (memError || !members || members.length === 0) {
-       console.log("No other members found to notify.");
-       return new Response(JSON.stringify({ status: "ok", notified: 0 }), { headers: reqCorsHeaders });
+    if (table === 'messages') {
+        const planId = record.plan_id;
+        const senderId = record.user_id;
+        const content = record.content;
+        const senderName = record.metadata?.sender_name || 'Alguien';
+        const isSystem = record.is_system_message || false;
+
+        if (isSystem) {
+           return new Response(JSON.stringify({ status: "ignored", reason: "system message" }), { headers: reqCorsHeaders })
+        }
+
+        const { data: members } = await supabaseClient.from('plan_members').select('user_id').eq('plan_id', planId).neq('user_id', senderId);
+        if (!members || members.length === 0) return new Response(JSON.stringify({ status: "ok", notified: 0 }), { headers: reqCorsHeaders });
+        
+        const memberIds = members.map(m => m.user_id);
+        const { data: tokens } = await supabaseClient.from('fcm_tokens').select('token').in('user_id', memberIds);
+        if (!tokens || tokens.length === 0) return new Response(JSON.stringify({ status: "ok", notified: 0 }), { headers: reqCorsHeaders });
+        
+        fcmTokensArray = tokens.map(t => t.token);
+        
+        const { data: planData } = await supabaseClient.from('plans').select('title').eq('id', planId).single();
+        const planTitle = planData?.title || 'Un plan';
+
+        notificationPayload = {
+          notification: { title: `${senderName} en ${planTitle}`, body: content },
+          data: { route: `/plan/${planId}`, type: 'chat_message' },
+          tokens: fcmTokensArray,
+        };
+
+    } else if (table === 'plan_members') {
+        // Internal Invitations (or direct additions)
+        const recipientId = record.user_id;
+        const planId = record.plan_id;
+        const status = record.status;
+        
+        // Only notify if they are truly invited (pending)
+        if (status !== 'pending') {
+             return new Response(JSON.stringify({ status: "ignored", reason: "Not a pending invite" }), { headers: reqCorsHeaders })
+        }
+
+        // Fetch tokens for this SPECIFIC recipient
+        const { data: tokens } = await supabaseClient.from('fcm_tokens').select('token').eq('user_id', recipientId);
+        if (!tokens || tokens.length === 0) return new Response(JSON.stringify({ status: "ok", notified: 0 }), { headers: reqCorsHeaders });
+        fcmTokensArray = tokens.map(t => t.token);
+
+        // Fetch plan title
+        const { data: planData } = await supabaseClient.from('plans').select('title').eq('id', planId).single();
+        const planTitle = planData?.title || 'Planmapp';
+
+        notificationPayload = {
+          notification: { title: `¡Nueva Invitación! 🎉`, body: `Te han invitado al plan '${planTitle}'` },
+          data: { route: `/`, type: 'plan_invite' }, // Send them home to see the mailbox
+          tokens: fcmTokensArray,
+        };
+    } else {
+        return new Response(JSON.stringify({ status: "ignored", reason: "Unsupported table" }), { headers: reqCorsHeaders })
     }
 
-    const memberIds = members.map(m => m.user_id);
-
-    // 2. Fetch FCM Tokens for these members
-    const { data: tokens, error: tokError } = await supabaseClient
-       .from('fcm_tokens')
-       .select('token')
-       .in('user_id', memberIds);
-
-    if (tokError || !tokens || tokens.length === 0) {
-       console.log("No FCM tokens found for members.");
-       return new Response(JSON.stringify({ status: "ok", notified: 0 }), { headers: reqCorsHeaders });
+    if (!notificationPayload || fcmTokensArray.length === 0) {
+         return new Response(JSON.stringify({ status: "ok", notified: 0 }), { headers: reqCorsHeaders });
     }
 
-    const fcmTokensArray = tokens.map(t => t.token);
-    
-    // Fetch plan title for notification context
-    const { data: planData } = await supabaseClient.from('plans').select('title').eq('id', planId).single();
-    const planTitle = planData?.title || 'Un plan';
-
-    // 3. Dispatch to Firebase Cloud Messaging using proper Multicast payload
-    const messagePayload = {
-      notification: {
-        title: `${senderName} en ${planTitle}`,
-        body: content,
-      },
-      data: {
-        route: `/plan/${planId}`,
-        type: 'chat_message'
-      },
-      tokens: fcmTokensArray,
-    };
-
-    const response = await admin.messaging().sendEachForMulticast(messagePayload);
+    const response = await admin.messaging().sendEachForMulticast(notificationPayload);
     console.log(`Successfully sent message: ${response.successCount} successes, ${response.failureCount} failures.`);
 
     return new Response(JSON.stringify({ 

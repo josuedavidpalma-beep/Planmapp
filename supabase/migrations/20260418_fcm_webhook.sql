@@ -39,9 +39,16 @@ $$ LANGUAGE plpgsql SECURITY DEFINER;
 
 -- Drop trigger if exists
 DROP TRIGGER IF EXISTS on_message_insert_fcm ON public.messages;
+DROP TRIGGER IF EXISTS on_plan_members_insert_fcm ON public.plan_members;
 
 -- Create Trigger for INSERTS on messages
 CREATE TRIGGER on_message_insert_fcm
 AFTER INSERT ON public.messages
+FOR EACH ROW
+EXECUTE FUNCTION public.trigger_fcm_webhook();
+
+-- Create Trigger for INSERTS on plan_members (for internal invitations)
+CREATE TRIGGER on_plan_members_insert_fcm
+AFTER INSERT ON public.plan_members
 FOR EACH ROW
 EXECUTE FUNCTION public.trigger_fcm_webhook();
