@@ -195,8 +195,8 @@ class PlacesService {
   }
 
   /// Generates a Photo URL with 400px max width as requested.
-  String getPhotoUrl(String? photoName) {
-    if (photoName == null || _apiKey == null) return '';
+  String? getPhotoUrl(String? photoName) {
+    if (photoName == null || photoName.isEmpty || _apiKey == null || _apiKey!.isEmpty) return null;
     // photoName is in format: "places/PLACE_ID/photos/PHOTO_ID"
     return 'https://places.googleapis.com/v1/$photoName/media?maxHeightPx=400&maxWidthPx=400&key=$_apiKey';
   }

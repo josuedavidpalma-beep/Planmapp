@@ -113,22 +113,20 @@ class EventsService {
           }
           
           if (category == null && validTags.isNotEmpty) {
-             // Strict Profile mode (Tab "Todo"): Drop any location that does not match their vibe.
-             events = events.where((e) {
-                final cat = e.category?.toLowerCase() ?? '';
-                // Exceptions: Never block the National Billboard injection
-                if (e.id == 'cartelera_nacional') return true; 
-                return validTags.any((t) => cat.contains(t));
-             }).toList();
-             
-             // Still rank by title match just in case
+             // Profile mode (Tab "Todo"): Sort locations that match their vibe to the top!
              events.sort((a,b) {
                 if (a.id == 'cartelera_nacional') return -1;
                 if (b.id == 'cartelera_nacional') return 1;
+                final catA = a.category?.toLowerCase() ?? '';
+                final catB = b.category?.toLowerCase() ?? '';
+                bool aMatches = validTags.any((t) => catA.contains(t));
+                bool bMatches = validTags.any((t) => catB.contains(t));
+                if (aMatches && !bMatches) return -1;
+                if (!aMatches && bMatches) return 1;
                 return 0;
              });
           } else {
-             // Category mode (e.g. Tab "Rumba"): Let it show all rumbas, but push exact matches higher
+             // Category mode (e.g. Tab "Rumba"): Let it show all rumbas, but push exact title matches higher
              events.sort((a, b) {
                 if (a.id == 'cartelera_nacional') return -1;
                 if (b.id == 'cartelera_nacional') return 1;
