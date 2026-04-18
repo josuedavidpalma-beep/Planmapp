@@ -100,9 +100,12 @@ class PlacesService {
             'last_updated': DateTime.now().toIso8601String(),
           };
 
-          // 3. Update Supabase Cache
-          await _supabase.from('cached_places').upsert(mapped);
-          results.add(mapped);
+          // Only cache and show "premium" places (4.5+ stars) to save quota and show best of the city.
+          final double? rating = mapped['rating'] as double?;
+          if (rating != null && rating >= 4.5) {
+              await _supabase.from('cached_places').upsert(mapped);
+              results.add(mapped);
+          }
         }
 
         return results;

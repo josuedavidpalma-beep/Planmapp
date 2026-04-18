@@ -16,13 +16,13 @@ class EventsService {
     try {
       // 0. INTERCEPT: Preventas (Nationwide Future Events)
       if (category == 'preventas') {
-          final next30Days = DateTime.now().add(const Duration(days: 15)).toIso8601String().split('T')[0];
+          final today = DateTime.now().toIso8601String().split('T')[0];
           
           final localRes = await _supabase
               .from('local_events')
               .select()
               .eq('status', 'active')
-              .gte('date', next30Days) // Far into the future
+              .gte('date', today) // All upcoming events from today
               .order('date', ascending: true)
               .limit(20);
               
