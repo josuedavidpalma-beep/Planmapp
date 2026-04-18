@@ -37,8 +37,38 @@ class _DashboardScreenState extends State<DashboardScreen> {
   }
 
   Future<void> _openScannerTool() async {
+      await showModalBottomSheet(
+          context: context, 
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          builder: (c) => Padding(
+              padding: const EdgeInsets.all(24.0),
+              child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                      const Text("Seleccionar Factura", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                      const SizedBox(height: 20),
+                      Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                          children: [
+                              InkWell(
+                                  onTap: () { Navigator.pop(c); _processImage(ImageSource.camera); },
+                                  child: Column(children: const [Icon(Icons.camera_alt, size: 40, color: Colors.blue), Text("Cámara")]),
+                              ),
+                              InkWell(
+                                  onTap: () { Navigator.pop(c); _processImage(ImageSource.gallery); },
+                                  child: Column(children: const [Icon(Icons.photo_library, size: 40, color: Colors.purple), Text("Galería")]),
+                              ),
+                          ],
+                      ),
+                  ]
+              )
+          )
+      );
+  }
+
+  Future<void> _processImage(ImageSource source) async {
       final ImagePicker picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.camera);
+      final XFile? image = await picker.pickImage(source: source);
       
       if (image == null) return;
       

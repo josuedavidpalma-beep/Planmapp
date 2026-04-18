@@ -175,95 +175,57 @@ class _GuestSplitScreenState extends State<GuestSplitScreen> {
       setState(() => _isSaving = true);
       try {
           final supabase = Supabase.instance.client;
-          // IMPORTANT: Because RLS or concurrent guests, a robust app would use an RPC or serverless function.
-          // For MVP: We assume the anonymous user/guest has insert permissions or is bypassing via Edge Function.
-          // Since we might hit an RLS wall with unauthenticated guest inserts, we'll try to insert using an RPC
-          // or direct insert if policy allows.
+          // BEFORE processing, demand AUTHENTICATION!
+          import 'package:planmapp/core/widgets/auth_guard.dart';
           
-          List<Map<String, dynamic>> newAssignments = [];
-          _mySelectedPortions.forEach((itemId, qty) {
-              if (qty > 0) {
-                  newAssignments.add({
-                      'expense_item_id': itemId,
-                      'user_id': widget.guestUid.startsWith('guest_') ? null : widget.guestUid,
-                      'guest_name': widget.guestUid,
-                      'quantity': qty, 
-                  });
-              }
-          });
-          
-          // Delete prior inserts from this guest
-          await supabase.from('expense_assignments')
-              .delete()
-              .inFilter('expense_item_id', _items.map((e)=>e['id']).toList())
-              .eq('guest_name', widget.guestUid);
-              
-          if (newAssignments.isNotEmpty) {
-              await supabase.from('expense_assignments').insert(newAssignments);
+          bool authenticated = await AuthGuard.ensureAuthenticated(context);
+          if (!authenticated) {
+              if (mounted) setState(() => _isSaving = false);
+              return;
           }
-
-          // We'll calculate a local debt for the summary screen just for UX speed, 
-          // or we can call a function. Local math is faster:
-          double myDebt = 0.0;
-          _mySelectedPortions.forEach((itemId, myQty) {
-               if (myQty <= 0) return;
-               
-               final item = _items.firstWhere((i) => i['id'] == itemId);
-               final itemPrice = (item['price'] as num).toDouble();
-               
-               // Sum up everyone else's requested portions
-               double totalPortions = myQty;
-               for (var a in (_allAssignments[itemId] ?? [])) {
-                   if (a['guest_name'] != widget.guestUid && a['user_id'] != widget.guestUid) {
-                       totalPortions += (a['quantity'] as num?)?.toDouble() ?? 1.0;
-                   }
-               }
-               
-               if (totalPortions > 0) {
-                   myDebt += (itemPrice / totalPortions) * myQty;
-               }
-          });
           
-          // Prorate taxes/tips
-          final double subtotal = (_expenseData['subtotal'] as num?)?.toDouble() ?? 0.0;
-          final double tax = (_expenseData['tax_amount'] as num?)?.toDouble() ?? 0.0;
-          final double tip = (_expenseData['tip_amount'] as num?)?.toDouble() ?? 0.0;
-          
-          if (subtotal > 0 && (tax > 0 || tip > 0)) {
-              final proportion = myDebt / subtotal;
-              myDebt += ((tax + tip) * proportion);
-          }
+          final user = supabase.auth.currentUser;
+          final realUid = user!.id;
+          final realName = (await supabase.from('profiles').select('full_name').eq('id', realUid).maybeSingle())?['full_name'] ?? 'Usuario';
 
-          // 3. Save my status
-          await supabase.from('expense_participant_status')
-              .delete()
-              .eq('expense_id', widget.expenseId)
-              .eq('guest_name', widget.guestUid);
-              
-          if (myDebt > 0) {
-              await supabase.from('expense_participant_status').insert({
-                  'expense_id': widget.expenseId,
-                  'guest_name': widget.guestUid,
-                  'amount_owed': myDebt,
-                  'is_paid': false
+          // Use atomic RPC to toggle assignments!
+          for (var entry in _mySelectedPortions.entries) {
+              final itemId = entry.key;
+              final qty = entry.value;
+
+              await supabase.rpc('toggle_expense_assignment', params: {
+                  'p_item_id': itemId,
+                  'p_user_id': realUid,
+                  'p_guest_name': realName,
+                  'p_qty': qty
               });
           }
 
-          // Navigate to summary
           if (mounted) {
-              final debtMap = {
-                  'guest_name': widget.guestName,
-                  'amount_owed': myDebt,
-              };
-              List<dynamic> paymentMethods = [];
-              if (_expenseData['payment_method'] != null) {
-                  try {
-                      paymentMethods = jsonDecode(_expenseData['payment_method']);
-                  } catch (_) {}
-              }
-              
+              // INSTEAD of going to PaymentSummary, go to Wait Room!
               Navigator.pushReplacement(context, MaterialPageRoute(
-                  builder: (_) => PaymentSummaryScreen(debtData: debtMap, paymentMethods: paymentMethods)
+                  builder: (_) => Scaffold(
+                      appBar: AppBar(title: const Text("Tus partes seleccionadas")),
+                      body: Padding(
+                          padding: const EdgeInsets.all(24.0),
+                          child: Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                  const Icon(Icons.check_circle, size: 80, color: AppTheme.primaryBrand),
+                                  const SizedBox(height: 24),
+                                  Text("¡Todo listo, $realName!", textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                                  const SizedBox(height: 8),
+                                  const Text("Tus selecciones han sido transmitidas al creador. Por favor, espera a que finalice el cierre de cuenta para recibir tu saldo final y las opciones de pago.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                                  const SizedBox(height: 32),
+                                  ElevatedButton(
+                                      onPressed: () => Navigator.pop(context),
+                                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 50)),
+                                      child: const Text("Volver al Inicio", style: TextStyle(fontWeight: FontWeight.bold)),
+                                  )
+                              ]
+                          )
+                      )
+                  )
               ));
           }
 

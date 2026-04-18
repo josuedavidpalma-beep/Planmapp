@@ -55,6 +55,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
   late Stream<List<Poll>> _pollsStream;
 
   String _myRole = 'member';
+  bool _isBotTyping = false;
 
   @override
   void initState() {
@@ -599,7 +600,14 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                     return const Center(child: CircularProgressIndicator());
                   }
                   final messages = snapshot.data ?? [];
-                  if (messages.isEmpty) {
+
+                  if (_isBotTyping && messages.isNotEmpty && messages.first.type == 'system') {
+                      WidgetsBinding.instance.addPostFrameCallback((_) {
+                          if (mounted && _isBotTyping) setState(() => _isBotTyping = false);
+                      });
+                  }
+
+                  if (messages.isEmpty && !_isBotTyping) {
                      return const Center(child: DancingEmptyState(
                         icon: Icons.chat_bubble_outline_rounded,
                         title: "El chat está vacío",
@@ -610,9 +618,15 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                     controller: _chatScrollController,
                     reverse: true,
                     padding: const EdgeInsets.all(16),
-                    itemCount: messages.length,
-                    itemBuilder: (context, index) => _buildMessageBubble(messages[index])
-                        .animate().fade(duration: 300.ms).slideX(begin: 0.2, end: 0, curve: Curves.easeOut), 
+                    itemCount: messages.length + (_isBotTyping ? 1 : 0),
+                    itemBuilder: (context, index) {
+                        if (_isBotTyping && index == 0) {
+                            return _buildTypingIndicator();
+                        }
+                        final msgIndex = _isBotTyping ? index - 1 : index;
+                        return _buildMessageBubble(messages[msgIndex])
+                            .animate().fade(duration: 300.ms).slideX(begin: 0.2, end: 0, curve: Curves.easeOut);
+                    }
                   );
                 },
               ),
@@ -620,6 +634,46 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
           _buildMessageInput(),
        ],
      );
+  }
+
+  Widget _buildTypingIndicator() {
+      return Container(
+          margin: const EdgeInsets.only(bottom: 12),
+          child: Row(
+              crossAxisAlignment: CrossAxisAlignment.end,
+              children: [
+                  const CircleAvatar(
+                      radius: 14,
+                      backgroundColor: Colors.transparent,
+                      backgroundImage: AssetImage('assets/images/planmapp_logo.png'),
+                  ),
+                  const SizedBox(width: 8),
+                  Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                      decoration: BoxDecoration(
+                          color: AppTheme.primaryBrand.withOpacity(0.1),
+                          borderRadius: const BorderRadius.only(
+                              topLeft: Radius.circular(16),
+                              topRight: Radius.circular(16),
+                              bottomRight: Radius.circular(16),
+                              bottomLeft: Radius.circular(4),
+                          )
+                      ),
+                      child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                              const Text("Escribiendo", style: TextStyle(color: AppTheme.primaryBrand, fontSize: 12, fontStyle: FontStyle.italic)),
+                              const SizedBox(width: 4),
+                              ...List.generate(3, (i) => const Padding(
+                                  padding: EdgeInsets.only(left: 2),
+                                  child: Icon(Icons.circle, size: 4, color: AppTheme.primaryBrand)
+                              ))
+                          ],
+                      ).animate(onPlay: (ctrl) => ctrl.repeat()).shimmer(duration: 1.seconds),
+                  ),
+              ]
+          )
+      );
   }
 
   void _showDraftsDialog(List<Poll> drafts) {
@@ -701,7 +755,12 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
       Future.delayed(const Duration(milliseconds: 100), _scrollToBottom);
       
       if (text.toLowerCase().contains('@planmapp')) {
+          setState(() => _isBotTyping = true);
           _chatService.triggerAgent(widget.planId, text);
+          // Fallback to reset
+          Future.delayed(const Duration(seconds: 8), () {
+              if (mounted) setState(() => _isBotTyping = false);
+          });
       }
     } catch (e) {
       if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error: $e')));

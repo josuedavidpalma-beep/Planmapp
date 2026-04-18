@@ -85,15 +85,15 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
   }
 
   void _updateQuantity(String itemId, String? userId, String? guestName, double newQty) async {
-    final assignment = AssignmentModel(userId: userId, guestName: guestName, quantity: newQty);
-    
-    // Immediate DB Update (Live effect)
+    // Immediate DB Update (Live effect via atomic RPC)
     try {
-        if (newQty <= 0.001) {
-            await _expenseRepository.deleteAssignment(itemId, userId: userId, guestName: guestName);
-        } else {
-            await _expenseRepository.upsertAssignment(itemId, assignment);
-        }
+        final supabase = Supabase.instance.client;
+        await supabase.rpc('toggle_expense_assignment', params: {
+            'p_item_id': itemId,
+            'p_user_id': userId,
+            'p_guest_name': guestName,
+            'p_qty': newQty <= 0.001 ? 0 : newQty
+        });
     } catch (e) {
         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
     }

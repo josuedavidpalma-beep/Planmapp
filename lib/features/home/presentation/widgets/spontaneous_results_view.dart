@@ -73,8 +73,12 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
               .from('local_events')
               .select('*')
               .eq('status', 'active')
-              .eq('city', widget.city) // STRICT CITY FILTER
               .gte('date', today);
+              
+          // SOFT CITY FILTER: Only apply if a valid city string is available
+          if (widget.city.trim().isNotEmpty && widget.city.toLowerCase() != 'desconocida') {
+              localQuery = localQuery.ilike('city', '%${widget.city.trim()}%');
+          }
               
           if (widget.category != 'Dados') {
               // Map UI labels to DB vibe_tags

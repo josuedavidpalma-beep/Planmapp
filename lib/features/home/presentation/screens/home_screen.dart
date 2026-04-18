@@ -877,9 +877,9 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
                             ),
                           ],
                         ),
-                      ).animate(onPlay: (ctrl) => ctrl.repeat(reverse: true))
-                       .shimmer(duration: 3.seconds, delay: 1.seconds)
-                       .scale(duration: 400.ms, curve: Curves.elasticOut),
+                      ).animate(onPlay: (ctrl) => ctrl.repeat())
+                       .shimmer(duration: 2.seconds, delay: 15.seconds)
+                       .scale(duration: 400.ms, curve: Curves.elasticOut, delay: 15.seconds),
                     ),
                ]
             ),
