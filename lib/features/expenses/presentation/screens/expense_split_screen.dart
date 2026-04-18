@@ -323,9 +323,9 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
 
           int sentCount = 0;
           for (var member in _members) {
-              if (member.userId != null && member.userId != currentUserId) {
+              if (!member.isGuest && member.id != currentUserId) {
                   await Supabase.instance.client.from('notifications').insert({
-                      'user_id': member.userId,
+                      'user_id': member.id,
                       'title': '¡La Vaca está lista! 🐮',
                       'body': '$organizerName te invita a revisar tu cuenta en $vacaTitle.',
                       'type': 'vaca_split',
