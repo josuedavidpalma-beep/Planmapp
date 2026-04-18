@@ -55,11 +55,15 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
           // PREFERENCES FILTERING
           int? userAge;
           String? budgetLevel;
+          List<String> userVibes = [];
           final user = Supabase.instance.client.auth.currentUser;
           if (user != null) {
-              final profile = await Supabase.instance.client.from('profiles').select('budget_level, birth_date, birthday').eq('id', user.id).maybeSingle();
+              final profile = await Supabase.instance.client.from('profiles').select('budget_level, birth_date, birthday, vibes').eq('id', user.id).maybeSingle();
               if (profile != null) {
                   budgetLevel = profile['budget_level'];
+                  if (profile['vibes'] != null) {
+                      userVibes = List<String>.from(profile['vibes'] ?? []);
+                  }
                   final birthStr = profile['birth_date'] ?? profile['birthday'];
                   if (birthStr != null) {
                       final birth = DateTime.tryParse(birthStr);
@@ -107,7 +111,14 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
 
           // (Removed legacy 'events' fallback to ensure ONLY upcoming events with dates are shown)
 
-          loaded.sort((a, b) => (a['dist_val'] as double).compareTo(b['dist_val'] as double));
+          // PRIORITIZE VIBES, then fallback to distance
+          loaded.sort((a, b) {
+             bool aMatches = userVibes.any((v) => (a['desc'] as String).toLowerCase().contains(v.toLowerCase()) || (a['name'] as String).toLowerCase().contains(v.toLowerCase()));
+             bool bMatches = userVibes.any((v) => (b['desc'] as String).toLowerCase().contains(v.toLowerCase()) || (b['name'] as String).toLowerCase().contains(v.toLowerCase()));
+             if (aMatches && !bMatches) return -1;
+             if (!aMatches && bMatches) return 1;
+             return (a['dist_val'] as double).compareTo(b['dist_val'] as double);
+          });
           
           if (widget.category == 'Dados') {
              loaded.shuffle(); // Real dice Randomness
