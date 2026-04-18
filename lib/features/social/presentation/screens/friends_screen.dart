@@ -4,7 +4,6 @@ import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:share_plus/share_plus.dart';
-import '../../services/contacts_service.dart';
 import '../../services/friendship_service.dart';
 import '../../domain/models/friendship_model.dart';
 import '../../../auth/domain/models/user_model.dart';
@@ -27,7 +26,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 4, vsync: this);
+    _tabController = TabController(length: 3, vsync: this);
     _loadFriendships();
   }
 
@@ -57,11 +56,10 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           labelColor: AppTheme.primaryBrand,
           indicatorColor: AppTheme.primaryBrand,
           isScrollable: true, // Allow scrolling if 4 tabs don't fit
-          tabs: [
+        tabs: [
             Tab(text: "Amigos (${_friends.length})"),
             Tab(text: "Solicitudes (${_requests.length})"),
-            const Tab(text: "Buscar"),
-            const Tab(text: "Agenda"),
+            const Tab(text: "Buscar Personas"),
           ],
         ),
       ),
@@ -70,8 +68,7 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
         children: [
           _buildFriendsList(),
           _buildRequestsList(),
-            _SearchFriendsTab(friendshipService: _friendshipService, onFriendAdded: _loadFriendships),
-          _ContactsTab(friendshipService: _friendshipService),
+          _SearchFriendsTab(friendshipService: _friendshipService, onFriendAdded: _loadFriendships),
         ],
       ),
     );
@@ -216,112 +213,5 @@ class _SearchFriendsTabState extends State<_SearchFriendsTab> {
         ],
       ),
     );
-  }
-}
-
-// NEW CONTACTS TAB
-class _ContactsTab extends StatefulWidget {
-  final FriendshipService friendshipService;
-  const _ContactsTab({required this.friendshipService});
-
-  @override
-  State<_ContactsTab> createState() => _ContactsTabState();
-}
-
-class _ContactsTabState extends State<_ContactsTab> {
-  final _contactsService = ContactsService();
-  ContactsDiscoveryResult? _result;
-  bool _isLoading = false;
-  bool _permissionDenied = false;
-
-  @override
-  void initState() {
-    super.initState();
-    _syncContacts();
-  }
-
-  Future<void> _syncContacts() async {
-    setState(() => _isLoading = true);
-    final hasPerm = await _contactsService.requestPermission();
-    if (!hasPerm) {
-      if(mounted) setState(() { _isLoading = false; _permissionDenied = true; });
-      return;
-    }
-
-    final res = await _contactsService.discoverContacts();
-    if(mounted) setState(() { _result = res; _isLoading = false; });
-  }
-
-  @override
-  Widget build(BuildContext context) {
-     if (_isLoading) return const Center(child: CircularProgressIndicator());
-     
-     if (_permissionDenied) {
-        return Center(
-           child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                 const Icon(Icons.contacts, size: 64, color: Colors.grey),
-                 const SizedBox(height: 16),
-                 const Text("Permite el acceso a contactos\npara encontrar amigos.", textAlign: TextAlign.center),
-                 TextButton(onPressed: _syncContacts, child: const Text("Dar Permiso"))
-              ],
-           ),
-        );
-     }
-
-     final matches = _result?.matches ?? [];
-     final invitables = _result?.invitables ?? [];
-
-     if (matches.isEmpty && invitables.isEmpty) {
-        return const Center(child: Text("No encontramos contactos."));
-     }
-
-     return ListView(
-        padding: const EdgeInsets.all(16),
-        children: [
-           if (matches.isNotEmpty) ...[
-               const Padding(
-                 padding: EdgeInsets.only(bottom: 8.0),
-                 child: Text("¡Están en Planmapp!", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: AppTheme.primaryBrand)),
-               ),
-               ...matches.map((m) => ListTile(
-                   leading: CircleAvatar(backgroundImage: m.user.avatarUrl != null ? NetworkImage(m.user.avatarUrl!) : null, child: const Icon(Icons.person)),
-                   title: Text(m.contactName),
-                   subtitle: const Text("Usa Planmapp"),
-                   trailing: IconButton(
-                      icon: const Icon(Icons.person_add, color: AppTheme.primaryBrand),
-                      onPressed: () async {
-                          await widget.friendshipService.sendRequest(m.user.id);
-                          if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Solicitud enviada a ${m.contactName}")));
-                      },
-                   ),
-               )),
-               const Divider(height: 32),
-           ],
-           
-           if (invitables.isNotEmpty) ...[
-               const Padding(
-                 padding: EdgeInsets.only(bottom: 8.0),
-                 child: Text("Invítalos a la app", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-               ),
-               ...invitables.map((c) => ListTile(
-                   leading: CircleAvatar(backgroundColor: Colors.grey[200], child: Text(c.name[0])),
-                   title: Text(c.name),
-                   subtitle: Text(c.phone),
-                   trailing: ElevatedButton(
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.white, foregroundColor: Colors.black, elevation: 0, side: const BorderSide(color: Colors.grey)),
-                      onPressed: () {
-                          Share.share(
-                            "¡Oye! Descarga Planmapp para que organicemos nuestros planes sin estrés. 🚀\nhttps://planmapp.app",
-                            subject: "Invitación a Planmapp"
-                          );
-                      },
-                      child: const Text("Invitar"),
-                   ),
-               ))
-           ]
-        ],
-     );
   }
 }

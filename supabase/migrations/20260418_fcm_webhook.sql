@@ -52,3 +52,11 @@ CREATE TRIGGER on_plan_members_insert_fcm
 AFTER INSERT ON public.plan_members
 FOR EACH ROW
 EXECUTE FUNCTION public.trigger_fcm_webhook();
+
+-- Create Trigger for INSERTS on notifications (for in-app pinging)
+DROP TRIGGER IF EXISTS on_notifications_insert_fcm ON public.notifications;
+CREATE TRIGGER on_notifications_insert_fcm
+AFTER INSERT ON public.notifications
+FOR EACH ROW
+EXECUTE FUNCTION public.trigger_fcm_webhook();
+

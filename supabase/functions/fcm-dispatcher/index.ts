@@ -109,8 +109,25 @@ serve(async (req) => {
           data: { route: `/`, type: 'plan_invite' }, // Send them home to see the mailbox
           tokens: fcmTokensArray,
         };
+    } else if (table === 'notifications') {
+        const recipientId = record.user_id;
+        const title = record.title || 'Nueva Notificación';
+        const body = record.body || 'Tienes una nueva actualización en Planmapp.';
+        const route = record.route || '/';
+        const typeNotif = record.type || 'general';
+
+        // Fetch tokens for this recipient
+        const { data: tokens } = await supabaseClient.from('fcm_tokens').select('token').eq('user_id', recipientId);
+        if (!tokens || tokens.length === 0) return new Response(JSON.stringify({ status: "ok", notified: 0 }), { headers: reqCorsHeaders });
+        fcmTokensArray = tokens.map(t => t.token);
+
+        notificationPayload = {
+          notification: { title: title, body: body },
+          data: { route: route, type: typeNotif },
+          tokens: fcmTokensArray,
+        };
     } else {
-        return new Response(JSON.stringify({ status: "ignored", reason: "Unsupported table" }), { headers: reqCorsHeaders })
+        return new Response(JSON.stringify({ status: "ignored", reason: "Unsupported table: " + table }), { headers: reqCorsHeaders })
     }
 
     if (!notificationPayload || fcmTokensArray.length === 0) {

@@ -271,15 +271,81 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
       }
       
       final title = widget.expenseData['title'] ?? 'La Vaca';
-      final base = kIsWeb ? Uri.base.origin : "https://app.planmapp.com";
-      final link = "$base/#/vaca/$expenseId"; // Added hash for Hash Routing support locally
+      final base = kIsWeb ? Uri.base.origin : "https://planmapp.app";
+      final link = "$base/#/vaca/$expenseId"; 
       final msg = "¡Hey! Ya está lista la Vaca para *$title* 🐮.\n\nEscoge qué consumiste en este link para saber cuánto te toca pagar:\n$link";
       
-      final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(msg)}");
-      if (await canLaunchUrl(url)) {
-          await launchUrl(url);
-      } else {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo abrir WhatsApp')));
+      await showModalBottomSheet(
+          context: context,
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          builder: (c) => SafeArea(child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text("Compartir Enlace", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
+                  ListTile(
+                      leading: const Icon(Icons.notifications_active, color: AppTheme.primaryBrand),
+                      title: const Text("Notificar por la App"),
+                      subtitle: const Text("Avisará a todos los miembros registrados"),
+                      onTap: () async {
+                          Navigator.pop(c);
+                          await _notifyMembersInApp(title, expenseId);
+                      },
+                  ),
+                  ListTile(
+                      leading: const Icon(Icons.message, color: Colors.green),
+                      title: const Text("Enviar por WhatsApp"),
+                      subtitle: const Text("Link genérico para cualquier persona"),
+                      onTap: () async {
+                          Navigator.pop(c);
+                          final url = Uri.parse("https://wa.me/?text=${Uri.encodeComponent(msg)}");
+                          if (await canLaunchUrl(url)) {
+                              await launchUrl(url);
+                          } else {
+                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('No se pudo abrir WhatsApp')));
+                          }
+                      },
+                  ),
+                  const SizedBox(height: 16),
+              ],
+          ))
+      );
+  }
+
+  Future<void> _notifyMembersInApp(String vacaTitle, String expenseId) async {
+      try {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Enviando Notificaciones...")));
+          
+          final currentUserId = Supabase.instance.client.auth.currentUser?.id;
+          final organizerName = Supabase.instance.client.auth.currentUser?.email?.split('@').first ?? 'El organizador';
+
+          int sentCount = 0;
+          for (var member in _members) {
+              if (member.userId != null && member.userId != currentUserId) {
+                  await Supabase.instance.client.from('notifications').insert({
+                      'user_id': member.userId,
+                      'title': '¡La Vaca está lista! 🐮',
+                      'body': '$organizerName te invita a revisar tu cuenta en $vacaTitle.',
+                      'type': 'vaca_split',
+                      'route': '/vaca/$expenseId',
+                      'is_read': false
+                  });
+                  sentCount++;
+              }
+          }
+
+          if (mounted) {
+              if (sentCount > 0) {
+                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("¡$sentCount miembros notificados con éxito!", style: const TextStyle(color: Colors.white)), backgroundColor: Colors.green));
+              } else {
+                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No hay miembros registrados para notificar. Úsa WhatsApp.")));
+              }
+          }
+      } catch (e) {
+          print("Error enviando notificaciones internas: $e");
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error al notificar: $e")));
       }
   }
 

@@ -218,6 +218,70 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
   }
 
   void _remindUser(PaymentTracker t) async {
+       if (t.userId == null) {
+           // Anónimo -> Solo WhatsApp
+           _sendWhatsAppReminder(t);
+           return;
+       }
+
+       // Si está registrado, preguntarle al administrador cómo desea mandarlo
+       await showModalBottomSheet(
+           context: context,
+           shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+           builder: (c) => SafeArea(child: Column(
+               mainAxisSize: MainAxisSize.min,
+               children: [
+                   const Padding(
+                     padding: EdgeInsets.all(16.0),
+                     child: Text("Opciones de Recordatorio", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                   ),
+                   ListTile(
+                       leading: const Icon(Icons.notifications_active, color: AppTheme.primaryBrand),
+                       title: const Text("Notificar por la App"),
+                       subtitle: const Text("Le llegará una alerta a su teléfono"),
+                       onTap: () async {
+                           Navigator.pop(c);
+                           await _sendInternalNotificationReminder(t);
+                       },
+                   ),
+                   ListTile(
+                       leading: const Icon(Icons.message, color: Colors.green),
+                       title: const Text("Enviar por WhatsApp"),
+                       subtitle: const Text("Le mandará un mensaje prediseñado"),
+                       onTap: () {
+                           Navigator.pop(c);
+                           _sendWhatsAppReminder(t);
+                       },
+                   ),
+                   const SizedBox(height: 16),
+               ],
+           ))
+       );
+  }
+
+  Future<void> _sendInternalNotificationReminder(PaymentTracker t) async {
+      try {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Enviando Notificación...")));
+          
+          final quota = t.amountOwe > 0 ? t.amountOwe : _quotaPerPerson;
+          final organizerName = Supabase.instance.client.auth.currentUser?.email?.split('@').first ?? 'El organizador';
+
+          await Supabase.instance.client.from('notifications').insert({
+              'user_id': t.userId,
+              'title': 'Recordatorio de Pago 💸',
+              'body': '$organizerName te está recordando el pago de ${CurrencyInputFormatter.format(quota)} para \'$_planTitle\'.',
+              'type': 'payment_reminder',
+              'route': '/plan/${widget.planId}',
+              'is_read': false
+          });
+
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Notificación enviada con éxito!", style: TextStyle(color: Colors.white)), backgroundColor: Colors.green));
+      } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error al notificar: $e")));
+      }
+  }
+
+  Future<void> _sendWhatsAppReminder(PaymentTracker t) async {
        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Abriendo WhatsApp..."), duration: Duration(seconds: 1)));
        
        final quota = t.amountOwe > 0 ? t.amountOwe : _quotaPerPerson;
@@ -225,7 +289,6 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
        
        String url = "https://wa.me/?text=${Uri.encodeComponent(message)}"; // Default generic
 
-       // Try to find phone number
        if (t.userId != null) {
            try {
                final profile = await Supabase.instance.client.from('profiles').select('phone, country_code').eq('id', t.userId!).single();
@@ -233,10 +296,9 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
                final code = profile['country_code'] as String? ?? '';
                
                if (phone != null && phone.isNotEmpty) {
-                   final cleanPhone = phone.replaceAll(RegExp(r'\D'), ''); // Remove all non-digits
+                   final cleanPhone = phone.replaceAll(RegExp(r'\D'), ''); 
                    final cleanCode = code.replaceAll(RegExp(r'\D'), '');
                    url = "https://wa.me/$cleanCode$cleanPhone?text=${Uri.encodeComponent(message)}";
-                   print("DEBUG: Sending to $cleanCode$cleanPhone");
                }
            } catch (e) {
                print("Error fetching phone: $e");
@@ -246,7 +308,6 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
        try {
          await launchUrl(Uri.parse(url), mode: LaunchMode.externalApplication);
        } catch (e) {
-         // Fallback 
          await Share.share(message);
        }
   }
