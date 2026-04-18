@@ -189,6 +189,13 @@ class _SearchFriendsTabState extends State<_SearchFriendsTab> {
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               suffixIcon: IconButton(icon: const Icon(Icons.arrow_forward), onPressed: _search),
             ),
+            onChanged: (val) {
+                if (val.length >= 3) {
+                    _search();
+                } else if (val.isEmpty) {
+                    setState(() { _results = []; });
+                }
+            },
             onSubmitted: (_) => _search(),
           ),
           const SizedBox(height: 16),

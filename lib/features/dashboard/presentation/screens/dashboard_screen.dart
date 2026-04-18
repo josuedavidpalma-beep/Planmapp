@@ -39,8 +39,10 @@ class _DashboardScreenState extends State<DashboardScreen> {
   Future<void> _openScannerTool() async {
       await showModalBottomSheet(
           context: context, 
+          useRootNavigator: true,
           shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-          builder: (c) => Padding(
+          builder: (c) => SafeArea(
+            child: Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(
                   mainAxisSize: MainAxisSize.min,
@@ -62,6 +64,7 @@ class _DashboardScreenState extends State<DashboardScreen> {
                       ),
                   ]
               )
+            )
           )
       );
   }

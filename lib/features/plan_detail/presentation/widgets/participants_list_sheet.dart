@@ -297,7 +297,7 @@ class _InternalUserSearchSheetState extends State<_InternalUserSearchSheet> {
         return Container(
             height: MediaQuery.of(context).size.height * 0.7,
             padding: EdgeInsets.only(left: 20, right: 20, top: 24, bottom: MediaQuery.of(context).viewInsets.bottom),
-            decoration: const BoxDecoration(color: Colors.white, borderRadius: BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24))),
+            decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor, borderRadius: const BorderRadius.only(topLeft: Radius.circular(24), topRight: Radius.circular(24))),
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
