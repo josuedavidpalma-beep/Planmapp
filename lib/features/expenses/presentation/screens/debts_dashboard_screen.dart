@@ -9,6 +9,9 @@ import 'package:flutter/services.dart';
 import 'package:planmapp/core/services/plan_service.dart';
 import 'package:planmapp/features/expenses/presentation/widgets/reminder_settings_dialog.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
+import 'dart:io';
 
 class DebtsDashboardScreen extends StatefulWidget {
   final String? planId;
@@ -22,6 +25,7 @@ class DebtsDashboardScreen extends StatefulWidget {
 class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with SingleTickerProviderStateMixin {
   final _repository = ExpenseRepository(Supabase.instance.client);
   late TabController _tabController;
+  RealtimeChannel? _debtsSubscription;
   
   bool _isLoading = true;
   List<Map<String, dynamic>> _receivables = []; // Who owes me
@@ -36,10 +40,26 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
     super.initState();
     _tabController = TabController(length: 2, vsync: this);
     _loadData();
+    _setupRealtime();
+  }
+
+  void _setupRealtime() {
+      _debtsSubscription = Supabase.instance.client
+          .channel('public:expense_participant_status')
+          .onPostgresChanges(
+              event: PostgresChangeEvent.all,
+              schema: 'public',
+              table: 'expense_participant_status',
+              callback: (payload) {
+                  print("🔄 Realtime Update: Debts changed, reloading dashboard!");
+                  if (mounted) _loadData();
+              }
+          ).subscribe();
   }
 
   @override
   void dispose() {
+    _debtsSubscription?.unsubscribe();
     _tabController.dispose();
     super.dispose();
   }
@@ -93,24 +113,45 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
 
   Future<void> _markPaid(Map<String, dynamic> debt) async {
       final isReported = debt['status'] == 'reported';
+      final receiptUrl = debt['receipt_url'];
+      final nameStr = debt['guest_name'] ?? debt['profiles']['full_name'];
+      
       final title = isReported ? "Aprobar Pago" : "Confirmar Pago Manual";
-      final content = isReported 
-          ? "¿Confirmas que has recibido el dinero de ${debt['guest_name'] ?? debt['profiles']['full_name']}?"
-          : "¿Marcar la deuda de ${debt['guest_name'] ?? debt['profiles']['full_name']} como PAGADA manualmente?";
-
+      
       final confirm = await showDialog<bool>(
           context: context,
           builder: (c) => AlertDialog(
               title: Text(title),
-              content: Text(content),
+              content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                      Text(isReported 
+                          ? "¿Confirmas que has recibido el dinero de $nameStr?"
+                          : "¿Marcar la deuda de $nameStr como PAGADA manualmente?"
+                      ),
+                      if (receiptUrl != null) ...[
+                          const SizedBox(height: 16),
+                          const Text("Comprobante adjunto:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+                          const SizedBox(height: 8),
+                          ClipRRect(
+                              borderRadius: BorderRadius.circular(8),
+                              child: Image.network(receiptUrl, height: 200, fit: BoxFit.cover),
+                          ),
+                      ]
+                  ],
+              ),
               actions: [
-                  TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("Cancelar")),
-                  TextButton(onPressed: () => Navigator.pop(c, true), child: const Text("Confirmar")),
+                  if (isReported) TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("Rechazar Pago", style: TextStyle(color: Colors.red))),
+                  if (!isReported) TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("Cancelar")),
+                  TextButton(onPressed: () => Navigator.pop(c, true), child: const Text("Aprobar")),
               ],
           )
       );
 
-      if (confirm == true) {
+      if (confirm == false && isReported) {
+          // If they explicitly hit reject reported 
+          await _denyPayment(debt);
+      } else if (confirm == true) {
           await _repository.markDebtAsPaid(debt['expense_id'], debt['user_id'], debt['guest_name']);
           await _loadData(); 
       }
@@ -157,22 +198,63 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
   // ============== PAYABLES ACTIONS (Por Pagar) ============== //
 
   Future<void> _notifyMyPayment(Map<String, dynamic> debt) async {
-      final confirm = await showDialog<bool>(
+      final picker = ImagePicker();
+      
+      final result = await showModalBottomSheet<String>(
           context: context,
-          builder: (c) => AlertDialog(
-              title: const Text("Reportar Pago"),
-              content: const Text("¿Ya enviaste o entregaste el dinero al organizador?"),
-              actions: [
-                  TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("Aún no")),
-                  TextButton(onPressed: () => Navigator.pop(c, true), child: const Text("Sí, reportar")),
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          builder: (c) => SafeArea(child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text("Reportar Pago", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Text("¿Deseas adjuntar una captura de tu transferencia Nequi/Banco? Ayuda al organizador a validarlo más rápido. (Se borrará en 30 días)", style: TextStyle(color: Colors.grey, fontSize: 13), textAlign: TextAlign.center),
+                  ),
+                  const SizedBox(height: 16),
+                  ListTile(
+                      leading: const Icon(Icons.photo_library, color: AppTheme.primaryBrand),
+                      title: const Text("Subir Comprobante (Recomendado)"),
+                      onTap: () => Navigator.pop(c, 'photo'),
+                  ),
+                  ListTile(
+                      leading: const Icon(Icons.check_circle_outline, color: Colors.green),
+                      title: const Text("Reportar sin comprobante"),
+                      onTap: () => Navigator.pop(c, 'without_photo'),
+                  ),
+                  const SizedBox(height: 16),
               ],
-          )
+          ))
       );
 
-      if (confirm == true) {
-          await _repository.reportPayment(debt['expense_id']);
+      if (result == null) return;
+
+      String? uploadedUrl;
+      setState(() => _isLoading = true);
+
+      try {
+          if (result == 'photo') {
+              final xFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50); // Heavily compress image (max 500kb usually)
+              if (xFile != null) {
+                  final bytes = await xFile.readAsBytes();
+                  final ext = xFile.name.split('.').last;
+                  final path = '${Supabase.instance.client.auth.currentUser!.id}/${const Uuid().v4()}.$ext';
+                  
+                  await Supabase.instance.client.storage.from('payment_vouchers').uploadBinary(path, bytes);
+                  uploadedUrl = Supabase.instance.client.storage.from('payment_vouchers').getPublicUrl(path);
+              }
+          }
+
+          await _repository.reportPayment(debt['expense_id'], receiptUrl: uploadedUrl);
           await _loadData(); 
           if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pago notificado al organizador!")));
+          
+      } catch (e) {
+          setState(() => _isLoading = false);
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
       }
   }
 

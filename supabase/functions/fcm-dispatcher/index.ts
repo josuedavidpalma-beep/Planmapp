@@ -126,6 +126,27 @@ serve(async (req) => {
           data: { route: route, type: typeNotif },
           tokens: fcmTokensArray,
         };
+    } else if (table === 'polls') {
+        const planId = record.plan_id;
+        const creatorId = record.creator_id;
+        const question = record.question || 'Nueva encuesta';
+        
+        const { data: members } = await supabaseClient.from('plan_members').select('user_id').eq('plan_id', planId).neq('user_id', creatorId);
+        if (!members || members.length === 0) return new Response(JSON.stringify({ status: "ok", notified: 0 }), { headers: reqCorsHeaders });
+        
+        const memberIds = members.map(m => m.user_id);
+        const { data: tokens } = await supabaseClient.from('fcm_tokens').select('token').in('user_id', memberIds);
+        if (!tokens || tokens.length === 0) return new Response(JSON.stringify({ status: "ok", notified: 0 }), { headers: reqCorsHeaders });
+        fcmTokensArray = tokens.map(t => t.token);
+
+        const { data: planData } = await supabaseClient.from('plans').select('title').eq('id', planId).single();
+        const planTitle = planData?.title || 'Un plan';
+
+        notificationPayload = {
+          notification: { title: `Nueva Encuesta en ${planTitle} 📊`, body: question },
+          data: { route: `/plan/${planId}`, type: 'new_poll' },
+          tokens: fcmTokensArray,
+        };
     } else {
         return new Response(JSON.stringify({ status: "ignored", reason: "Unsupported table: " + table }), { headers: reqCorsHeaders })
     }

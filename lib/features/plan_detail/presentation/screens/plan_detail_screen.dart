@@ -80,11 +80,34 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
       if (!_tabController.indexIsChanging) setState(() {});
     });
     
-    // Defer loading to ensure context is ready? No, initState is fine, but we use safe call.
     _loadAllData();
+    _setupPollsSubscription();
+  }
+
+  RealtimeChannel? _pollsSubscription;
+  void _setupPollsSubscription() {
+      _pollsSubscription = Supabase.instance.client
+          .channel('public:poll_votes')
+          .onPostgresChanges(
+              event: PostgresChangeEvent.all,
+              schema: 'public',
+              table: 'poll_votes',
+              callback: (payload) {
+                   if (mounted) setState(() {
+                       _pollsStream = _pollService.getPollsStream(widget.planId);
+                   });
+              }
+          ).subscribe();
   }
   
-  // ... dispose ...
+  @override
+  void dispose() {
+    _pollsSubscription?.unsubscribe();
+    _chatScrollController.dispose();
+    _messageController.dispose();
+    _tabController.dispose();
+    super.dispose();
+  }
 
   void _scrollToBottom() {
     if (_chatScrollController.hasClients) {

@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
+import 'package:planmapp/features/expenses/presentation/screens/debts_dashboard_screen.dart' as planmapp_debts;
 import 'package:share_plus/share_plus.dart';
 import '../../services/friendship_service.dart';
 import '../../domain/models/friendship_model.dart';
@@ -51,6 +52,15 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     return Scaffold(
       appBar: AppBar(
         title: const Text("Mis Amigos"),
+        actions: [
+          IconButton(
+            icon: const Icon(Icons.account_balance_wallet, color: AppTheme.primaryBrand),
+            tooltip: "Historial de Cuentas",
+            onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (_) => const planmapp_debts.DebtsDashboardScreen()));
+            },
+          )
+        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppTheme.primaryBrand,

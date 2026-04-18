@@ -396,13 +396,16 @@ class ExpenseRepository {
   }
 
   // Report a payment as a debtor
-  Future<void> reportPayment(String expenseId) async {
+  Future<void> reportPayment(String expenseId, {String? receiptUrl}) async {
        try {
            final currentUser = _supabase.auth.currentUser;
            if (currentUser == null) throw Exception("No estás autenticado");
            
            await _supabase.from('expense_participant_status')
-               .update({'status': 'reported'})
+               .update({
+                   'status': 'reported',
+                   if (receiptUrl != null) 'receipt_url': receiptUrl
+               })
                .eq('expense_id', expenseId)
                .eq('user_id', currentUser.id);
 
