@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:planmapp/core/theme/theme_provider.dart';
 import 'package:planmapp/features/notifications/services/notification_service.dart';
+import 'package:planmapp/features/notifications/services/push_notification_service.dart';
 import 'package:planmapp/features/explore/services/events_service.dart';
 import 'package:planmapp/features/explore/data/models/event_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -124,6 +125,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 _userAge = age;
                 _showCompleteProfileBanner = !isAnon && (nickname == null || nickname.isEmpty);
               });
+              
+              // NEW: Solicitar permiso automáticamente al iniciar sesión a usuarios antiguos
+              if (!isAnon) {
+                 PushNotificationService().requestPermissionAndSaveToken();
+              }
           }
       } catch (e) {
           print("Error fetching user data: $e");
