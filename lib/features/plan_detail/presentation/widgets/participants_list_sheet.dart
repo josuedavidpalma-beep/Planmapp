@@ -3,6 +3,7 @@ import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:planmapp/features/plans/services/plan_members_service.dart';
 import 'package:planmapp/core/services/plan_service.dart'; // Core plan service
 import 'package:go_router/go_router.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ParticipantsListBottomSheet extends StatefulWidget {
   final String planId;
