@@ -7,6 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:planmapp/core/services/session_persistence_service.dart';
 import 'package:planmapp/features/plans/services/plan_members_service.dart';
+import 'package:planmapp/features/notifications/services/push_notification_service.dart';
 
 class OnboardingSetupScreen extends StatefulWidget {
   const OnboardingSetupScreen({super.key});
@@ -66,6 +67,10 @@ class _OnboardingSetupScreenState extends State<OnboardingSetupScreen> {
           'interests': _interests.toList(),
           'updated_at': DateTime.now().toIso8601String(),
         });
+        
+        // Dispara la solicitud de notificaciones push de forma asíncrona pero sin trabar la UI
+        PushNotificationService().requestPermissionAndSaveToken();
+
         // NEW: Check if there's a pending plan to go to after onboarding
         final pendingId = await SessionPersistenceService.getPendingPlanJoin();
         
