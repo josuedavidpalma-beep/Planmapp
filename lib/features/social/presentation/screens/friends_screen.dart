@@ -52,15 +52,6 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
     return Scaffold(
       appBar: AppBar(
         title: const Text("Mis Amigos"),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.account_balance_wallet, color: AppTheme.primaryBrand),
-            tooltip: "Historial de Cuentas",
-            onPressed: () {
-              Navigator.push(context, MaterialPageRoute(builder: (_) => const planmapp_debts.DebtsDashboardScreen()));
-            },
-          )
-        ],
         bottom: TabBar(
           controller: _tabController,
           labelColor: AppTheme.primaryBrand,
@@ -219,7 +210,8 @@ class _SearchFriendsTabState extends State<_SearchFriendsTab> {
                         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Solicitud enviada")));
                         widget.onFriendAdded();
                       } catch (e) {
-                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"))); // Likely duplicates
+                         final msg = e.toString().replaceAll('Exception: ', '');
+                         ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(msg)));
                       }
                     },
                   ),

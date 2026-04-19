@@ -92,6 +92,7 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
               else if (widget.category == 'Comida') vibeMapping = 'Comida/Gastro';
               else if (widget.category == 'Aventura') vibeMapping = 'Aventura/Outdoor';
               else if (widget.category == 'Cultura') vibeMapping = 'Cine/Cultura';
+              else if (widget.category == 'Deportes 🏃') vibeMapping = 'Deportes/Running';
               localQuery = localQuery.ilike('vibe_tag', '%$vibeMapping%');
           }
           

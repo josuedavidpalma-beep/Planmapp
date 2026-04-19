@@ -33,11 +33,18 @@ class FriendshipService {
     final myId = _supabase.auth.currentUser?.id;
     if (myId == null) throw Exception("Not logged in");
 
-    await _supabase.from('friendships').insert({
-      'requester_id': myId,
-      'receiver_id': receiverId,
-      'status': 'pending',
-    });
+    try {
+        await _supabase.from('friendships').insert({
+          'requester_id': myId,
+          'receiver_id': receiverId,
+          'status': 'pending',
+        });
+    } on PostgrestException catch (e) {
+        if (e.code == '23505') {
+            throw Exception("Ya hay una solicitud enviada para este usuario.");
+        }
+        rethrow;
+    }
   }
 
   /// Accept a friend request

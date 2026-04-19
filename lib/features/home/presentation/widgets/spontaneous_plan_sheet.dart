@@ -122,6 +122,7 @@ class _SpontaneousPlanSheetState extends State<SpontaneousPlanSheet> {
                                 _buildVisualMoodCard("Comida", "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80"),
                                 _buildVisualMoodCard("Aventura", "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=400&q=80"),
                                 _buildVisualMoodCard("Cultura", "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=400&q=80"),
+                                _buildVisualMoodCard("Deportes 🏃", "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=400&q=80"),
                                 _buildDiceCard(),
                             ],
                         ).animate().fadeIn(delay: 200.ms),

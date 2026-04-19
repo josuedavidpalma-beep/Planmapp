@@ -379,26 +379,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           ),
                         if (_dbPendingInvites.isNotEmpty)
                           _buildPendingInvites(),
-                        SizedBox(
-                          height: 40,
-                          child: ListView(
-                            scrollDirection: Axis.horizontal,
-                            children: [
-                              _buildFilterChip("Todo"),
-                              _buildFilterChip("Comida"),
-                              _buildFilterChip("Rumba"),
-                              _buildFilterChip("Cine & Arte"),
-                              _buildFilterChip("Aventura"),
-                              _buildFilterChip("Preventas"),
-                            ],
-                          ),
-                        ),
-                        const SizedBox(height: 24),
+                        const SizedBox(height: 8),
                       ],
                     ],
                   ),
                 ),
               ),
+
+              if (!_isSearching)
+                 SliverPersistentHeader(
+                   pinned: true,
+                   delegate: _FilterHeaderDelegate(
+                     child: Container(
+                       color: Theme.of(context).scaffoldBackgroundColor,
+                       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                       child: SizedBox(
+                         height: 40,
+                         child: ListView(
+                           scrollDirection: Axis.horizontal,
+                           children: [
+                             _buildFilterChip("Todo"),
+                             _buildFilterChip("Comida"),
+                             _buildFilterChip("Rumba"),
+                             _buildFilterChip("Cine & Arte"),
+                             _buildFilterChip("Aventura"),
+                             _buildFilterChip("Deportes 🏃"),
+                             _buildFilterChip("Preventas"),
+                           ],
+                         ),
+                       ),
+                     ),
+                   ),
+                 ),
 
               if (_isSearching && _searchQuery.isNotEmpty)
                 _isSearchLoading 
@@ -549,6 +561,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
       case "Rumba": return "bar";
       case "Cine & Arte": return "movie_theater";
       case "Aventura": return "park";
+      case "Deportes 🏃": return "sports";
       case "Preventas": return "preventas"; // Handled explicitly in EventsService
       default: return "restaurant";
     }
@@ -1061,4 +1074,23 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
       ),
     );
   }
+}
+
+class _FilterHeaderDelegate extends SliverPersistentHeaderDelegate {
+  final Widget child;
+  _FilterHeaderDelegate({required this.child});
+  
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+     return child;
+  }
+  
+  @override
+  double get maxExtent => 56.0;
+  
+  @override
+  double get minExtent => 56.0;
+  
+  @override
+  bool shouldRebuild(covariant SliverPersistentHeaderDelegate oldDelegate) => true;
 }

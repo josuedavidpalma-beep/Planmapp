@@ -6,6 +6,10 @@ import 'package:planmapp/features/expenses/presentation/screens/scan_receipt_scr
 import 'package:planmapp/features/expenses/presentation/screens/debts_dashboard_screen.dart';
 import 'package:planmapp/core/services/plan_service.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:planmapp/features/expenses/data/repositories/expense_repository.dart';
+import 'package:planmapp/features/expenses/data/models/expense_model.dart';
+import 'package:planmapp/core/utils/currency_formatter.dart';
+import 'package:planmapp/features/expenses/presentation/screens/expense_split_screen.dart';
 
 class DashboardScreen extends StatefulWidget {
   const DashboardScreen({super.key});
@@ -16,6 +20,22 @@ class DashboardScreen extends StatefulWidget {
 
 class _DashboardScreenState extends State<DashboardScreen> {
   bool _isLoading = false;
+  String? _toolsPlanId;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadToolsPlan();
+  }
+
+  Future<void> _loadToolsPlan() async {
+      try {
+          final id = await PlanService().getOrCreateToolsPlan();
+          if (mounted) setState(() => _toolsPlanId = id);
+      } catch (e) {
+          debugPrint("Error loading tools plan: $e");
+      }
+  }
 
   Future<void> _openBudgetTool() async {
       setState(() => _isLoading = true);
@@ -139,6 +159,77 @@ class _DashboardScreenState extends State<DashboardScreen> {
                     color: Colors.orangeAccent,
                     onTap: _openGlobalDebts,
                 ),
+                
+                const SizedBox(height: 32),
+                const Padding(
+                  padding: EdgeInsets.symmetric(horizontal: 8.0),
+                  child: Text("Historial de Cuentas Rápidas", style: TextStyle(fontSize: 18, fontWeight: FontWeight.w900)),
+                ),
+                const SizedBox(height: 16),
+                
+                if (_toolsPlanId != null)
+                   StreamBuilder<List<Expense>>(
+                      stream: ExpenseRepository(Supabase.instance.client).getExpensesStream(_toolsPlanId!),
+                      builder: (context, snapshot) {
+                         if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
+                         if (!snapshot.hasData || snapshot.data!.isEmpty) {
+                             return Container(
+                                padding: const EdgeInsets.all(24),
+                                child: const Center(child: Text("No has creado divisiones directas aún.", style: TextStyle(color: Colors.grey))),
+                             );
+                         }
+                         
+                         final expenses = snapshot.data!;
+                         return ListView.separated(
+                             shrinkWrap: true,
+                             physics: const NeverScrollableScrollPhysics(),
+                             itemCount: expenses.length,
+                             separatorBuilder: (c, i) => const SizedBox(height: 12),
+                             itemBuilder: (c, i) {
+                                 final ex = expenses[i];
+                                 return InkWell(
+                                     onTap: () {
+                                         // Reopen the Split screen
+                                         Navigator.push(context, MaterialPageRoute(
+                                             builder: (context) => ExpenseSplitScreen(
+                                                 expenseData: ex.toJson(),
+                                                 initialItems: ex.items ?? [],
+                                             )
+                                         ));
+                                     },
+                                     borderRadius: BorderRadius.circular(16),
+                                     child: Container(
+                                        padding: const EdgeInsets.all(16),
+                                        decoration: BoxDecoration(
+                                            border: Border.all(color: Colors.grey.withOpacity(0.2)),
+                                            borderRadius: BorderRadius.circular(16)
+                                        ),
+                                        child: Row(
+                                           children: [
+                                              Container(
+                                                 padding: const EdgeInsets.all(12),
+                                                 decoration: BoxDecoration(color: AppTheme.primaryBrand.withOpacity(0.1), shape: BoxShape.circle),
+                                                 child: const Icon(Icons.receipt_long, color: AppTheme.primaryBrand),
+                                              ),
+                                              const SizedBox(width: 16),
+                                              Expanded(
+                                                  child: Column(
+                                                     crossAxisAlignment: CrossAxisAlignment.start,
+                                                     children: [
+                                                         Text(ex.title, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                                         Text(CurrencyInputFormatter.format(ex.totalAmount), style: const TextStyle(color: Colors.grey, fontWeight: FontWeight.w500)),
+                                                     ],
+                                                  )
+                                              ),
+                                              const Icon(Icons.arrow_forward_ios, size: 14, color: Colors.grey),
+                                           ],
+                                        )
+                                     )
+                                 );
+                             }
+                         );
+                      }
+                   )
             ],
         ),
     );
