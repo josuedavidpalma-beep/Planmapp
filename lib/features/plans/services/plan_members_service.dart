@@ -32,13 +32,19 @@ class PlanMembersService {
         // Fetch name from Profile (Best effort)
         String displayName = "Miembro";
         String? avatarUrl;
+        List<String> interests = [];
         try {
-           final profile = await _supabase.from('profiles').select('display_name, email, avatar_url').eq('id', uid).maybeSingle();
+           final profile = await _supabase.from('profiles').select('nickname, full_name, display_name, avatar_url, interests').eq('id', uid).maybeSingle();
            if (profile != null) {
-              displayName = profile['display_name'] ?? profile['email']?.split('@')[0] ?? "Miembro";
+              displayName = profile['nickname'] ?? profile['full_name'] ?? profile['display_name'] ?? "Usuario";
               avatarUrl = profile['avatar_url'];
+              if (profile['interests'] != null) {
+                  interests = List<String>.from((profile['interests'] as List).map((e) => e.toString()));
+              }
            }
-        } catch (_) {}
+        } catch (e) {
+           print("Error fetching profile for $uid: $e");
+        }
 
         // Override name for "Me"
         if (uid == myId) displayName = "Yo";
@@ -52,7 +58,8 @@ class PlanMembersService {
             isGuest: false, 
             role: role, 
             avatarUrl: avatarUrl,
-            status: status
+            status: status,
+            interests: interests,
         ));
       }
 
@@ -109,6 +116,7 @@ class PlanMember {
   final String role; // admin, treasure, member
   final String? avatarUrl;
   final String status; // pending, accepted, declined
+  final List<String> interests;
 
   PlanMember({
       required this.id, 
@@ -117,5 +125,6 @@ class PlanMember {
       this.role = 'member',
       this.avatarUrl,
       this.status = 'pending',
+      this.interests = const [],
   });
 }

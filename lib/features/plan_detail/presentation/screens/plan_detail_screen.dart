@@ -179,7 +179,6 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
       }
   }
 
-  // Fetch members for Chat avatars
   Future<void> _loadMembers() async {
       try {
           final members = await PlanMembersService().getMembers(widget.planId);
@@ -188,7 +187,8 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
               map[m.id] = {
                   'full_name': m.name,
                   'avatar_url': m.avatarUrl,
-                  'role': m.role
+                  'role': m.role,
+                  'interests': m.interests
               };
           }
           if (mounted) setState(() => _membersMap = map);
@@ -1542,6 +1542,69 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
     );
   }
 
+  void _showUserProfileModal(Map<String, dynamic>? userProfile, String fallbackName) {
+      if (userProfile == null) return;
+      
+      final String fullName = userProfile['full_name'] ?? fallbackName;
+      final String? avatarUrl = userProfile['avatar_url'];
+      final List<String> interests = List<String>.from(userProfile['interests'] ?? []);
+
+      showModalBottomSheet(
+          context: context,
+          backgroundColor: Colors.transparent,
+          isScrollControlled: true,
+          builder: (context) {
+              return Container(
+                 padding: const EdgeInsets.all(24),
+                 decoration: BoxDecoration(
+                    color: Theme.of(context).scaffoldBackgroundColor,
+                    borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
+                    border: Border(top: BorderSide(color: AppTheme.primaryBrand.withOpacity(0.2), width: 1)),
+                 ),
+                 child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                       Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey.withOpacity(0.3), borderRadius: BorderRadius.circular(2))),
+                       const SizedBox(height: 24),
+                       CircleAvatar(
+                          radius: 52,
+                          backgroundColor: AppTheme.primaryBrand.withOpacity(0.1),
+                          backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                          child: avatarUrl == null ? Text(fullName[0].toUpperCase(), style: const TextStyle(fontSize: 36, color: AppTheme.primaryBrand)) : null,
+                       ),
+                       const SizedBox(height: 16),
+                       Text(fullName, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.w800, color: Colors.white)),
+                       const SizedBox(height: 4),
+                       Text(userProfile['role'] == 'admin' ? 'Creador del Plan' : 'Miembro', style: TextStyle(color: Colors.grey[400], fontWeight: FontWeight.w500)),
+                       const SizedBox(height: 32),
+                       if (interests.isNotEmpty) ...[
+                          const Text("VIBE MATCHER", style: TextStyle(color: AppTheme.secondaryBrand, fontSize: 13, fontWeight: FontWeight.w900, letterSpacing: 1.5)),
+                          const SizedBox(height: 16),
+                          Wrap(
+                             spacing: 8,
+                             runSpacing: 12,
+                             alignment: WrapAlignment.center,
+                             children: interests.map((i) => Container(
+                                 padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                                 decoration: BoxDecoration(
+                                    color: AppTheme.primaryBrand.withOpacity(0.15),
+                                    borderRadius: BorderRadius.circular(20),
+                                    border: Border.all(color: AppTheme.primaryBrand.withOpacity(0.3)),
+                                 ),
+                                 child: Text(i.toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.w600)),
+                             )).toList(),
+                          )
+                       ],
+                       if (interests.isEmpty)
+                          Text("Aún no ha configurado sus vibes.", style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic)),
+                       const SizedBox(height: 48),
+                    ]
+                 )
+              );
+          }
+      );
+  }
+
   Widget _buildMessageBubble(Message msg) {
     if (msg.type == 'roulette') {
         return RouletteMessageBubble(
@@ -1577,13 +1640,16 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
         children: [
             // Avatar for others
             if (!isMe && !isSystem) ...[
-                CircleAvatar(
-                    radius: 16,
-                    backgroundColor: Colors.grey[300],
-                    backgroundImage: userProfile?['avatar_url'] != null ? NetworkImage(userProfile!['avatar_url']) : null,
-                    child: userProfile?['avatar_url'] == null 
-                        ? Text(senderName[0].toUpperCase(), style: const TextStyle(fontSize: 12, color: Colors.black87)) 
-                        : null,
+                GestureDetector(
+                    onTap: () => _showUserProfileModal(userProfile, senderName),
+                    child: CircleAvatar(
+                        radius: 16,
+                        backgroundColor: Colors.grey[300],
+                        backgroundImage: userProfile?['avatar_url'] != null ? NetworkImage(userProfile!['avatar_url']) : null,
+                        child: userProfile?['avatar_url'] == null 
+                            ? Text(senderName[0].toUpperCase(), style: const TextStyle(fontSize: 12, color: Colors.black87)) 
+                            : null,
+                    ),
                 ),
                 const SizedBox(width: 8),
             ],

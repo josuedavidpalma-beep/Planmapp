@@ -1,5 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
-import * as admin from "npm:firebase-admin@11.11.0"
+import admin from "npm:firebase-admin@11.11.0"
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.0"
 
 // Setup Firebase Admin using the Service Account injected as an Environment Variable

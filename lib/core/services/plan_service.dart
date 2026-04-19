@@ -46,7 +46,10 @@ class PlanService {
 
   Future<List<Plan>> getPlans({bool archived = false, bool deleted = false}) async {
     try {
-      var query = _supabase.from('plans').select();
+      final user = _supabase.auth.currentUser;
+      if (user == null) throw Exception("No autenticado");
+      
+      var query = _supabase.from('plans').select('*, plan_members!inner(user_id)').eq('plan_members.user_id', user.id);
 
       if (deleted) {
           query = query.not('deleted_at', 'is', null);

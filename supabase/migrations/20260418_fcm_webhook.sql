@@ -6,20 +6,13 @@ RETURNS trigger AS $$
 DECLARE
     webhook_url TEXT;
 BEGIN
-    -- The URL to your Supabase Edge Function
-    -- In Supabase project, internal edge functions can be called via pg_net
-    webhook_url := current_setting('custom.my_supabase_url', true) || '/functions/v1/fcm-dispatcher';
+    -- Hardcoded URL para tu Edge Function
+    webhook_url := 'https://pthiaalrizufhlplbjht.supabase.co/functions/v1/fcm-dispatcher';
     
-    -- Fast exit if URL is not configured (prevents crash on local dev if not set)
-    IF webhook_url IS NULL OR webhook_url = '/functions/v1/fcm-dispatcher' THEN
-      RETURN NEW;
-    END IF;
-
     perform net.http_post(
         url := webhook_url,
         headers := jsonb_build_object(
-            'Content-Type', 'application/json',
-            'Authorization', 'Bearer ' || current_setting('custom.my_supabase_anon_key', true)
+            'Content-Type', 'application/json'
         ),
         body := jsonb_build_object(
             'type', TG_OP,
