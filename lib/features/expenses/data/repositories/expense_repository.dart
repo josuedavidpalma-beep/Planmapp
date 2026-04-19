@@ -32,6 +32,16 @@ class ExpenseRepository {
     }
   }
 
+  // Stream expenses for a plan
+  Stream<List<Expense>> getExpensesStream(String planId) {
+     return _supabase
+        .from('expenses')
+        .stream(primaryKey: ['id'])
+        .eq('plan_id', planId)
+        .order('created_at', ascending: false)
+        .map((list) => list.map((json) => Expense.fromJson(json)).toList());
+  }
+
   // Create a new expense header
   Future<Expense> createExpense(Map<String, dynamic> expenseData) async {
     try {
