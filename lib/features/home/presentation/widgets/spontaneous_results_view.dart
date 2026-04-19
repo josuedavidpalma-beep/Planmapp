@@ -58,11 +58,11 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
           List<String> userVibes = [];
           final user = Supabase.instance.client.auth.currentUser;
           if (user != null) {
-              final profile = await Supabase.instance.client.from('profiles').select('budget_level, birth_date, birthday, vibes').eq('id', user.id).maybeSingle();
+              final profile = await Supabase.instance.client.from('profiles').select('budget_level, birth_date, birthday, interests').eq('id', user.id).maybeSingle();
               if (profile != null) {
                   budgetLevel = profile['budget_level'];
-                  if (profile['vibes'] != null) {
-                      userVibes = List<String>.from(profile['vibes'] ?? []);
+                  if (profile['interests'] != null) {
+                      userVibes = List<String>.from(profile['interests'] ?? []);
                   }
                   final birthStr = profile['birth_date'] ?? profile['birthday'];
                   if (birthStr != null) {
