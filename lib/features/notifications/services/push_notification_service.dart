@@ -20,9 +20,8 @@ class PushNotificationService {
 
   PushNotificationService._internal();
 
-  /// Requests permission and saves the FCM token to the database.
-  /// Should be explicitly triggered post-registration to get the popup.
-  Future<void> requestPermissionAndSaveToken() async {
+  /// Returns true if permission was granted or provisional, false if denied.
+  Future<bool> requestPermissionAndSaveToken() async {
     try {
       // 1. Request OS Permission
       NotificationSettings settings = await _fcm.requestPermission(
@@ -63,12 +62,16 @@ class PushNotificationService {
                 // You could trigger a local NotificationService here or a Snackbar alert
             }
         });
+        
+        return true;
 
       } else {
         print('User declined or has not accepted permission');
+        return false;
       }
     } catch (e) {
       print("PushNotificationService Error: $e");
+      return false;
     }
   }
 

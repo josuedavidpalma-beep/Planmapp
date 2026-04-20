@@ -22,6 +22,7 @@ class MyPlansScreen extends ConsumerStatefulWidget {
 
 class _MyPlansScreenState extends ConsumerState<MyPlansScreen> {
   List<Plan> _plans = [];
+  List<Plan> _chats = [];
   bool _isLoading = true;
   String? _errorMessage;
 
@@ -56,16 +57,15 @@ class _MyPlansScreenState extends ConsumerState<MyPlansScreen> {
           setState(() { 
               _isLoading = true;
               _plans = []; // OPTIMISTIC CLEAR
+              _chats = [];
           }); 
           
           try {
               await PlanService().deleteAllPlans();
               if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Limpieza completada ✨")));
           } catch (e) {
-              // Even if it fails, we cleared the UI. 
               if(mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Nota: $e")));
           } finally {
-             // Reload to see what actually survived
              _loadPlans();
           }
       }
@@ -79,10 +79,12 @@ class _MyPlansScreenState extends ConsumerState<MyPlansScreen> {
     });
     
     try {
-      final plans = await PlanService().getPlans();
+      final plans = await PlanService().getPlans(isDirectChat: false);
+      final chats = await PlanService().getPlans(isDirectChat: true);
       if (mounted) {
         setState(() {
           _plans = plans;
+          _chats = chats;
           _isLoading = false;
         });
       }
@@ -98,50 +100,70 @@ class _MyPlansScreenState extends ConsumerState<MyPlansScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      extendBodyBehindAppBar: true,
-      appBar: AppBar(
-        title: const Text("Mis Planes", style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white, fontSize: 24)),
-        backgroundColor: Colors.transparent,
-        elevation: 0,
-        centerTitle: false,
-        actions: [
-           IconButton(
-             icon: const Icon(Icons.refresh, color: Colors.white), 
-             onPressed: _loadPlans,
-             tooltip: "Recargar",
-           ),
-           IconButton(
-             icon: const Icon(Icons.delete_sweep, color: Colors.white54),
-             onPressed: _confirmDeleteAll,
-             tooltip: "Eliminar Todo (Debug)",
-           )
-        ],
-      ),
-      body: Container(
-        color: AppTheme.darkBackground,
-        child: SafeArea(
-          child: Column(
-            children: [
-               Expanded(
-                 child: Container(
-                   width: double.infinity,
-                   decoration: BoxDecoration(
-                      color: Theme.of(context).scaffoldBackgroundColor,
-                      borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-                      boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -5))]
-                   ),
-                   child: ClipRRect(
-                     borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
-                     child: _isLoading 
-                        ? _buildLoadingState() 
-                        : _errorMessage != null 
-                            ? _buildErrorState()
-                            : _plans.isEmpty ? _buildEmptyState() : _buildPlanList(context, _plans),
+    return DefaultTabController(
+      length: 2,
+      child: Scaffold(
+        extendBodyBehindAppBar: true,
+        appBar: AppBar(
+          title: const Text("Mis Espacios", style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white, fontSize: 24)),
+          backgroundColor: AppTheme.darkBackground,
+          elevation: 0,
+          centerTitle: false,
+          actions: [
+             IconButton(
+               icon: const Icon(Icons.person_add_alt_1, color: Colors.white), 
+               onPressed: () => _showNewChatDialog(context),
+               tooltip: "Nuevo Chat",
+             ),
+             IconButton(
+               icon: const Icon(Icons.refresh, color: Colors.white), 
+               onPressed: _loadPlans,
+               tooltip: "Recargar",
+             ),
+             IconButton(
+               icon: const Icon(Icons.delete_sweep, color: Colors.white54),
+               onPressed: _confirmDeleteAll,
+               tooltip: "Eliminar Todo (Debug)",
+             )
+          ],
+          bottom: const TabBar(
+            indicatorColor: AppTheme.primaryBrand,
+            tabs: [
+              Tab(icon: Icon(Icons.celebration, size: 20), text: "Planes Grupos"),
+              Tab(icon: Icon(Icons.chat_bubble_outline, size: 20), text: "Chats"),
+            ],
+          ),
+        ),
+        body: Container(
+          color: AppTheme.darkBackground,
+          child: SafeArea(
+            child: Column(
+              children: [
+                 Expanded(
+                   child: Container(
+                     width: double.infinity,
+                     decoration: BoxDecoration(
+                        color: Theme.of(context).scaffoldBackgroundColor,
+                        borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                        boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, -5))]
+                     ),
+                     child: ClipRRect(
+                       borderRadius: const BorderRadius.vertical(top: Radius.circular(30)),
+                       child: _isLoading 
+                          ? _buildLoadingState() 
+                          : _errorMessage != null 
+                              ? _buildErrorState()
+                              : TabBarView(
+                                  children: [
+                                    _plans.isEmpty ? _buildEmptyState(false) : _buildPlanList(context, _plans),
+                                    _chats.isEmpty ? _buildEmptyState(true) : _buildPlanList(context, _chats),
+                                  ],
+                                ),
+                     ),
                    ),
                  ),
-               ),
-            ],
+              ],
+            ),
           ),
         ),
       ),
@@ -179,15 +201,15 @@ class _MyPlansScreenState extends ConsumerState<MyPlansScreen> {
      );
   }
 
-  Widget _buildEmptyState() {
+  Widget _buildEmptyState(bool isChat) {
      return Center(
         child: Column(
            children: [
-              const Expanded(
+              Expanded(
                 child: PremiumEmptyState(
-                  icon: Icons.rocket_launch_rounded, // Better visual metaphor
-                  title: "Aún no hay expediciones",
-                  subtitle: "Tus futuros planes, vacas y deudas organizadas aparecerán aquí mágicamente.",
+                  icon: isChat ? Icons.chat_bubble_outline : Icons.rocket_launch_rounded,
+                  title: isChat ? "Aún no tienes chats" : "Aún no hay expediciones",
+                  subtitle: isChat ? "Tus mensajes y vacas 1 a 1 aparecerán aquí." : "Tus futuros planes, vacas y deudas organizadas aparecerán aquí mágicamente.",
                 )
               ),
               _buildArchiveAndTrashSection(context),
@@ -441,45 +463,59 @@ class _PlanCard extends StatelessWidget {
                 
                 const SizedBox(height: 16),
                 
-                // Info Row
-                Row(
-                  children: [
-                      Container(
-                       padding: const EdgeInsets.all(8),
-                       decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-                       child: const Icon(Icons.calendar_today_rounded, size: 16, color: Colors.white),
-                     ),
-                     const SizedBox(width: 12),
-                     Column(
-                       crossAxisAlignment: CrossAxisAlignment.start,
-                       children: [
-                          Text(plan.eventDate != null ? DateFormat('MMM d, y').format(plan.eventDate!) : "Por definir", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
-                          Text(plan.eventDate != null ? DateFormat('h:mm a').format(plan.eventDate!) : "--:--", style: TextStyle(color: Colors.white70, fontSize: 13)),
-                       ],
-                     )
-                  ],
-                ),
-                const SizedBox(height: 12),
-                Row(
-                  children: [
-                     Container(
-                       padding: const EdgeInsets.all(8),
-                       decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
-                       child: const Icon(Icons.location_on_outlined, size: 16, color: Colors.white),
-                     ),
-                     const SizedBox(width: 12),
-                     Expanded(
-                       child: Text(
-                         plan.locationName.isEmpty ? "Ubicación por definir" : plan.locationName,
-                         maxLines: 1,
-                         overflow: TextOverflow.ellipsis,
-                         style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.white),
+                if (!plan.isDirectChat) ...[
+                  Row(
+                    children: [
+                        Container(
+                         padding: const EdgeInsets.all(8),
+                         decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                         child: const Icon(Icons.calendar_today_rounded, size: 16, color: Colors.white),
                        ),
-                     ),
-                  ],
-                ),
-
-                const SizedBox(height: 20),
+                       const SizedBox(width: 12),
+                       Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         children: [
+                            Text(plan.eventDate != null ? DateFormat('MMM d, y').format(plan.eventDate!) : "Por definir", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
+                            Text(plan.eventDate != null ? DateFormat('h:mm a').format(plan.eventDate!) : "--:--", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                         ],
+                       )
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                       Container(
+                         padding: const EdgeInsets.all(8),
+                         decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                         child: const Icon(Icons.location_on_outlined, size: 16, color: Colors.white),
+                       ),
+                       const SizedBox(width: 12),
+                       Expanded(
+                         child: Text(
+                           plan.locationName.isEmpty ? "Ubicación por definir" : plan.locationName,
+                           maxLines: 1,
+                           overflow: TextOverflow.ellipsis,
+                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.white),
+                         ),
+                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                ] else ...[
+                  // Direct Chat visual filler
+                  Row(
+                     children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: AppTheme.primaryBrand.withOpacity(0.3), borderRadius: BorderRadius.circular(10)),
+                          child: const Icon(Icons.lock, size: 16, color: Colors.white),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text("Chat cifrado de amigo", style: TextStyle(color: Colors.white70)),
+                     ]
+                  ),
+                  const SizedBox(height: 20),
+                ],
                 const Divider(height: 1),
                 const SizedBox(height: 16),
                 
@@ -580,6 +616,97 @@ class _PlanCard extends StatelessWidget {
           ),
       ],
     );
+  }
+}
+
+  Future<void> _showNewChatDialog(BuildContext context) async {
+       String searchEmail = "";
+       bool isSearchingUser = false;
+       String? searchError;
+       Map<String, dynamic>? foundUser;
+
+       await showModalBottomSheet(
+           context: context, 
+           isScrollControlled: true,
+           backgroundColor: Colors.transparent,
+           builder: (c) => StatefulBuilder(
+               builder: (context, setState) {
+                   return Container(
+                       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 32),
+                       decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor, borderRadius: const BorderRadius.vertical(top: Radius.circular(30))),
+                       child: Column(
+                           mainAxisSize: MainAxisSize.min,
+                           children: [
+                               const Text("Nuevo Chat Directo", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                               const SizedBox(height: 8),
+                               const Text("Busca a un usuario por su correo exacto para iniciar un chat 1-a-1.", style: TextStyle(color: Colors.grey, fontSize: 13), textAlign: TextAlign.center,),
+                               const SizedBox(height: 24),
+                               TextField(
+                                   decoration: const InputDecoration(
+                                       hintText: "ejemplo@correo.com",
+                                       prefixIcon: Icon(Icons.search),
+                                       border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(16)))
+                                   ),
+                                   keyboardType: TextInputType.emailAddress,
+                                   onChanged: (v) => searchEmail = v.trim(),
+                               ),
+                               const SizedBox(height: 16),
+                               if (searchError != null) Text(searchError!, style: const TextStyle(color: Colors.red)),
+                               if (isSearchingUser) const CircularProgressIndicator(),
+                               if (foundUser != null)
+                                   Card(
+                                       color: AppTheme.darkBackground,
+                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                       child: ListTile(
+                                           leading: const CircleAvatar(backgroundColor: Colors.blue, child: Icon(Icons.person, color: Colors.white)),
+                                           title: Text(foundUser?['nickname'] ?? foundUser?['full_name'] ?? 'Usuario', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                           subtitle: Text("ID: ${foundUser!['id'].substring(0,6)}...", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                           trailing: IconButton(
+                                                icon: const Icon(Icons.chat, color: AppTheme.primaryBrand),
+                                                onPressed: () async {
+                                                     Navigator.pop(context);
+                                                     try {
+                                                         final chatId = await PlanService().getOrCreateDirectChat(foundUser!['id']);
+                                                         if (mounted) context.push('/plan/$chatId');
+                                                     } catch (e) {
+                                                         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                                                     }
+                                                }
+                                           )
+                                       )
+                                   ),
+                               const SizedBox(height: 24),
+                               SizedBox(width: double.infinity, height: 50, child: ElevatedButton(
+                                   style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand),
+                                   onPressed: isSearchingUser ? null : () async {
+                                       if(searchEmail.isEmpty) return;
+                                       setState(() { isSearchingUser = true; searchError = null; foundUser = null; });
+                                       try {
+                                            // Realizamos la búsqueda
+                                            final res = await Supabase.instance.client.from('profiles').select('id, full_name, nickname').eq('email', searchEmail).maybeSingle();
+                                            if (res != null) {
+                                                if (res['id'] == Supabase.instance.client.auth.currentUser?.id) {
+                                                    throw Exception("No puedes chatear contigo mismo.");
+                                                }
+                                                setState(() { foundUser = res; });
+                                            } else {
+                                                setState(() { searchError = "Usuario no encontrado."; });
+                                            }
+                                       } catch (e) {
+                                            setState(() { searchError = "Fallo la búsqueda: $e"; });
+                                       } finally {
+                                            setState(() { isSearchingUser = false; });
+                                       }
+                                   },
+                                   child: const Text("Buscar Usuario")
+                               )),
+                               const SizedBox(height: 32),
+                           ]
+                       )
+                   );
+               }
+           )
+       );
   }
 }
 

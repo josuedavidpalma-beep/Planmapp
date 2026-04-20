@@ -44,7 +44,7 @@ class PlanService {
   }
 
 
-  Future<List<Plan>> getPlans({bool archived = false, bool deleted = false}) async {
+  Future<List<Plan>> getPlans({bool archived = false, bool deleted = false, bool isDirectChat = false}) async {
     try {
       final user = _supabase.auth.currentUser;
       if (user == null) throw Exception("No autenticado");
@@ -58,6 +58,8 @@ class PlanService {
       } else {
           query = query.filter('deleted_at', 'is', null).filter('archived_at', 'is', null);
       }
+      
+      query = query.eq('is_direct_chat', isDirectChat);
       
       final response = await query
           .neq('title', '__PLANMAPP_TOOLS_MODE__')
@@ -274,5 +276,66 @@ class PlanService {
           print("Error in getOrCreateToolsPlan: $e");
           throw Exception("No se pudo inicializar la base de datos de herramientas: $e");
       }
+  }
+
+  // --- DIRECT CHATS ---
+  Future<String> getOrCreateDirectChat(String targetUserId) async {
+       try {
+           final user = _supabase.auth.currentUser;
+           if (user == null) throw Exception("No autenticado");
+
+           // Usamos una consulta RPC para encontrar un plan que ya tenga EXACTAMENTE a ambos usuarios
+           // Pero dado que un chat directo siempre tiene is_direct_chat = true, es más fácil consultar:
+           // Buscamos los chats directos míos y vemos si el targetUserId está en ellos.
+           final myChatsResponse = await _supabase.from('plans')
+             .select('id, plan_members!inner(user_id)')
+             .eq('is_direct_chat', true)
+             .eq('plan_members.user_id', user.id);
+             
+           final myChatIds = (myChatsResponse as List).map((p) => p['id'] as String).toList();
+           
+           if (myChatIds.isNotEmpty) {
+               // Verify if targetUserId is in any of these chats
+               final targetChat = await _supabase.from('plan_members')
+                 .select('plan_id')
+                 .inFilter('plan_id', myChatIds)
+                 .eq('user_id', targetUserId)
+                 .maybeSingle();
+                 
+               if (targetChat != null) {
+                   return targetChat['plan_id'] as String;
+               }
+           }
+
+           // No existe = Creamos uno nuevo
+           final newId = const Uuid().v4();
+           await _supabase.from('plans').insert({
+               'id': newId,
+               'creator_id': user.id,
+               'title': 'Chat Directo', // Fallback, the UI will override this visually
+               'location_name': 'Chat',
+               'status': 'active',
+               'is_direct_chat': true
+           });
+
+           // Me agrego a mí
+           await _supabase.from('plan_members').insert({
+               'plan_id': newId,
+               'user_id': user.id,
+               'role': 'admin'
+           });
+           
+           // Agrego al target
+           await _supabase.from('plan_members').insert({
+               'plan_id': newId,
+               'user_id': targetUserId,
+               'role': 'admin'
+           });
+           
+           listUpdateNotifier.value++;
+           return newId;
+       } catch(e) {
+           throw Exception("No se pudo iniciar el chat: $e");
+       }
   }
 }

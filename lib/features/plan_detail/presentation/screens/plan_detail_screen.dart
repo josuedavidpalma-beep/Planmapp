@@ -29,7 +29,7 @@ import 'package:planmapp/features/plan_detail/presentation/widgets/final_confirm
 import 'package:planmapp/features/plan_detail/presentation/widgets/participants_list_sheet.dart'; 
 import 'package:url_launcher/url_launcher.dart';
 import 'package:planmapp/core/services/invitation_service.dart';
-// import 'package:planmapp/features/plan_detail/presentation/screens/games_plan_tab.dart'; // REMOVED
+import 'package:planmapp/core/presentation/widgets/social_embed_player.dart';
 
 class PlanDetailScreen extends StatefulWidget {
   final String planId;
@@ -1695,6 +1695,12 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                            fontSize: 15,
                          ),
                        ),
+                       
+                       // Embedded Media (TikTok, Reels)
+                       if (!isSystem && RegExp(r'(https?://(www\.)?(tiktok\.com|vm\.tiktok\.com|instagram\.com/(reel|p)/)[^\s]+)').hasMatch(msg.content)) ...[
+                           const SizedBox(height: 8),
+                           SocialEmbedPlayer(url: RegExp(r'(https?://(www\.)?(tiktok\.com|vm\.tiktok\.com|instagram\.com/(reel|p)/)[^\s]+)').firstMatch(msg.content)!.group(0)!),
+                       ],
                        
                        // Event metadata (Suggested Card)
                        if (isSystem && msg.metadata != null && msg.metadata!['suggested_event'] != null) ...[

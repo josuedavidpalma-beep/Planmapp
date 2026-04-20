@@ -25,6 +25,15 @@
             "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
         }
     ],
+    "share_target": {
+      "action": "/?share_target=true",
+      "method": "GET",
+      "params": {
+        "title": "title",
+        "text": "text",
+        "url": "url"
+      }
+    },
     "icons": [
         {
             "src": "icons/Icon-192.png",

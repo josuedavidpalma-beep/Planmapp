@@ -19,6 +19,7 @@ class Plan {
   final String? reservationLink;
   final String? contactInfo;
   final String? promoHighlights;
+  final bool isDirectChat;
 
   const Plan({
     required this.id,
@@ -39,6 +40,7 @@ class Plan {
     this.reservationLink,
     this.contactInfo,
     this.promoHighlights,
+    this.isDirectChat = false,
   });
 
   // ... existing code ...
@@ -59,6 +61,7 @@ class Plan {
       'reservation_link': reservationLink,
       'contact_info': contactInfo,
       'promo_highlights': promoHighlights,
+      'is_direct_chat': isDirectChat,
     };
   }
 
@@ -89,6 +92,7 @@ class Plan {
         reservationLink: json['reservation_link']?.toString(),
         contactInfo: json['contact_info']?.toString(),
         promoHighlights: json['promo_highlights']?.toString(),
+        isDirectChat: json['is_direct_chat'] == true,
       );
     } catch (e) {
       print("Error parsing Plan ${json['id']}: $e");

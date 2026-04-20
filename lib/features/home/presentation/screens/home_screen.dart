@@ -22,6 +22,7 @@ import 'package:planmapp/core/presentation/widgets/skeleton_loader.dart';
 import 'package:planmapp/features/home/presentation/widgets/discover_map.dart';
 import 'package:planmapp/features/home/presentation/widgets/pwa_guide_tooltip.dart';
 import 'package:planmapp/features/profile/presentation/widgets/profile_drawer.dart';
+import 'package:planmapp/core/utils/web_utils.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -146,7 +147,41 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               
               // NEW: Solicitar permiso automáticamente al iniciar sesión a usuarios antiguos
               if (!isAnon) {
-                 PushNotificationService().requestPermissionAndSaveToken();
+                 final granted = await PushNotificationService().requestPermissionAndSaveToken();
+                 if (!granted && kIsWeb && isPwaStandalone) {
+                     // Check if we should annoy them (limit to once per session maybe, but since it's an initState call it happens once per app launch)
+                     if (mounted) {
+                         showDialog(
+                             context: context, 
+                             builder: (c) => AlertDialog(
+                                 backgroundColor: AppTheme.darkBackground,
+                                 shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                                 title: const Row(
+                                    children: [
+                                        Icon(Icons.notifications_off, color: Colors.orange),
+                                        SizedBox(width: 10),
+                                        Text("Activa las Alertas", style: TextStyle(color: Colors.white, fontSize: 18))
+                                    ]
+                                 ),
+                                 content: const Text(
+                                     "Estás usando Planmapp app pero tienes las notificaciones bloqueadas. Para enterarte de respuestas de chat y cobros, es necesario habilitarlas en la configuración de la app de tu teléfono (Settings).",
+                                     style: TextStyle(color: Colors.white70)
+                                 ),
+                                 actions: [
+                                     TextButton(
+                                        onPressed: () => Navigator.pop(c), 
+                                        child: const Text("Lo haré después", style: TextStyle(color: Colors.grey))
+                                     ),
+                                     ElevatedButton(
+                                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand),
+                                        onPressed: () => Navigator.pop(c), 
+                                        child: const Text("Entendido")
+                                     )
+                                 ]
+                             )
+                         );
+                     }
+                 }
               }
           }
 

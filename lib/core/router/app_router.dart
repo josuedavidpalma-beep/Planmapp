@@ -48,6 +48,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       if (state.uri.queryParameters.containsKey('vaca')) {
           return '/vaca/${state.uri.queryParameters['vaca']}';
       }
+      if (state.uri.queryParameters.containsKey('share_target')) {
+          final title = state.uri.queryParameters['title'] ?? '';
+          final text = state.uri.queryParameters['text'] ?? '';
+          final url = state.uri.queryParameters['url'] ?? '';
+          final combined = '$title $text $url'.trim();
+          return '/create-plan?shared_text=${Uri.encodeComponent(combined)}';
+      }
 
       final session = Supabase.instance.client.auth.currentSession;
       final isLoggedIn = session != null;
@@ -153,8 +160,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: rootNavigatorKey, 
         builder: (context, state) {
            final extra = state.extra as Map<String, dynamic>?;
+           final sharedText = state.uri.queryParameters['shared_text'];
+           
            return CreatePlanScreen(
-               initialTitle: extra?['initialTitle'],
+               initialTitle: extra?['initialTitle'] ?? sharedText,
                initialAddress: extra?['initialAddress'],
                initialDate: extra?['initialDate'],
                initialImageUrl: extra?['initialImageUrl'],
