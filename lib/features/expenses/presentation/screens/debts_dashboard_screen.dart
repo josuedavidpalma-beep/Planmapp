@@ -45,11 +45,11 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
 
   void _setupRealtime() {
       _debtsSubscription = Supabase.instance.client
-          .channel('public:expense_participant_status')
+          .channel('public:payment_trackers:dashboard')
           .onPostgresChanges(
               event: PostgresChangeEvent.all,
               schema: 'public',
-              table: 'expense_participant_status',
+              table: 'payment_trackers',
               callback: (payload) {
                   print("🔄 Realtime Update: Debts changed, reloading dashboard!");
                   if (mounted) _loadData();

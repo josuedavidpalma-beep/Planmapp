@@ -77,17 +77,6 @@ class _ItineraryPlanTabState extends State<ItineraryPlanTab> {
                         label: const Text("Finalizar Plan", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                         onPressed: () => _finalizePlan(),
                     ),
-                    const SizedBox(height: 12),
-                    FloatingActionButton(
-                        heroTag: "addBtn",
-                        backgroundColor: AppTheme.primaryBrand,
-                        child: const Icon(Icons.note_add, color: Colors.white), 
-                        onPressed: () async {
-                            if (await AuthGuard.ensureAuthenticated(context)) {
-                                _updatePlanDescription(context); 
-                            }
-                        },
-                    ),
                 ], 
             ], 
         ),

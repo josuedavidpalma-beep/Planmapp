@@ -366,7 +366,7 @@ class ExpenseRepository {
               .from('payment_trackers')
               .select('id, plan_id, bill_id, user_id, guest_name, amount_owe, amount_paid, status, description, created_at, profiles:user_id(full_name, avatar_url, phone), plans!inner(creator_id)')
               .eq('plans.creator_id', currentUid)
-              .neq('user_id', currentUid) // Don't show debts to myself
+              .or('user_id.neq.$currentUid,user_id.is.null') // Include guests and others, exclude myself
               .neq('status', 'paid')
               .gt('amount_owe', 0);
               

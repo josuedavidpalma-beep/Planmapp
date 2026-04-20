@@ -249,16 +249,6 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
                                  Row(
                                    children: [
                                        IconButton(
-                                           onPressed: _sharePaymentLink,
-                                           icon: const Icon(Icons.link_rounded, color: AppTheme.primaryBrand),
-                                           tooltip: "Cobrar a todos (Link de Pago)",
-                                       ),
-                                       IconButton(
-                                           icon: const Icon(Icons.casino_rounded, color: Colors.purple),
-                                           onPressed: _openWheel,
-                                           tooltip: "¿Quién Paga?",
-                                       ),
-                                       IconButton(
                                            icon: const Icon(Icons.account_balance_wallet, color: Colors.orange),
                                            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DebtsDashboardScreen(planId: widget.planId))),
                                            tooltip: "Estado de Pagos",

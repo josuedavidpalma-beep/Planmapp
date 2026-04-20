@@ -149,13 +149,13 @@ class _FinalConfirmationBubbleState extends State<FinalConfirmationBubble> {
                           Row(children: [
                               const Icon(Icons.calendar_today, size: 16, color: Colors.purple),
                               const SizedBox(width: 8),
-                              Text(eventDate != null ? DateFormat('EEEE d MMM', 'es_CO').format(eventDate) : "Fecha por definir", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600))
+                              Text(eventDate != null ? DateFormat('EEEE d MMM', 'es_CO').format(eventDate) : "Fecha por definir", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87))
                           ]),
                           const SizedBox(height: 12),
                           Row(children: [
                               const Icon(Icons.place, size: 16, color: Colors.blue),
                               const SizedBox(width: 8),
-                              Expanded(child: Text(location, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15)))
+                              Expanded(child: Text(location, maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(fontSize: 15, color: Colors.black87)))
                           ]),
                           const SizedBox(height: 12),
                           // Payment Mode Display
