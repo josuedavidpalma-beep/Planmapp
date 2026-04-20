@@ -21,6 +21,7 @@ import 'package:planmapp/core/presentation/widgets/guest_barrier.dart';
 import 'package:planmapp/core/presentation/widgets/skeleton_loader.dart';
 import 'package:planmapp/features/home/presentation/widgets/discover_map.dart';
 import 'package:planmapp/features/home/presentation/widgets/pwa_guide_tooltip.dart';
+import 'package:planmapp/features/profile/presentation/widgets/profile_drawer.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -52,6 +53,8 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
   int _refreshCounter = 0;
   
   List<Map<String, dynamic>> _dbPendingInvites = [];
+
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
 
   @override
   void initState() {
@@ -232,7 +235,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
     // final hasActivePlan = false; // TODO: Fetch from provider
 
     return Scaffold(
+      key: _scaffoldKey,
+      drawer: const ProfileDrawer(),
       appBar: AppBar(
+        leading: IconButton(
+          icon: const Icon(Icons.menu_rounded, size: 28),
+          onPressed: () {
+            _scaffoldKey.currentState?.openDrawer();
+          },
+        ),
         title: PopupMenuButton<String>(
           onSelected: (value) {
             setState(() {

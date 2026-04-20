@@ -85,10 +85,78 @@ class BudgetRepository {
       
       final quota = totalBudget / trackers.length;
       
-      // 3. Update all (ideally batch)
-      // For MVP loop updates
+      // 3. Update all legacy trackers
       for (var t in trackers) {
            await _supabase.from('payment_trackers').update({'amount_owe': quota}).eq('id', t.id);
+      }
+
+      // 4. INJECT INTO EXPENSES SCHEMA (For Global Dashboard)
+      // Look for an existing "Vaca" expense for this plan
+      final currentUid = _supabase.auth.currentUser?.id;
+      if (currentUid == null || totalBudget <= 0) return;
+
+      try {
+          final existing = await _supabase.from('expenses')
+              .select('id')
+              .eq('plan_id', planId)
+              .eq('title', 'Presupuesto Inicial (Vaca)')
+              .maybeSingle();
+
+          if (existing != null) {
+              // Delete old to recreate fresh assignments
+              await _supabase.from('expenses').delete().eq('id', existing['id']);
+          }
+
+          // Create Expense header
+          final expRes = await _supabase.from('expenses').insert({
+              'plan_id': planId,
+              'created_by': currentUid,
+              'title': 'Presupuesto Inicial (Vaca)',
+              'subtotal': totalBudget,
+              'total_amount': totalBudget,
+              'tax_amount': 0,
+              'tip_amount': 0,
+          }).select('id').single();
+
+          final expId = expRes['id'];
+
+          // Create Single Item: Fondo Común
+          final itemRes = await _supabase.from('expense_items').insert({
+              'expense_id': expId,
+              'name': 'Fondo Común',
+              'price': totalBudget,
+              'quantity': 1
+          }).select('id').single();
+
+          final itemId = itemRes['id'];
+
+          // Insert Assignments and Participant Statuses based on Trackers
+          final assigns = [];
+          final statuses = [];
+
+          for (var t in trackers) {
+              // Assignment
+              assigns.add({
+                  'expense_item_id': itemId,
+                  'user_id': t.userId,
+                  'guest_name': t.guestName,
+                  'quantity': 1.0 / trackers.length
+              });
+
+              // Status for Dashboard
+              statuses.add({
+                  'expense_id': expId,
+                  'user_id': t.userId,
+                  'guest_name': t.guestName,
+                  'amount_owed': quota,
+                  'is_paid': t.status == PaymentStatus.paid,
+              });
+          }
+
+          if (assigns.isNotEmpty) await _supabase.from('expense_assignments').insert(assigns);
+          if (statuses.isNotEmpty) await _supabase.from('expense_participant_status').insert(statuses);
+      } catch (e) {
+          print("ERROR INJECTING BUDGET INTO EXPENSES: $e");
       }
   }
 }

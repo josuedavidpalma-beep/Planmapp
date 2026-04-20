@@ -48,6 +48,18 @@ class PlacesService {
       print('🌐 Fetching from Google Places API (New)...');
 
       // 2. Fetch from Google Places API (New)
+      // Convert our internal categories to valid Google Places types
+      List<String> validTypes = [];
+      if (category != null) {
+          if (category == 'sports') {
+              validTypes = ["gym", "stadium", "fitness_center", "bowling_alley", "sports_club", "sports_complex", "athletic_field"];
+          } else {
+              validTypes = [category];
+          }
+      } else {
+          validTypes = ["restaurant", "bar", "cafe", "tourist_attraction", "park", "museum", "shopping_mall", "beauty_salon", "spa", "movie_theater"];
+      }
+
       final url = Uri.parse('https://places.googleapis.com/v1/places:searchNearby');
       final response = await http.post(
         url,
@@ -58,15 +70,13 @@ class PlacesService {
           'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.photos,places.location,places.types,places.priceLevel,places.regularOpeningHours',
         },
         body: jsonEncode({
-          "includedTypes": category != null 
-              ? [category] 
-              : ["restaurant", "bar", "cafe", "tourist_attraction", "park", "museum", "shopping_mall", "beauty_salon", "spa", "movie_theater"],
+          "includedTypes": validTypes,
           "excludedPrimaryTypes": [
               "dentist", "doctor", "school", "bank", "hospital", "pharmacy", 
               "police", "laundry", "car_repair", "hair_care", "hardware_store", 
               "veterinary_care", "real_estate_agency", "lawyer", "atm"
           ],
-          "maxResultCount": 15,
+          "maxResultCount": 20,
           "locationRestriction": {
             "circle": {
               "center": {"latitude": lat, "longitude": lng},
@@ -107,9 +117,9 @@ class PlacesService {
             'last_updated': DateTime.now().toIso8601String(),
           };
 
-          // Only cache and show "premium" places (4.5+ stars) to save quota and show best of the city.
+          // Filter out low quality places: We accept >= 3.5.
           final double? rating = mapped['rating'] as double?;
-          if (rating != null && rating >= 4.5) {
+          if (rating != null && rating >= 3.5) {
               await _supabase.from('cached_places').upsert(mapped);
               results.add(mapped);
           }

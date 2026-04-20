@@ -75,6 +75,17 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
         }
     }
     
+    // LAZY LOAD ITEMS IF COMING FROM DASHBOARD HISTORY
+    if (_items.isEmpty && widget.expenseData['id'] != null) {
+        final fullExpense = await _expenseRepository.getExpenseById(widget.expenseData['id']);
+        if (fullExpense != null && fullExpense.items != null) {
+            _items = fullExpense.items!;
+            for (var item in _items) {
+               _assignments[item.id] = item.assignments ?? [];
+            }
+        }
+    }
+
     if (mounted) {
         setState(() => _members = loaded);
         if (widget.autoSplitAll) {
@@ -143,7 +154,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
       });
   }
 
-  void _markAsMine(String itemId, num itemQuantity) {
+  void _markAsMine(String itemId, num itemQuantity) async {
       final currentUid = Supabase.instance.client.auth.currentUser?.id;
       if (currentUid == null) return;
       
@@ -161,6 +172,14 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
           }
           _assignments[itemId] = currentList;
       });
+
+      if (widget.expenseData['id'] != null) {
+          try {
+              await _expenseRepository.updateItemAssignments(itemId, currentList);
+          } catch (e) {
+              print("Sync Error: $e");
+          }
+      }
   }
 
   void _markAsShared(ExpenseItem item) {
@@ -215,6 +234,11 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                 _assignments[item.id] = newAssignments;
                             });
                             
+                            if (widget.expenseData['id'] != null) {
+                                _expenseRepository.updateItemAssignments(item.id, newAssignments)
+                                    .catchError((e) => print("Sync Error: $e"));
+                            }
+                            
                             ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
                                 content: Text("División aplicada. Recuerda presionar 'Confirmar' abajo para guardarlo."),
                                 duration: Duration(seconds: 2),
@@ -245,6 +269,10 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                   setState(() {
                       _assignments[item.id] = newAssignments;
                   });
+                  if (widget.expenseData['id'] != null) {
+                      _expenseRepository.updateItemAssignments(item.id, newAssignments)
+                          .catchError((e) => print("Sync Error: $e"));
+                  }
               }
           )
       );
@@ -438,7 +466,8 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
           title: const Text("Dividir Items"), 
           actions: [
               if (isCreator) ...[
-                 IconButton(icon: const Icon(Icons.share, color: Colors.green), onPressed: _shareVacaLink, tooltip: "Compartir Link 🔗"),
+                 if (widget.expenseData['id'] != null)
+                     IconButton(icon: const Icon(Icons.share, color: Colors.green), onPressed: _shareVacaLink, tooltip: "Compartir Link 🔗"),
                  IconButton(icon: const Icon(Icons.person_add), onPressed: _addGuestName, tooltip: "Añadir Invitado"),
               ]
           ],

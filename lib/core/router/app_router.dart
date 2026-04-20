@@ -18,7 +18,8 @@ import 'package:planmapp/features/home/presentation/screens/home_screen.dart';
 import 'package:planmapp/features/create_plan/presentation/screens/create_plan_screen.dart';
 import 'package:planmapp/features/plan_detail/presentation/screens/plan_detail_screen.dart';
 import 'package:planmapp/features/invite/presentation/screens/invite_screen.dart';
-import 'package:planmapp/features/profile/presentation/screens/profile_screen.dart';
+import 'package:planmapp/features/spots/presentation/screens/spots_screen.dart';
+import 'package:planmapp/features/profile/presentation/screens/profile_screen.dart'; // Still needed for Drawer if accessed directly, but we will move it.
 import 'package:planmapp/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:planmapp/features/expenses/presentation/screens/balances_screen.dart';
 import 'package:planmapp/features/expenses/presentation/screens/guest_join_screen.dart';
@@ -134,8 +135,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
              builder: (context, state) => const DashboardScreen(),
            ),
            GoRoute(
-             path: '/profile',
-             builder: (context, state) => const ProfileScreen(),
+             path: '/spots',
+             builder: (context, state) => const SpotsScreen(),
            ),
         ],
       ),

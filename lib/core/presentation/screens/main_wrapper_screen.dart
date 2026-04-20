@@ -20,8 +20,8 @@ class _MainWrapperScreenState extends State<MainWrapperScreen> {
     final String location = widget.location;
     if (location.startsWith('/home')) return 0;
     if (location.startsWith('/plans')) return 1;
-    if (location.startsWith('/social')) return 3; // Index 2 is the FAB
-    if (location.startsWith('/profile')) return 4;
+    if (location.startsWith('/social')) return 2;
+    if (location.startsWith('/spots')) return 3;
     return 0;
   }
 
@@ -33,11 +33,11 @@ class _MainWrapperScreenState extends State<MainWrapperScreen> {
       case 1:
         context.go('/plans');
         break;
-      case 3:
+      case 2:
         context.go('/social');
         break;
-      case 4:
-        context.go('/profile');
+      case 3:
+        context.go('/spots');
         break;
     }
   }
@@ -46,12 +46,8 @@ class _MainWrapperScreenState extends State<MainWrapperScreen> {
   Widget build(BuildContext context) {
     final currentIndex = _calculateSelectedIndex(context);
 
-    // If we are in a sub-route that shouldn't show the nav bar (like plan detail), 
-    // we might want to hide it, but ShellRoute usually keeps it. 
-    // For now, consistent persistence.
-
     return Scaffold(
-      extendBody: true, // Allows content to flow underneath the floating bar
+      extendBody: true, 
       body: widget.child,
       bottomNavigationBar: SafeArea(
         child: Container(
@@ -107,15 +103,15 @@ class _MainWrapperScreenState extends State<MainWrapperScreen> {
                 icon: Icons.handyman_outlined, 
                 activeIcon: Icons.handyman_rounded,
                 label: "Herram.", 
-                isSelected: currentIndex == 3,
-                onTap: () => _onItemTapped(3, context),
+                isSelected: currentIndex == 2,
+                onTap: () => _onItemTapped(2, context),
               ),
               _NavBarItem(
-                icon: Icons.person_outline_rounded, 
-                activeIcon: Icons.person_rounded,
-                label: "Perfil", 
-                isSelected: currentIndex == 4,
-                onTap: () => _onItemTapped(4, context),
+                icon: Icons.slow_motion_video_outlined, 
+                activeIcon: Icons.slow_motion_video_rounded,
+                label: "Spots", 
+                isSelected: currentIndex == 3,
+                onTap: () => _onItemTapped(3, context),
               ),
             ],
           ),

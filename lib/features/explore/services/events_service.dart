@@ -112,31 +112,25 @@ class EventsService {
               if (interest.contains('belleza')) { validTags.addAll(['beauty_salon', 'spa', 'hair_care']); }
           }
           
-          if (category == null && validTags.isNotEmpty) {
-             // Profile mode (Tab "Todo"): Sort locations that match their vibe to the top!
-             events.sort((a,b) {
-                if (a.id == 'cartelera_nacional') return -1;
-                if (b.id == 'cartelera_nacional') return 1;
-                final catA = a.category?.toLowerCase() ?? '';
-                final catB = b.category?.toLowerCase() ?? '';
-                bool aMatches = validTags.any((t) => catA.contains(t));
-                bool bMatches = validTags.any((t) => catB.contains(t));
-                if (aMatches && !bMatches) return -1;
-                if (!aMatches && bMatches) return 1;
-                return 0;
-             });
-          } else {
-             // Category mode (e.g. Tab "Rumba"): Let it show all rumbas, but push exact title matches higher
-             events.sort((a, b) {
-                if (a.id == 'cartelera_nacional') return -1;
-                if (b.id == 'cartelera_nacional') return 1;
-                bool aMatches = userInterests.any((interest) => a.title.toLowerCase().contains(interest.toLowerCase()));
-                bool bMatches = userInterests.any((interest) => b.title.toLowerCase().contains(interest.toLowerCase()));
-                if (aMatches && !bMatches) return -1;
-                if (!aMatches && bMatches) return 1;
-                return 0;
-             });
-          }
+          // Sort locations intelligently
+          events.sort((a,b) {
+             if (a.id == 'cartelera_nacional') return -1;
+             if (b.id == 'cartelera_nacional') return 1;
+             
+             final catA = a.category?.toLowerCase() ?? '';
+             final catB = b.category?.toLowerCase() ?? '';
+             
+             bool aHasVibe = validTags.any((t) => catA.contains(t));
+             bool bHasVibe = validTags.any((t) => catB.contains(t));
+             
+             bool aExactMatch = userInterests.any((interest) => a.title.toLowerCase().contains(interest.toLowerCase()));
+             bool bExactMatch = userInterests.any((interest) => b.title.toLowerCase().contains(interest.toLowerCase()));
+             
+             int scoreA = (aExactMatch ? 2 : 0) + (aHasVibe ? 1 : 0);
+             int scoreB = (bExactMatch ? 2 : 0) + (bHasVibe ? 1 : 0);
+             
+             return scoreB.compareTo(scoreA);
+          });
       }
 
       return events;
@@ -235,25 +229,26 @@ class EventsService {
                 if (interest.contains('belleza')) { validTags.addAll(['belleza', 'spa', 'wellness']); }
             }
             
-            // In DailyEvents there is no "category == null" passed from the UI normally because it's called globally, or if it's called with 'Todo', we just filter.
-            // Since we want strictness, we'll enforce that the local event category matches their vibes.
-            if (validTags.isNotEmpty) {
-               events = events.where((e) {
-                  final cat = e.category?.toLowerCase() ?? '';
-                  if (e.id == 'cartelera_nacional') return true;
-                  return validTags.any((t) => cat.contains(t));
-               }).toList();
-            }
-
-            // Always push exact title matches higher
+            // Remove strict filtering for daily events so we show all city events,
+            // but we'll sort the ones that match their vibe strictly to the top.
+            
             events.sort((a, b) {
               if (a.id == 'cartelera_nacional') return -1;
               if (b.id == 'cartelera_nacional') return 1;
-              bool aMatches = userInterests.any((interest) => a.title.toLowerCase().contains(interest.toLowerCase()));
-              bool bMatches = userInterests.any((interest) => b.title.toLowerCase().contains(interest.toLowerCase()));
-              if (aMatches && !bMatches) return -1;
-              if (!aMatches && bMatches) return 1;
-              return 0;
+              
+              final catA = a.category?.toLowerCase() ?? '';
+              final catB = b.category?.toLowerCase() ?? '';
+              
+              bool aHasVibe = validTags.any((t) => catA.contains(t));
+              bool bHasVibe = validTags.any((t) => catB.contains(t));
+              
+              bool aExactMatch = userInterests.any((interest) => a.title.toLowerCase().contains(interest.toLowerCase()));
+              bool bExactMatch = userInterests.any((interest) => b.title.toLowerCase().contains(interest.toLowerCase()));
+              
+              int scoreA = (aExactMatch ? 2 : 0) + (aHasVibe ? 1 : 0);
+              int scoreB = (bExactMatch ? 2 : 0) + (bHasVibe ? 1 : 0);
+              
+              return scoreB.compareTo(scoreA); // Descending score
             });
         }
 

@@ -32,6 +32,23 @@ class ExpenseRepository {
     }
   }
 
+  // Fetch a single expense by ID including items and assignments
+  Future<Expense?> getExpenseById(String expenseId) async {
+    try {
+      final response = await _supabase
+          .from('expenses')
+          .select('*, expense_items(*, expense_assignments(*)), expense_participant_status(*)')
+          .eq('id', expenseId)
+          .maybeSingle();
+
+      if (response == null) return null;
+      return Expense.fromJson(response);
+    } catch (e) {
+      print("ERROR FETCHING EXPENSE BY ID ($expenseId): $e");
+      return null;
+    }
+  }
+
   // Stream expenses for a plan
   Stream<List<Expense>> getExpensesStream(String planId) {
      return _supabase
