@@ -663,13 +663,13 @@ class _PlanCard extends StatelessWidget {
                                            subtitle: Text("ID: ${foundUser!['id'].substring(0,6)}...", style: TextStyle(color: Colors.white70, fontSize: 12)),
                                            trailing: IconButton(
                                                 icon: const Icon(Icons.chat, color: AppTheme.primaryBrand),
-                                                onPressed: () async {
+                                              onPressed: () async {
                                                      Navigator.pop(context);
                                                      try {
                                                          final chatId = await PlanService().getOrCreateDirectChat(foundUser!['id']);
-                                                         if (mounted) context.push('/plan/$chatId');
+                                                         if (context.mounted) context.push('/plan/$chatId');
                                                      } catch (e) {
-                                                         if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                                                         if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
                                                      }
                                                 }
                                            )
@@ -708,5 +708,3 @@ class _PlanCard extends StatelessWidget {
            )
        );
   }
-}
-
