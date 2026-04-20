@@ -343,6 +343,10 @@ class _PlanCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    if (plan.isDirectChat) {
+         return _buildDirectChatCard(context);
+    }
+
     final uid = Supabase.instance.client.auth.currentUser?.id;
     final isCreator = uid == plan.creatorId;
     final theme = Theme.of(context);
@@ -541,6 +545,63 @@ class _PlanCard extends StatelessWidget {
       ),
       ),
     );
+  }
+
+  Widget _buildDirectChatCard(BuildContext context) {
+      return FutureBuilder<dynamic>(
+          future: Supabase.instance.client
+                .from('plan_members')
+                .select('profiles(id, full_name, nickname, avatar_url)')
+                .eq('plan_id', plan.id)
+                .neq('user_id', Supabase.instance.client.auth.currentUser?.id ?? '')
+                .maybeSingle(),
+          builder: (context, snapshot) {
+              final otherUser = snapshot.data?['profiles'];
+              final titleText = otherUser?['full_name'] ?? (otherUser?['nickname'] ?? "Chat Privado");
+              final String? avatarUrl = otherUser?['avatar_url'];
+
+              return Card(
+                  color: Theme.of(context).cardColor,
+                  elevation: 0,
+                  margin: const EdgeInsets.only(bottom: 8),
+                  shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(16),
+                      side: BorderSide(color: Colors.grey.withOpacity(0.1))
+                  ),
+                  child: ListTile(
+                      onTap: () {
+                          HapticFeedback.lightImpact();
+                          context.push('/plan/${plan.id}');
+                      },
+                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                      leading: CircleAvatar(
+                          radius: 24,
+                          backgroundColor: AppTheme.primaryBrand.withOpacity(0.1),
+                          backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                          child: avatarUrl == null ? const Icon(Icons.person, color: AppTheme.primaryBrand) : null,
+                      ),
+                      title: Text(titleText, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                      subtitle: const Text("Toca para chatear", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                      trailing: PopupMenuButton<String>(
+                        icon: Icon(Icons.more_vert, color: Colors.grey[400]),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        onSelected: (value) async {
+                             if (value == 'delete') {
+                                 final confirm = await _showSimpleConfirm(context, "Eliminar Chat", "¿Estás seguro que quieres eliminar la conversación en tu dispositivo?");
+                                 if (confirm) {
+                                     await PlanService().softDeletePlan(plan.id);
+                                     onRefresh();
+                                 }
+                             }
+                        },
+                        itemBuilder: (context) => [
+                               PopupMenuItem(value: 'delete', child: Row(children: const [Icon(Icons.delete_outline, color: Colors.red, size: 20), SizedBox(width: 12), Text("Eliminar Chat", style: TextStyle(color: Colors.red))])),
+                        ],
+                     )
+                  )
+              );
+          }
+      );
   }
 
   Future<bool> _showSimpleConfirm(BuildContext context, String title, String msg) async {

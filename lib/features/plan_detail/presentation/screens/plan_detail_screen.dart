@@ -401,27 +401,34 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
               iconTheme: const IconThemeData(color: Colors.white),
               flexibleSpace: FlexibleSpaceBar(
                   centerTitle: true,
-                  title: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                         if (isDirectChat && otherUser != null)
-                             Padding(
-                               padding: const EdgeInsets.only(right: 8.0),
-                               child: CircleAvatar(
-                                   radius: 12,
-                                   backgroundColor: Colors.grey[800],
-                                   backgroundImage: otherUser['avatar_url'] != null ? NetworkImage(otherUser['avatar_url']) : null,
-                                   child: otherUser['avatar_url'] == null ? const Icon(Icons.person, size: 14, color: Colors.white) : null,
-                               ),
+                  title: GestureDetector(
+                      onTap: () {
+                          if (isDirectChat && otherUser != null) {
+                              _showUserProfileModal(otherUser, otherUser['full_name'] ?? "Usuario");
+                          }
+                      },
+                      child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                             if (isDirectChat && otherUser != null)
+                                 Padding(
+                                   padding: const EdgeInsets.only(right: 8.0),
+                                   child: CircleAvatar(
+                                       radius: 12,
+                                       backgroundColor: Colors.grey[800],
+                                       backgroundImage: otherUser['avatar_url'] != null ? NetworkImage(otherUser['avatar_url']) : null,
+                                       child: otherUser['avatar_url'] == null ? const Icon(Icons.person, size: 14, color: Colors.white) : null,
+                                   ),
+                                 ),
+                             Text(titleText, 
+                                 style: const TextStyle(
+                                     color: Colors.white, 
+                                     fontWeight: FontWeight.bold,
+                                     fontSize: 16 
+                                 )
                              ),
-                         Text(titleText, 
-                             style: const TextStyle(
-                                 color: Colors.white, 
-                                 fontWeight: FontWeight.bold,
-                                 fontSize: 16 
-                             )
-                         ),
-                      ],
+                          ],
+                      ),
                   ),
                   background: isDirectChat 
                       ? Container(color: AppTheme.darkBackground) // Clean dark background for chats
@@ -522,11 +529,11 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                       indicatorColor: AppTheme.primaryBrand,
                       tabs: [
                           Tab(icon: const Icon(Icons.chat_bubble_outline), text: isDirectChat ? "Chat" : "Resumen"),
-                          if (_plan?.eventDate != null || (_plan?.locationName.isNotEmpty ?? false))
+                          if (!isDirectChat && (_plan?.eventDate != null || (_plan?.locationName.isNotEmpty ?? false)))
                               const Tab(icon: Icon(Icons.map_outlined), text: "Itinerario"),
-                          if ((_plan?.eventDate != null || (_plan?.locationName.isNotEmpty ?? false)) && _plan?.paymentMode == 'pool')
+                          if (!isDirectChat && (_plan?.eventDate != null || (_plan?.locationName.isNotEmpty ?? false)) && _plan?.paymentMode == 'pool')
                               const Tab(icon: Icon(Icons.savings_rounded), text: "Vaca/Cuota"),
-                          if ((_plan?.eventDate != null || (_plan?.locationName.isNotEmpty ?? false)) && _plan?.paymentMode == 'split')
+                          if (!isDirectChat && (_plan?.eventDate != null || (_plan?.locationName.isNotEmpty ?? false)) && _plan?.paymentMode == 'split')
                               const Tab(icon: Icon(Icons.receipt_long_rounded), text: "Gastos"),
                       ],
                    ),
@@ -1880,11 +1887,12 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
         color: Theme.of(context).cardColor, // Adapts to Dark Mode
         child: Row(
           children: [
-              IconButton(
-                  icon: const Icon(Icons.casino_outlined, color: Colors.orange),
-                  tooltip: "Ruleta de la Suerte",
-                  onPressed: _openWheel,
-              ),
+              if (!(_plan?.isDirectChat ?? false))
+                  IconButton(
+                      icon: const Icon(Icons.casino_outlined, color: Colors.orange),
+                      tooltip: "Ruleta de la Suerte",
+                      onPressed: _openWheel,
+                  ),
               IconButton(
                   icon: const Icon(Icons.auto_awesome, color: Colors.purple),
                   tooltip: "Asistente IA",
