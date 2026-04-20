@@ -148,7 +148,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               // NEW: Solicitar permiso automáticamente al iniciar sesión a usuarios antiguos
               if (!isAnon) {
                  final granted = await PushNotificationService().requestPermissionAndSaveToken();
-                 if (!granted && kIsWeb && isPwaStandalone) {
+                 if (!granted && kIsWeb && isPwaStandalone && !isNotificationGranted) {
                      // Check if we should annoy them (limit to once per session maybe, but since it's an initState call it happens once per app launch)
                      if (mounted) {
                          showDialog(

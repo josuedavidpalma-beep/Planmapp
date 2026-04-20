@@ -608,6 +608,201 @@ class _PlanCard extends StatelessWidget {
           ),
         if (count > 3)
           Container(
+                     PopupMenuButton<String>(
+                        icon: Icon(Icons.more_horiz, color: Colors.grey[400]),
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                        onSelected: (value) async {
+                             if (value == 'delete') {
+                                 final confirm = await _showSimpleConfirm(context, "Mover a Papelera", "El plan se eliminará permanentemente en 24 horas y puedes restaurarlo.");
+                                 if (confirm) {
+                                     await PlanService().softDeletePlan(plan.id);
+                                     onRefresh();
+                                 }
+                             } else if (value == 'archive') {
+                                 final confirm = await _showSimpleConfirm(context, "Archivar Plan", "Se guardará en el Archivo y se borrará definitivamente en 7 días.");
+                                 if (confirm) {
+                                     await PlanService().archivePlan(plan.id);
+                                     onRefresh();
+                                 }
+                             } else if (value == 'leave') {
+                                  _handleAction(context, false);
+                             } else if (value == 'hard_delete') {
+                                  _handleAction(context, true);
+                             }
+                        },
+                        itemBuilder: (context) => [
+                           if (isCreator) ...[
+                               PopupMenuItem(value: 'archive', child: Row(children: const [Icon(Icons.archive_outlined, size: 20), SizedBox(width: 12), Text("Archivar")])),
+                               PopupMenuItem(value: 'delete', child: Row(children: const [Icon(Icons.delete_outline, color: Colors.orange, size: 20), SizedBox(width: 12), Text("A Papelera", style: const TextStyle(color: Colors.orange))])),
+                               const PopupMenuDivider(),
+                               PopupMenuItem(value: 'hard_delete', child: Row(children: const [Icon(Icons.delete_forever, color: Colors.red, size: 20), SizedBox(width: 12), Text("Eliminar Definitivo", style: const TextStyle(color: Colors.red))])),
+                           ] else
+                               PopupMenuItem(value: 'leave', child: Row(children: const [Icon(Icons.exit_to_app, color: Colors.red, size: 20), SizedBox(width: 12), Text("Salir del Plan", style: const TextStyle(color: Colors.red))])),
+                        ],
+                     )
+                  ],
+                ),
+                const SizedBox(height: 12),
+                
+                // Title
+                Text(
+                  plan.title,
+                  style: const TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w900,
+                    height: 1.2,
+                    color: Colors.white,
+                    letterSpacing: -0.5,
+                  ),
+                ),
+                
+                const SizedBox(height: 16),
+                
+                if (!plan.isDirectChat) ...[
+                  Row(
+                    children: [
+                        Container(
+                         padding: const EdgeInsets.all(8),
+                         decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                         child: const Icon(Icons.calendar_today_rounded, size: 16, color: Colors.white),
+                       ),
+                       const SizedBox(width: 12),
+                       Column(
+                         crossAxisAlignment: CrossAxisAlignment.start,
+                         children: [
+                            Text(plan.eventDate != null ? DateFormat('MMM d, y').format(plan.eventDate!) : "Por definir", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.white)),
+                            Text(plan.eventDate != null ? DateFormat('h:mm a').format(plan.eventDate!) : "--:--", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                         ],
+                       )
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  Row(
+                    children: [
+                       Container(
+                         padding: const EdgeInsets.all(8),
+                         decoration: BoxDecoration(color: Colors.white.withOpacity(0.15), borderRadius: BorderRadius.circular(10)),
+                         child: const Icon(Icons.location_on_outlined, size: 16, color: Colors.white),
+                       ),
+                       const SizedBox(width: 12),
+                       Expanded(
+                         child: Text(
+                           plan.locationName.isEmpty ? "Ubicación por definir" : plan.locationName,
+                           maxLines: 1,
+                           overflow: TextOverflow.ellipsis,
+                           style: const TextStyle(fontWeight: FontWeight.w600, fontSize: 14, color: Colors.white),
+                         ),
+                       ),
+                    ],
+                  ),
+                  const SizedBox(height: 20),
+                ] else ...[
+                  // Direct Chat visual filler
+                  Row(
+                     children: [
+                        Container(
+                          padding: const EdgeInsets.all(8),
+                          decoration: BoxDecoration(color: AppTheme.primaryBrand.withOpacity(0.3), borderRadius: BorderRadius.circular(10)),
+                          child: const Icon(Icons.lock, size: 16, color: Colors.white),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text("Chat cifrado de amigo", style: TextStyle(color: Colors.white70)),
+                     ]
+                  ),
+                  const SizedBox(height: 20),
+                ],
+                const Divider(height: 1),
+                const SizedBox(height: 16),
+                
+                // Footer
+                Row(
+                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  children: [
+                     _buildAvatarStack(context, plan.participantCount),
+                     Container(
+                        padding: const EdgeInsets.all(8),
+                        decoration: BoxDecoration(
+                          color: Colors.black, 
+                          borderRadius: BorderRadius.circular(30)
+                        ),
+                        child: const Icon(Icons.arrow_forward, color: Colors.white, size: 16),
+                     )
+                  ],
+                )
+              ],
+            ),
+          ),
+        ),
+      ),
+      ),
+    );
+  }
+
+  Future<bool> _showSimpleConfirm(BuildContext context, String title, String msg) async {
+      return await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+          title: Text(title),
+          content: Text(msg),
+          actions: [
+              TextButton(onPressed: ()=>Navigator.pop(c, false), child: const Text("Cancelar")),
+              TextButton(onPressed: ()=>Navigator.pop(c, true), child: const Text("Confirmar", style: TextStyle(fontWeight: FontWeight.bold))),
+          ],
+      )) ?? false;
+  }
+
+  Future<void> _handleAction(BuildContext context, bool isCreatorIgnored) async {
+       // Check real role from DB to be safe
+       final realRole = await PlanMembersService().getMyRole(plan.id);
+       final isRealAdmin = realRole == 'admin';
+
+       if (!context.mounted) return;
+
+       final confirm = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+          title: Text(isRealAdmin ? "¿Eliminar este plan?" : "¿Salir del plan?"),
+          content: Text(isRealAdmin 
+            ? "Esta acción NO se puede deshacer. Se borrarán todos los datos, chats y gastos." 
+            : "Ya no tendrás acceso al chat ni a los gastos compartidos."),
+          actions: [
+              TextButton(onPressed: ()=>Navigator.pop(c, false), child: const Text("Cancelar")),
+              TextButton(onPressed: ()=>Navigator.pop(c, true), child: const Text("Confirmar", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold))),
+          ],
+      ));
+
+      if (confirm == true) {
+          try {
+              if (isRealAdmin) {
+                  await PlanService().deletePlan(plan.id);
+                  if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Plan eliminado definitivamente")));
+              } else {
+                  await PlanMembersService().leavePlan(plan.id);
+                  if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Saliste del plan")));
+              }
+              onRefresh(); 
+          } catch (e) {
+              if(context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+          }
+      }
+  }
+
+  Widget _buildAvatarStack(BuildContext context, int count) {
+    return Row(
+      children: [
+        for (int i = 0; i < (count > 3 ? 3 : count); i++)
+          Align(
+            widthFactor: 0.7,
+            child: Container(
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                border: Border.all(color: Theme.of(context).cardColor, width: 2),
+              ),
+              child: const CircleAvatar(
+                radius: 12,
+                backgroundColor: Colors.grey,
+                child: Icon(Icons.person, size: 14, color: Colors.white),
+              ),
+            ),
+          ),
+        if (count > 3)
+          Container(
             padding: const EdgeInsets.only(left: 6),
             child: Text(
               "+${count - 3}",
@@ -620,10 +815,10 @@ class _PlanCard extends StatelessWidget {
 }
 
   Future<void> _showNewChatDialog(BuildContext context) async {
-       String searchEmail = "";
+       String searchText = "";
        bool isSearchingUser = false;
        String? searchError;
-       Map<String, dynamic>? foundUser;
+       List<dynamic> foundUsers = [];
 
        await showModalBottomSheet(
            context: context, 
@@ -632,63 +827,84 @@ class _PlanCard extends StatelessWidget {
            builder: (c) => StatefulBuilder(
                builder: (context, setState) {
                    return Container(
-                       padding: EdgeInsets.only(bottom: MediaQuery.of(context).viewInsets.bottom, left: 24, right: 24, top: 32),
+                       padding: EdgeInsets.only(
+                          bottom: MediaQuery.of(context).viewInsets.bottom + MediaQuery.of(context).padding.bottom, 
+                          left: 24, right: 24, top: 32
+                       ),
+                       constraints: BoxConstraints(maxHeight: MediaQuery.of(context).size.height * 0.8),
                        decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor, borderRadius: const BorderRadius.vertical(top: Radius.circular(30))),
                        child: Column(
                            mainAxisSize: MainAxisSize.min,
                            children: [
                                const Text("Nuevo Chat Directo", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                                const SizedBox(height: 8),
-                               const Text("Busca a un usuario por su correo exacto para iniciar un chat 1-a-1.", style: TextStyle(color: Colors.grey, fontSize: 13), textAlign: TextAlign.center,),
+                               const Text("Busca a un usuario por su nombre, apodo o correo exacto.", style: TextStyle(color: Colors.grey, fontSize: 13), textAlign: TextAlign.center,),
                                const SizedBox(height: 24),
                                TextField(
                                    decoration: const InputDecoration(
-                                       hintText: "ejemplo@correo.com",
+                                       hintText: "Escribe un nombre o apodo",
                                        prefixIcon: Icon(Icons.search),
                                        border: OutlineInputBorder(borderRadius: BorderRadius.all(Radius.circular(16)))
                                    ),
-                                   keyboardType: TextInputType.emailAddress,
-                                   onChanged: (v) => searchEmail = v.trim(),
+                                   onChanged: (v) => searchText = v.trim(),
+                                   onSubmitted: (_) {
+                                      // Optional trigger search
+                                   },
                                ),
                                const SizedBox(height: 16),
                                if (searchError != null) Text(searchError!, style: const TextStyle(color: Colors.red)),
                                if (isSearchingUser) const CircularProgressIndicator(),
-                               if (foundUser != null)
-                                   Card(
-                                       color: AppTheme.darkBackground,
-                                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
-                                       child: ListTile(
-                                           leading: const CircleAvatar(backgroundColor: Colors.blue, child: Icon(Icons.person, color: Colors.white)),
-                                           title: Text(foundUser?['nickname'] ?? foundUser?['full_name'] ?? 'Usuario', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                                           subtitle: Text("ID: ${foundUser!['id'].substring(0,6)}...", style: TextStyle(color: Colors.white70, fontSize: 12)),
-                                           trailing: IconButton(
-                                                icon: const Icon(Icons.chat, color: AppTheme.primaryBrand),
-                                              onPressed: () async {
-                                                     Navigator.pop(context);
-                                                     try {
-                                                         final chatId = await PlanService().getOrCreateDirectChat(foundUser!['id']);
-                                                         if (context.mounted) context.push('/plan/$chatId');
-                                                     } catch (e) {
-                                                         if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
-                                                     }
-                                                }
-                                           )
+                               if (foundUsers.isNotEmpty)
+                                   Flexible(
+                                       child: ListView.builder(
+                                           shrinkWrap: true,
+                                           itemCount: foundUsers.length,
+                                           itemBuilder: (ctx, index) {
+                                               final user = foundUsers[index];
+                                               return Card(
+                                                   color: AppTheme.darkBackground,
+                                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                                   margin: const EdgeInsets.only(bottom: 8),
+                                                   child: ListTile(
+                                                       leading: const CircleAvatar(backgroundColor: Colors.blue, child: Icon(Icons.person, color: Colors.white)),
+                                                       title: Text(user['nickname'] ?? user['full_name'] ?? 'Usuario', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                                       subtitle: Text("ID: ${user['id'].substring(0,6)}...", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                                       trailing: IconButton(
+                                                            icon: const Icon(Icons.chat, color: AppTheme.primaryBrand),
+                                                          onPressed: () async {
+                                                                 Navigator.pop(context);
+                                                                 try {
+                                                                     final chatId = await PlanService().getOrCreateDirectChat(user['id']);
+                                                                     if (context.mounted) context.push('/plan/$chatId');
+                                                                 } catch (e) {
+                                                                     if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                                                                 }
+                                                            }
+                                                       )
+                                                   )
+                                               );
+                                           }
                                        )
                                    ),
                                const SizedBox(height: 24),
                                SizedBox(width: double.infinity, height: 50, child: ElevatedButton(
                                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand),
                                    onPressed: isSearchingUser ? null : () async {
-                                       if(searchEmail.isEmpty) return;
-                                       setState(() { isSearchingUser = true; searchError = null; foundUser = null; });
+                                       if(searchText.isEmpty) return;
+                                       setState(() { isSearchingUser = true; searchError = null; foundUsers = []; });
                                        try {
+                                            final currentId = Supabase.instance.client.auth.currentUser?.id;
                                             // Realizamos la búsqueda
-                                            final res = await Supabase.instance.client.from('profiles').select('id, full_name, nickname').eq('email', searchEmail).maybeSingle();
-                                            if (res != null) {
-                                                if (res['id'] == Supabase.instance.client.auth.currentUser?.id) {
-                                                    throw Exception("No puedes chatear contigo mismo.");
-                                                }
-                                                setState(() { foundUser = res; });
+                                            final res = await Supabase.instance.client
+                                                .from('profiles')
+                                                .select('id, full_name, nickname, email')
+                                                .or('email.ilike.%$searchText%,nickname.ilike.%$searchText%,full_name.ilike.%$searchText%')
+                                                .limit(10);
+                                                
+                                            final filtered = (res as List).where((u) => u['id'] != currentId).toList();
+                                            
+                                            if (filtered.isNotEmpty) {
+                                                setState(() { foundUsers = filtered; });
                                             } else {
                                                 setState(() { searchError = "Usuario no encontrado."; });
                                             }
@@ -698,7 +914,7 @@ class _PlanCard extends StatelessWidget {
                                             setState(() { isSearchingUser = false; });
                                        }
                                    },
-                                   child: const Text("Buscar Usuario")
+                                   child: const Text("Buscar")
                                )),
                                const SizedBox(height: 32),
                            ]
