@@ -7,9 +7,10 @@ class PushNotificationService {
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
   final SupabaseClient _supabase = Supabase.instance.client;
 
-  // The VAPID Key used ONLY for Web. Set this once you define it in Firebase Console.
-  // We can inject this from Environment later if needed.
-  static const String webVapidKey = "REPLACE_WITH_YOUR_VAPID_KEY"; // TODO: Fill from Firebase
+  // The VAPID Key used ONLY for Web. 
+  // Nota de seguridad: Esta llave es pública por diseño (es la mitad pública de un par de llaves asimétricas) 
+  // para verificar la procedencia de la app. Es 100% segura exponerla.
+  static const String webVapidKey = "BKsSw5O52r-eT_M32Ga_izSm245TytUq_9bp6yFhWxGTSpUpCDpYHHuX8aKxI_JoIq6sTazhRGJqtLBrNa22eIM";
 
   static final PushNotificationService _instance = PushNotificationService._internal();
 
