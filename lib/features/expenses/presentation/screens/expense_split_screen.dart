@@ -143,18 +143,24 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
       });
   }
 
-  void _markAsMine(String itemId, int itemQuantity) async {
+  void _markAsMine(String itemId, num itemQuantity) {
       final currentUid = Supabase.instance.client.auth.currentUser?.id;
       if (currentUid == null) return;
       
-      final currentQty = _getAssignedQty(itemId, currentUid, null);
+      final currentList = _assignments[itemId] ?? <AssignmentModel>[];
+      final exists = currentList.any((a) => a.userId == currentUid);
       
-      // Toggle logic: If already assigned (even partially), unassign. If not, assign full.
-      if (currentQty > 0) {
-          await _expenseRepository.deleteAssignment(itemId, userId: currentUid);
-      } else {
-          await _expenseRepository.upsertAssignment(itemId, AssignmentModel(userId: currentUid, quantity: itemQuantity.toDouble()));
-      }
+      setState(() {
+          if (exists) {
+              // Unassign
+              currentList.removeWhere((a) => a.userId == currentUid);
+          } else {
+              // Assign full amount to self, override others
+              currentList.clear();
+              currentList.add(AssignmentModel(userId: currentUid, quantity: itemQuantity.toDouble()));
+          }
+          _assignments[itemId] = currentList;
+      });
   }
 
   void _markAsShared(ExpenseItem item) {
@@ -208,6 +214,12 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                             setState(() {
                                 _assignments[item.id] = newAssignments;
                             });
+                            
+                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+                                content: Text("División aplicada. Recuerda presionar 'Confirmar' abajo para guardarlo."),
+                                duration: Duration(seconds: 2),
+                                behavior: SnackBarBehavior.floating,
+                            ));
                         }
                         Navigator.pop(ctx);
                     }, child: const Text("Dividir"))
@@ -329,7 +341,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                       'title': '¡La Vaca está lista! 🐮',
                       'body': '$organizerName te invita a revisar tu cuenta en $vacaTitle.',
                       'type': 'vaca_split',
-                      'route': '/vaca/$expenseId',
+                      'data': {'route': '/vaca/$expenseId'},
                       'is_read': false
                   });
                   sentCount++;
@@ -572,6 +584,20 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                         },
                     )
                 ),
+                if (isCreator)
+                    Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                        child: OutlinedButton.icon(
+                            onPressed: _addItemManual,
+                            icon: const Icon(Icons.add_circle_outline),
+                            label: const Text("Agregar Tarea / Ítem", style: TextStyle(fontWeight: FontWeight.bold)),
+                            style: OutlinedButton.styleFrom(
+                                minimumSize: const Size(double.infinity, 44),
+                                foregroundColor: AppTheme.primaryBrand,
+                                side: const BorderSide(color: AppTheme.primaryBrand)
+                            ),
+                        )
+                    ),
                 Container(
                     padding: const EdgeInsets.all(16),
                     decoration: const BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(blurRadius: 10, color: Colors.black12)]),
@@ -595,12 +621,6 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
       );
     },
   ),
-  floatingActionButton: _tabController.index == 0 
-     ? FloatingActionButton(
-          onPressed: _addItemManual,
-          child: const Icon(Icons.add),
-       )
-     : null,
 );
   }
 
@@ -793,6 +813,11 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
       
       widget.onApply(result);
       if (mounted && Navigator.canPop(context)) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+              content: Text("Ajuste aplicado. Recuerda presionar 'Confirmar y Guardar' abajo para salvar todo."),
+              duration: Duration(seconds: 2),
+              behavior: SnackBarBehavior.floating,
+          ));
           Navigator.pop(context);
       }
   }

@@ -113,7 +113,8 @@ serve(async (req) => {
         const recipientId = record.user_id;
         const title = record.title || 'Nueva Notificación';
         const body = record.body || 'Tienes una nueva actualización en Planmapp.';
-        const route = record.route || '/';
+        const dataJson = record.data || {};
+        const route = dataJson.route || '/'; 
         const typeNotif = record.type || 'general';
 
         // Fetch tokens for this recipient

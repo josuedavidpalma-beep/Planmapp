@@ -30,8 +30,9 @@ class FriendshipService {
 
   /// Send a friend request
   Future<void> sendRequest(String receiverId) async {
-    final myId = _supabase.auth.currentUser?.id;
-    if (myId == null) throw Exception("Not logged in");
+    final currentUser = _supabase.auth.currentUser;
+    if (currentUser == null) throw Exception("Not logged in");
+    final myId = currentUser.id;
 
     try {
         await _supabase.from('friendships').insert({
@@ -39,6 +40,18 @@ class FriendshipService {
           'receiver_id': receiverId,
           'status': 'pending',
         });
+        
+        final profile = await _supabase.from('profiles').select('full_name, nickname').eq('id', myId).maybeSingle();
+        final name = profile?['nickname'] ?? profile?['full_name'] ?? 'Alguien';
+        
+        await _supabase.from('notifications').insert({
+            'user_id': receiverId,
+            'title': 'Solicitud de Amistad',
+            'body': '$name te ha enviado una solicitud de amistad.',
+            'type': 'friend_request',
+            'data': {'route': '/social'}
+        });
+        
     } on PostgrestException catch (e) {
         if (e.code == '23505') {
             throw Exception("Ya hay una solicitud enviada para este usuario.");
@@ -49,10 +62,27 @@ class FriendshipService {
 
   /// Accept a friend request
   Future<void> acceptRequest(String friendshipId) async {
+    final currentUser = _supabase.auth.currentUser;
+    if (currentUser == null) return;
+    
+    // Get requester to notify them
+    final friendship = await _supabase.from('friendships').select('requester_id').eq('id', friendshipId).single();
+    
     await _supabase
         .from('friendships')
         .update({'status': 'accepted'})
         .eq('id', friendshipId);
+        
+    final profile = await _supabase.from('profiles').select('full_name, nickname').eq('id', currentUser.id).maybeSingle();
+    final name = profile?['nickname'] ?? profile?['full_name'] ?? 'Alguien';
+    
+    await _supabase.from('notifications').insert({
+        'user_id': friendship['requester_id'],
+        'title': 'Solicitud Aceptada',
+        'body': '$name ha aceptado tu solicitud de amistad.',
+        'type': 'friend_accept',
+        'data': {'route': '/social'}
+    });
   }
 
   /// Get my friends (accepted) and pending requests
