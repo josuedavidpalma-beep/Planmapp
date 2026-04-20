@@ -14,19 +14,19 @@
             "name": "Nuevo Plan",
             "short_name": "Nuevo",
             "description": "Lanza una propuesta de plan a tus amigos",
-            "url": "/#/create-plan",
+            "url": "./#/create-plan",
             "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
         },
         {
             "name": "Mis Deudas",
             "short_name": "Deudas",
             "description": "Mira quién te debe o a quién le debes",
-            "url": "/#/debts",
+            "url": "./#/debts",
             "icons": [{ "src": "icons/Icon-192.png", "sizes": "192x192" }]
         }
     ],
     "share_target": {
-      "action": "/?share_target=true",
+      "action": "./?share_target=true",
       "method": "GET",
       "params": {
         "title": "title",
