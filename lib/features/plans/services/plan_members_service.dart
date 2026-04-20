@@ -34,7 +34,7 @@ class PlanMembersService {
         String? avatarUrl;
         List<String> interests = [];
         try {
-           final profile = await _supabase.from('profiles').select('nickname, full_name, display_name, avatar_url, interests').eq('id', uid).maybeSingle();
+           final profile = await _supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
            if (profile != null) {
               displayName = profile['nickname'] ?? profile['full_name'] ?? profile['display_name'] ?? "Usuario";
               avatarUrl = profile['avatar_url'];

@@ -548,17 +548,13 @@ class _PlanCard extends StatelessWidget {
   }
 
   Widget _buildDirectChatCard(BuildContext context) {
-      return FutureBuilder<dynamic>(
-          future: Supabase.instance.client
-                .from('plan_members')
-                .select('profiles(id, full_name, nickname, avatar_url)')
-                .eq('plan_id', plan.id)
-                .neq('user_id', Supabase.instance.client.auth.currentUser?.id ?? '')
-                .maybeSingle(),
+      return FutureBuilder<List<PlanMember>>(
+          future: PlanMembersService().getMembers(plan.id),
           builder: (context, snapshot) {
-              final otherUser = snapshot.data?['profiles'];
-              final titleText = otherUser?['full_name'] ?? (otherUser?['nickname'] ?? "Chat Privado");
-              final String? avatarUrl = otherUser?['avatar_url'];
+              final myId = Supabase.instance.client.auth.currentUser?.id;
+              final otherUser = snapshot.data?.where((m) => m.id != myId).firstOrNull;
+              final titleText = (otherUser?.name != null && otherUser!.name.isNotEmpty) ? otherUser.name : "Chat Privado";
+              final String? avatarUrl = otherUser?.avatarUrl;
 
               return Card(
                   color: Theme.of(context).cardColor,
