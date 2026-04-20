@@ -670,7 +670,10 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
          }
      }
      
-     final subtotal = (widget.expenseData['subtotal'] as num?)?.toDouble() ?? 0.0;
+     // Dynamically calculate actual subtotal from current active items
+     final dynamicSubtotal = _items.fold(0.0, (sum, i) => sum + i.price);
+     
+     final subtotal = dynamicSubtotal > 0 ? dynamicSubtotal : ((widget.expenseData['subtotal'] as num?)?.toDouble() ?? 0.0);
      final tax = (widget.expenseData['tax_amount'] as num?)?.toDouble() ?? 0.0;
      final tip = (widget.expenseData['tip_amount'] as num?)?.toDouble() ?? 0.0;
      
@@ -699,7 +702,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                              Row(
                                  mainAxisAlignment: MainAxisAlignment.spaceAround,
                                  children: [
-                                     Column(children: [const Text("Items", style: TextStyle(color: Colors.white70, fontSize: 12)), Text(CurrencyInputFormatter.format(subtotal), style: const TextStyle(color: Colors.white))]),
+                                     Column(children: [Text("Items (${_items.length})", style: const TextStyle(color: Colors.white70, fontSize: 12)), Text(CurrencyInputFormatter.format(subtotal), style: const TextStyle(color: Colors.white))]),
                                      Column(children: [const Text("Propina", style: TextStyle(color: Colors.white70, fontSize: 12)), Text(CurrencyInputFormatter.format(tip), style: const TextStyle(color: Colors.white))]),
                                      Column(children: [const Text("Impuesto", style: TextStyle(color: Colors.white70, fontSize: 12)), Text(CurrencyInputFormatter.format(tax), style: const TextStyle(color: Colors.white))]),
                                  ],

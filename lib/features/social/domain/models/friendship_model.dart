@@ -12,6 +12,7 @@ class Friendship {
   final String? friendName;
   final String? friendAvatarUrl;
   final String? friendId; // The ID of the "other" person relative to Me
+  final List<String> friendInterests;
 
   const Friendship({
     required this.id,
@@ -22,6 +23,7 @@ class Friendship {
     this.friendName,
     this.friendAvatarUrl,
     this.friendId,
+    this.friendInterests = const [],
   });
 
   factory Friendship.fromJson(Map<String, dynamic> json, {String? myUserId}) {
@@ -35,28 +37,27 @@ class Friendship {
     String? fName;
     String? fAvatar;
     String? fId;
+    List<String> fInterests = [];
 
     if (myUserId != null) {
       final isRequester = json['requester_id'] == myUserId;
-      // If I am requester, friend is receiver. If I am receiver, friend is requester to me.
-      // However, usually we join 'receiver:profiles(...)' or 'requester:profiles(...)'
-      // For now, let's assume the passed json might have joined profile data if we query efficiently.
-      // Or we handle it later.
-      
-      // Let's assume the JSON structure comes from a join like:
-      // ..., receiver:profiles!receiver_id(display_name), requester:profiles!requester_id(display_name)
-      
       final receiverProfile = json['receiver'] as Map<String, dynamic>?;
       final requesterProfile = json['requester'] as Map<String, dynamic>?;
 
       if (isRequester) {
          fId = json['receiver_id'];
-         fName = receiverProfile?['display_name'];
+         fName = receiverProfile?['nickname'] ?? receiverProfile?['display_name'];
          fAvatar = receiverProfile?['avatar_url'];
+         if (receiverProfile?['interests'] != null) {
+             fInterests = List<String>.from((receiverProfile!['interests'] as List).map((e) => e.toString()));
+         }
       } else {
          fId = json['requester_id'];
-         fName = requesterProfile?['display_name'];
+         fName = requesterProfile?['nickname'] ?? requesterProfile?['display_name'];
          fAvatar = requesterProfile?['avatar_url'];
+         if (requesterProfile?['interests'] != null) {
+             fInterests = List<String>.from((requesterProfile!['interests'] as List).map((e) => e.toString()));
+         }
       }
     }
 
@@ -69,6 +70,7 @@ class Friendship {
       friendName: fName,
       friendAvatarUrl: fAvatar,
       friendId: fId,
+      friendInterests: fInterests,
     );
   }
 }

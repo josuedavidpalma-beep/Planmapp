@@ -306,9 +306,11 @@ class _InternalUserSearchSheetState extends State<_InternalUserSearchSheet> {
                     TextField(
                         controller: _searchController,
                         onChanged: _performSearch,
+                        style: const TextStyle(color: Colors.black87),
                         decoration: InputDecoration(
                             hintText: "Nombre o Apodo...",
-                            prefixIcon: const Icon(Icons.search),
+                            hintStyle: const TextStyle(color: Colors.black54),
+                            prefixIcon: const Icon(Icons.search, color: Colors.black54),
                             filled: true,
                             fillColor: Colors.grey[100],
                             border: OutlineInputBorder(borderRadius: BorderRadius.circular(12), borderSide: BorderSide.none)

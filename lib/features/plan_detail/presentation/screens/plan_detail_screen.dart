@@ -81,11 +81,13 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
     });
     
     _loadAllData();
-    _setupPollsSubscription();
+    _setupSubscriptions();
   }
 
   RealtimeChannel? _pollsSubscription;
-  void _setupPollsSubscription() {
+  RealtimeChannel? _planSubscription;
+
+  void _setupSubscriptions() {
       _pollsSubscription = Supabase.instance.client
           .channel('public:poll_votes')
           .onPostgresChanges(
@@ -98,11 +100,26 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                    });
               }
           ).subscribe();
+          
+      _planSubscription = Supabase.instance.client
+          .channel('public:plans:detail')
+          .onPostgresChanges(
+              event: PostgresChangeEvent.update,
+              schema: 'public',
+              table: 'plans',
+              filter: PostgresChangeFilter(type: PostgresChangeFilterType.eq, column: 'id', value: widget.planId),
+              callback: (payload) {
+                   if (mounted) {
+                       _loadAllData(); // Reloads plan and re-evaluates tabs
+                   }
+              }
+          ).subscribe();
   }
   
   @override
   void dispose() {
     _pollsSubscription?.unsubscribe();
+    _planSubscription?.unsubscribe();
     _chatScrollController.dispose();
     _messageController.dispose();
     _tabController.dispose();

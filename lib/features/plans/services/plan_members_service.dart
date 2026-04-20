@@ -32,12 +32,16 @@ class PlanMembersService {
         // Fetch name from Profile (Best effort)
         String displayName = "Miembro";
         String? avatarUrl;
+        String? phone;
+        int reputationScore = 100;
         List<String> interests = [];
         try {
            final profile = await _supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
            if (profile != null) {
               displayName = profile['nickname'] ?? profile['full_name'] ?? profile['display_name'] ?? "Usuario";
               avatarUrl = profile['avatar_url'];
+              phone = profile['phone'];
+              reputationScore = profile['reputation_score'] ?? 100;
               if (profile['interests'] != null) {
                   interests = List<String>.from((profile['interests'] as List).map((e) => e.toString()));
               }
@@ -60,6 +64,8 @@ class PlanMembersService {
             avatarUrl: avatarUrl,
             status: status,
             interests: interests,
+            phone: phone,
+            reputationScore: reputationScore,
         ));
       }
 
@@ -117,6 +123,8 @@ class PlanMember {
   final String? avatarUrl;
   final String status; // pending, accepted, declined
   final List<String> interests;
+  final String? phone;
+  final int reputationScore;
 
   PlanMember({
       required this.id, 
@@ -126,5 +134,7 @@ class PlanMember {
       this.avatarUrl,
       this.status = 'pending',
       this.interests = const [],
+      this.phone,
+      this.reputationScore = 100,
   });
 }

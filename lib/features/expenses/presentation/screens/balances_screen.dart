@@ -1,5 +1,7 @@
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
+import 'package:url_launcher/url_launcher.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:go_router/go_router.dart';
@@ -76,7 +78,8 @@ class BalancesScreen extends ConsumerWidget {
                             balance: b, 
                             isMeDebtor: true, 
                             planId: planId,
-                            otherUserName: membersMap[b.toUserId]?.name ?? "Usuario Desconocido",
+                            member: membersMap[b.toUserId],
+                            fallbackName: "Usuario Desconocido",
                           )),
                       ],
 
@@ -88,7 +91,8 @@ class BalancesScreen extends ConsumerWidget {
                             balance: b, 
                             isMeDebtor: false, 
                             planId: planId,
-                            otherUserName: membersMap[b.fromUserId]?.name ?? "Usuario Desconocido",
+                            member: membersMap[b.fromUserId],
+                            fallbackName: "Usuario Desconocido",
                           )),
                       ],
 
@@ -101,7 +105,7 @@ class BalancesScreen extends ConsumerWidget {
                             isMeDebtor: false, 
                             isReadOnly: true, 
                             planId: planId,
-                            otherUserName: "${membersMap[b.fromUserId]?.name} le debe a ${membersMap[b.toUserId]?.name}",
+                            fallbackName: "${membersMap[b.fromUserId]?.name} le debe a ${membersMap[b.toUserId]?.name}",
                           )),
                       ]
                     ],
@@ -153,13 +157,15 @@ class _DebtCard extends ConsumerWidget {
   final bool isMeDebtor;
   final bool isReadOnly;
   final String planId;
-  final String otherUserName;
+  final PlanMember? member;
+  final String? fallbackName;
 
   const _DebtCard({
     required this.balance, 
     required this.isMeDebtor, 
     required this.planId, 
-    required this.otherUserName,
+    this.member,
+    this.fallbackName,
     this.isReadOnly = false
   });
 
@@ -192,11 +198,24 @@ class _DebtCard extends ConsumerWidget {
                       style: TextStyle(color: Colors.grey[600], fontSize: 12),
                    ),
                    const SizedBox(height: 4),
-                   Text(
-                     otherUserName, 
-                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
-                     maxLines: 1,
-                     overflow: TextOverflow.ellipsis,
+                   Row(
+                     children: [
+                       Flexible(
+                         child: Text(
+                           member?.name ?? fallbackName ?? 'Usuario', 
+                           style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16),
+                           maxLines: 1,
+                           overflow: TextOverflow.ellipsis,
+                         ),
+                       ),
+                       if (member != null && member!.reputationScore >= 120) ...[
+                           const SizedBox(width: 8),
+                           const Tooltip(
+                             message: "Pagador Rápido: Suele pagar en menos de 48 hrs",
+                             child: Text("🔥", style: TextStyle(fontSize: 14)),
+                           )
+                       ],
+                     ],
                    ),
                  ],
                ),
@@ -219,7 +238,7 @@ class _DebtCard extends ConsumerWidget {
                         tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         foregroundColor: AppTheme.primaryBrand,
                       ),
-                      onPressed: () => _showPaymentDialog(context, ref, otherUserName),
+                      onPressed: () => _showPaymentDialog(context, ref, member, fallbackName),
                       child: const Text("Registrar Pago"),
                     ),
                ],
@@ -230,7 +249,8 @@ class _DebtCard extends ConsumerWidget {
     );
   }
 
-  void _showPaymentDialog(BuildContext context, WidgetRef ref, String creditorName) {
+  void _showPaymentDialog(BuildContext context, WidgetRef ref, PlanMember? creditor, String? fallbackName) {
+     final creditorName = creditor?.name ?? fallbackName ?? 'Usuario';
      final noteController = TextEditingController();
      String selectedMethod = 'Efectivo';
      final methods = ['Efectivo', 'Nequi', 'DaviPlata', 'Transferencia', 'Zelle'];
@@ -279,7 +299,7 @@ class _DebtCard extends ConsumerWidget {
                onPressed: () => Navigator.pop(ctx), 
                child: const Text("Cancelar", style: TextStyle(color: Colors.grey))
             ),
-            ElevatedButton(
+             ElevatedButton(
               onPressed: () async {
                  Navigator.pop(ctx);
                  final payment = PaymentModel(
@@ -299,6 +319,37 @@ class _DebtCard extends ConsumerWidget {
                  
                  if (context.mounted) {
                     ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pago registrado exitosamente")));
+                 }
+
+                 // ============================================
+                 // DEEP LINKING LOGIC
+                 // ============================================
+                 if (selectedMethod == 'Nequi' || selectedMethod == 'DaviPlata') {
+                     final phone = creditor?.phone;
+                     if (phone != null && phone.isNotEmpty) {
+                         await Clipboard.setData(ClipboardData(text: phone));
+                         
+                         if (context.mounted) {
+                             ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                 content: Text("Número $phone copiado. Abriendo app..."),
+                                 backgroundColor: AppTheme.primaryBrand,
+                             ));
+                         }
+                         
+                         if (selectedMethod == 'Nequi') {
+                             final Uri appUri = Uri.parse('nequi://');
+                             if (await canLaunchUrl(appUri)) {
+                                 await launchUrl(appUri, mode: LaunchMode.externalApplication);
+                             } else {
+                                 await launchUrl(Uri.parse('https://recarga.nequi.com.co'), mode: LaunchMode.externalApplication);
+                             }
+                         } else if (selectedMethod == 'DaviPlata') {
+                             final Uri appUri = Uri.parse('daviplata://');
+                             if (await canLaunchUrl(appUri)) {
+                                 await launchUrl(appUri, mode: LaunchMode.externalApplication);
+                             }
+                         }
+                     }
                  }
               }, 
               style: ElevatedButton.styleFrom(

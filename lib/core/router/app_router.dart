@@ -22,10 +22,12 @@ import 'package:planmapp/features/spots/presentation/screens/spots_screen.dart';
 import 'package:planmapp/features/profile/presentation/screens/profile_screen.dart'; // Still needed for Drawer if accessed directly, but we will move it.
 import 'package:planmapp/features/notifications/presentation/screens/notifications_screen.dart';
 import 'package:planmapp/features/expenses/presentation/screens/balances_screen.dart';
+import 'package:planmapp/features/expenses/presentation/screens/debts_dashboard_screen.dart';
 import 'package:planmapp/features/expenses/presentation/screens/guest_join_screen.dart';
 import 'package:planmapp/features/expenses/presentation/screens/guest_split_screen.dart';
 import 'package:planmapp/features/landing/presentation/screens/plan_landing_screen.dart'; // NEW landing
 import 'package:planmapp/features/social/presentation/screens/friends_screen.dart';
+import 'package:planmapp/features/matchmaker/presentation/screens/ai_matchmaker_screen.dart';
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(); // Key for root navigator
 
@@ -237,6 +239,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         }
       ),
       GoRoute(
+        path: '/debts',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const DebtsDashboardScreen(planId: null), // Global mode
+      ),
+      GoRoute(
         path: '/pago/:id',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => PlanLandingScreen(planId: state.pathParameters['id']!),
@@ -250,6 +257,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/friends',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => const FriendsScreen(),
+      ),
+      GoRoute(
+        path: '/ai-matchmaker',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) => const AiMatchmakerScreen(),
       ),
     ],
   );

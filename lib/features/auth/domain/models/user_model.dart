@@ -7,6 +7,7 @@ class UserProfile {
   final DateTime? birthday;
   final List<String> tags; // e.g. ["Playa", "Bailar"]
   final bool isGuest;
+  final int reputationScore;
 
   const UserProfile({
     required this.id,
@@ -17,6 +18,7 @@ class UserProfile {
     this.birthday,
     this.tags = const [],
     this.isGuest = false,
+    this.reputationScore = 100,
   });
 
   // Factory for creating a temporary guest user
@@ -27,6 +29,7 @@ class UserProfile {
       displayName: name,
       isGuest: true,
       tags: [],
+      reputationScore: 100,
     );
   }
 
@@ -41,6 +44,7 @@ class UserProfile {
       'birthday': birthday?.toIso8601String(),
       'tags': tags,
       'is_guest': isGuest,
+      'reputation_score': reputationScore,
     };
   }
 
@@ -54,6 +58,7 @@ class UserProfile {
       birthday: map['birthday'] != null ? DateTime.parse(map['birthday']) : null,
       tags: List<String>.from(map['tags'] ?? []),
       isGuest: map['is_guest'] ?? false,
+      reputationScore: map['reputation_score'] ?? 100,
     );
   }
 }

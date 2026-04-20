@@ -72,6 +72,13 @@ class _FriendsScreenState extends State<FriendsScreen> with SingleTickerProvider
           _SearchFriendsTab(friendshipService: _friendshipService, onFriendAdded: _loadFriendships),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: () => context.push('/ai-matchmaker'),
+        backgroundColor: AppTheme.primaryBrand,
+        foregroundColor: Colors.white,
+        icon: const Icon(Icons.auto_awesome),
+        label: const Text("IA Matchmaker"),
+      ),
     );
   }
 
@@ -174,8 +181,10 @@ class _SearchFriendsTabState extends State<_SearchFriendsTab> {
         children: [
           TextField(
             controller: _controller,
+            style: const TextStyle(color: Colors.black87), // Fix text color to contrast with the input's fillColor
             decoration: InputDecoration(
               hintText: "Buscar por nombre (min 3 letras)...",
+              hintStyle: const TextStyle(color: Colors.black54),
               prefixIcon: const Icon(Icons.search),
               border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
               suffixIcon: IconButton(icon: const Icon(Icons.arrow_forward), onPressed: _search),

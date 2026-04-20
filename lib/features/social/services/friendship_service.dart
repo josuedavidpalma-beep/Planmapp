@@ -99,8 +99,8 @@ class FriendshipService {
     try {
        final res = await _supabase.from('friendships').select('''
           *,
-          receiver:profiles!receiver_id(display_name, avatar_url),
-          requester:profiles!requester_id(display_name, avatar_url)
+          receiver:profiles!receiver_id(display_name, nickname, avatar_url, interests),
+          requester:profiles!requester_id(display_name, nickname, avatar_url, interests)
        ''').or('requester_id.eq.$myId,receiver_id.eq.$myId');
 
        return (res as List).map((item) => Friendship.fromJson(item, myUserId: myId)).toList();
