@@ -329,7 +329,72 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
     return LayoutBuilder(
       builder: (context, constraints) {
         final isDesktop = constraints.maxWidth > 900;
-        
+        final bool isDirectChat = _plan?.isDirectChat ?? false;
+
+        // Bypass everything for direct chats to offer a pure messaging experience
+        if (isDirectChat && !isDesktop) {
+            final otherUser = _getOtherUser();
+            return Scaffold(
+                 appBar: AppBar(
+                     backgroundColor: AppTheme.darkBackground,
+                     elevation: 1,
+                     centerTitle: true,
+                     iconTheme: const IconThemeData(color: Colors.white),
+                     title: GestureDetector(
+                         onTap: () {
+                             if (otherUser != null) {
+                                  _showUserProfileModal(otherUser, otherUser['full_name'] ?? "Usuario");
+                             }
+                         },
+                         child: Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                                if (otherUser != null && otherUser['avatar_url'] != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 8.0),
+                                      child: CircleAvatar(
+                                          radius: 16,
+                                          backgroundImage: NetworkImage(otherUser['avatar_url']),
+                                      ),
+                                    )
+                                else if (otherUser != null)
+                                    Padding(
+                                      padding: const EdgeInsets.only(right: 8.0),
+                                      child: CircleAvatar(
+                                          radius: 16,
+                                          backgroundColor: Colors.grey[800],
+                                          child: const Icon(Icons.person, color: Colors.white, size: 18),
+                                      ),
+                                    ),
+                                Text(
+                                    otherUser != null ? (otherUser['full_name'] ?? "Usuario") : "Cargando...",
+                                    style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.white)
+                                )
+                            ]
+                         )
+                     ),
+                     actions: [
+                        PopupMenuButton<String>(
+                            icon: const Icon(Icons.more_vert, color: Colors.white),
+                            onSelected: (value) async {
+                                if (value == 'delete') {
+                                     _confirmDeletePlan();
+                                } else if (value == 'convert') {
+                                     // Navigate to plan creation passing this chat as a base
+                                     if (mounted) context.push('/create-plan', extra: {'converted_chat_id': widget.planId});
+                                }
+                            },
+                            itemBuilder: (context) => [
+                                const PopupMenuItem(value: 'convert', child: Text("Convertir a Plan Grupal")),
+                                const PopupMenuItem(value: 'delete', child: Text("Eliminar Chat", style: TextStyle(color: Colors.red))),
+                            ]
+                        )
+                     ]
+                 ),
+                 body: SafeArea(child: _buildChatAndPolls()), 
+            );
+        }
+
         // On Desktop, the main view is the nested scroll view (Left)
         // The right side is the persistent chat.
         
