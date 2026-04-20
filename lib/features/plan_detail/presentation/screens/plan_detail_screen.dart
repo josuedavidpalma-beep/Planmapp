@@ -263,6 +263,43 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
       return "${date.year}${date.month.toString().padLeft(2,'0')}${date.day.toString().padLeft(2,'0')}T${date.hour.toString().padLeft(2,'0')}${date.minute.toString().padLeft(2,'0')}00Z";
   }
 
+  Future<void> _convertToPlan() async {
+      final confirm = await showDialog<bool>(
+          context: context, 
+          builder: (context) => AlertDialog(
+              title: const Text("Convertir a Plan"),
+              content: const Text("Este chat individual se convertirá en un plan grupal donde podrás añadir más participantes y un itinerario."),
+              actions: [
+                  TextButton(onPressed: ()=>Navigator.pop(context, false), child: const Text("Cancelar")),
+                  ElevatedButton(
+                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand),
+                      onPressed: ()=>Navigator.pop(context, true), 
+                      child: const Text("Convertir")
+                  )
+              ],
+          )
+      );
+
+      if (confirm == true) {
+           try {
+               await Supabase.instance.client
+                   .from('plans')
+                   .update({
+                       'is_direct_chat': false,
+                       'title': 'Nuevo Plan'
+                   })
+                   .eq('id', widget.planId);
+                   
+               if (mounted) {
+                   ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Convertido a plan exitosamente!")));
+                   _loadAllData(); // reload plan
+               }
+           } catch (e) {
+               if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+           }
+      }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -343,42 +380,72 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
     );
   }
 
+  Map<String, dynamic>? _getOtherUser() {
+      final myId = Supabase.instance.client.auth.currentUser?.id;
+      for (var entry in _membersMap.entries) {
+          if (entry.key != myId) return entry.value;
+      }
+      return null;
+  }
+
   SliverAppBar _buildSliverAppBar(BuildContext context, bool isDesktop) {
+      final bool isDirectChat = _plan?.isDirectChat ?? false;
+      final otherUser = _getOtherUser();
+      final titleText = isDirectChat ? (otherUser?['full_name'] ?? "Chat Privado") : (_plan?.title ?? "Detalle");
+
       return SliverAppBar(
-              expandedHeight: 120.0, 
+              expandedHeight: isDirectChat ? 80.0 : 120.0, 
               floating: false,
               pinned: true,
-              backgroundColor: AppTheme.primaryBrand,
+              backgroundColor: isDirectChat ? AppTheme.darkBackground : AppTheme.primaryBrand,
               iconTheme: const IconThemeData(color: Colors.white),
               flexibleSpace: FlexibleSpaceBar(
                   centerTitle: true,
-                  title: Text(_plan?.title ?? "Detalle", 
-                      style: const TextStyle(
-                          color: Colors.white, 
-                          fontWeight: FontWeight.bold,
-                          fontSize: 16 
-                      )
+                  title: Row(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                         if (isDirectChat && otherUser != null)
+                             Padding(
+                               padding: const EdgeInsets.only(right: 8.0),
+                               child: CircleAvatar(
+                                   radius: 12,
+                                   backgroundColor: Colors.grey[800],
+                                   backgroundImage: otherUser['avatar_url'] != null ? NetworkImage(otherUser['avatar_url']) : null,
+                                   child: otherUser['avatar_url'] == null ? const Icon(Icons.person, size: 14, color: Colors.white) : null,
+                               ),
+                             ),
+                         Text(titleText, 
+                             style: const TextStyle(
+                                 color: Colors.white, 
+                                 fontWeight: FontWeight.bold,
+                                 fontSize: 16 
+                             )
+                         ),
+                      ],
                   ),
-                  background: Hero(
-                      tag: 'plan_bg_${widget.planId}', 
-                      child: Container(
-                        decoration: const BoxDecoration(
-                            gradient: LinearGradient(
-                                colors: [AppTheme.primaryBrand, AppTheme.secondaryBrand],
-                                begin: Alignment.topLeft,
-                                end: Alignment.bottomRight,
+                  background: isDirectChat 
+                      ? Container(color: AppTheme.darkBackground) // Clean dark background for chats
+                      : Hero(
+                          tag: 'plan_bg_${widget.planId}', 
+                          child: Container(
+                            decoration: const BoxDecoration(
+                                gradient: LinearGradient(
+                                    colors: [AppTheme.primaryBrand, AppTheme.secondaryBrand],
+                                    begin: Alignment.topLeft,
+                                    end: Alignment.bottomRight,
+                                ),
                             ),
-                        ),
+                          ),
                       ),
-                  ),
               ),
               actions: [
-                IconButton(
-                    icon: const Icon(Icons.share), 
-                    onPressed: () {
-                        if (_plan != null) InvitationService.inviteToPlan(_plan!);
-                    }
-                ),
+                if (!isDirectChat)
+                    IconButton(
+                        icon: const Icon(Icons.share), 
+                        onPressed: () {
+                            if (_plan != null) InvitationService.inviteToPlan(_plan!);
+                        }
+                    ),
                 PopupMenuButton<String>(
                   icon: const Icon(Icons.more_vert),
                   onSelected: (value) async {
@@ -397,9 +464,28 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                           );
                       } else if (value == 'calendar') {
                           _exportToCalendar();
+                      } else if (value == 'convert_plan') {
+                          _convertToPlan();
                       }
                   },
                   itemBuilder: (BuildContext context) {
+                    if (isDirectChat) {
+                        return [
+                            const PopupMenuItem<String>(
+                              value: 'convert_plan',
+                              child: Row(
+                                  children: [Icon(Icons.rocket_launch, color: Colors.blue), SizedBox(width: 8), Text('Convertir a Plan Grupál')],
+                              ),
+                            ),
+                            if (_myRole == 'admin')
+                              const PopupMenuItem<String>(
+                                value: 'delete',
+                                child: Row(
+                                    children: [Icon(Icons.delete, color: Colors.red), SizedBox(width: 8), Text('Eliminar Chat Privado')],
+                                ),
+                              ),
+                        ];
+                    }
                     return [
                       const PopupMenuItem<String>(
                         value: 'calendar',
@@ -435,7 +521,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                       unselectedLabelColor: Colors.grey,
                       indicatorColor: AppTheme.primaryBrand,
                       tabs: [
-                          const Tab(icon: Icon(Icons.chat_bubble_outline), text: "Resumen"),
+                          Tab(icon: const Icon(Icons.chat_bubble_outline), text: isDirectChat ? "Chat" : "Resumen"),
                           if (_plan?.eventDate != null || (_plan?.locationName.isNotEmpty ?? false))
                               const Tab(icon: Icon(Icons.map_outlined), text: "Itinerario"),
                           if ((_plan?.eventDate != null || (_plan?.locationName.isNotEmpty ?? false)) && _plan?.paymentMode == 'pool')
@@ -518,7 +604,8 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
              _buildActionBanner(),
 
           // Active Polls Section
-          StreamBuilder<List<Poll>>(
+          if (!(_plan?.isDirectChat ?? false))
+              StreamBuilder<List<Poll>>(
              stream: _pollsStream,
              builder: (context, snapshot) {
                  final polls = snapshot.data ?? [];
