@@ -24,6 +24,7 @@ import 'package:planmapp/core/widgets/auth_guard.dart';
 import 'package:planmapp/core/presentation/widgets/dancing_empty_state.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:planmapp/features/games/presentation/widgets/wheel_spin_dialog.dart'; // NEW Wheel
+import 'package:planmapp/features/games/presentation/widgets/sound_commands_dialog.dart';
 import 'package:planmapp/features/plan_detail/presentation/widgets/roulette_message_bubble.dart';
 import 'package:planmapp/features/plan_detail/presentation/widgets/final_confirmation_bubble.dart';
 import 'package:planmapp/features/plan_detail/presentation/widgets/participants_list_sheet.dart'; 
@@ -2061,6 +2062,13 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                           subtitle: "Opciones personalizadas",
                           onTap: () => Navigator.pop(context, 'custom')
                       ),
+                      _buildGameOption(
+                          icon: Icons.volume_up_rounded, 
+                          color: Colors.blueAccent, 
+                          title: "Comandos Sonoros 🔊", 
+                          subtitle: "Retos guiados por sonido",
+                          onTap: () => Navigator.pop(context, 'sound_commands')
+                      ),
                       const SizedBox(height: 20),
                   ],
               ),
@@ -2068,6 +2076,23 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
       );
 
       if (mode == null) return;
+      
+      if (mode == 'sound_commands') {
+          if (mounted) {
+              final participantNames = _membersMap.values.map((m) => m['full_name'].toString().split(' ')[0]).toList();
+              final options = participantNames.isNotEmpty ? participantNames : ["Jugador 1", "Jugador 2"];
+              await showDialog(
+                  context: context, 
+                  builder: (context) => SoundCommandsDialog(
+                      participants: options,
+                      onResult: (msg) {
+                          _chatService.sendMessage(widget.planId, msg, isSystem: true, metadata: {'type': 'system'});
+                      }
+                  )
+              );
+          }
+          return;
+      }
 
       List<String> options = [];
       
