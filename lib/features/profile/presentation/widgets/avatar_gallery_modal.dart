@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 
 class AvatarGalleryModal extends StatelessWidget {
@@ -8,13 +9,15 @@ class AvatarGalleryModal extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    // Generate 40 unique avatar URLs using DiceBear
-    // We'll use multiple styles for variety
+    // Usaremos los estilos más "Premium" y divertidos de DiceBear 9.x
+    // Micah (Ilustraciones modernas), Fun-Emoji (Emojis vibrantes), 
+    // Notionists (Estilo Notion minimalista), Adventurer-Neutral (Personajes Cool)
+    // Redujimos a 24 totales (6 por categoría) para evitar que el API gratuito de DiceBear rechace conexiones simultáneas.
     final avatarUrls = [
-      ...List.generate(10, (i) => "https://api.dicebear.com/7.x/avataaars/png?seed=p${i+1}"),
-      ...List.generate(10, (i) => "https://api.dicebear.com/7.x/bottts/png?seed=b${i+1}"),
-      ...List.generate(10, (i) => "https://api.dicebear.com/7.x/pixel-art/png?seed=px${i+1}"),
-      ...List.generate(10, (i) => "https://api.dicebear.com/7.x/noto-emoji/png?seed=e${i+1}"),
+      ...List.generate(6, (i) => "https://api.dicebear.com/9.x/micah/png?seed=premium${i+1}&backgroundColor=b6e3f4,c0aede,d1d4f9,ffdfbf"),
+      ...List.generate(6, (i) => "https://api.dicebear.com/9.x/fun-emoji/png?seed=divertido${i+1}"),
+      ...List.generate(6, (i) => "https://api.dicebear.com/9.x/notionists/png?seed=notion${i+1}&backgroundColor=f8d25c,ffdfbf,c0aede"),
+      ...List.generate(6, (i) => "https://api.dicebear.com/9.x/adventurer-neutral/png?seed=adv${i+1}&backgroundColor=b6e3f4,c0aede"),
     ];
 
     final isDark = Theme.of(context).brightness == Brightness.dark;
@@ -32,13 +35,13 @@ class AvatarGalleryModal extends StatelessWidget {
           const SizedBox(height: 20),
           Text("Elige tu Avatar 🎨", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: isDark ? Colors.white : Colors.black87)),
           const SizedBox(height: 4),
-          const Text("Selecciona el que mejor te represente", style: TextStyle(color: Colors.grey)),
+          const Text("Selecciona el que mejor te represente o más te divierta", style: TextStyle(color: Colors.grey)),
           const SizedBox(height: 20),
           Expanded(
             child: GridView.builder(
               padding: const EdgeInsets.all(16),
               gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                crossAxisCount: 4,
+                crossAxisCount: 3, // Se ajustó a 3 para que se vean más grandes y definidos
                 crossAxisSpacing: 16,
                 mainAxisSpacing: 16,
               ),
@@ -55,27 +58,20 @@ class AvatarGalleryModal extends StatelessWidget {
                     decoration: BoxDecoration(
                       color: isDark ? Colors.white.withOpacity(0.05) : Colors.black.withOpacity(0.05),
                       shape: BoxShape.circle,
-                      border: Border.all(color: isDark ? Colors.white10 : Colors.black12),
+                      border: Border.all(color: isDark ? Colors.white10 : Colors.black12, width: 2),
                     ),
                     child: ClipOval(
-                      child: Image.network(
-                        url,
+                      // Usar CachedNetworkImage evita que se recarguen y falle la bajada
+                      child: CachedNetworkImage(
+                        imageUrl: url,
                         fit: BoxFit.cover,
-                        loadingBuilder: (context, child, loadingProgress) {
-                          if (loadingProgress == null) return child;
-                          return Center(
-                            child: SizedBox(
-                              width: 20, height: 20,
-                              child: CircularProgressIndicator(
-                                strokeWidth: 2,
-                                value: loadingProgress.expectedTotalBytes != null
-                                    ? loadingProgress.cumulativeBytesLoaded / loadingProgress.expectedTotalBytes!
-                                    : null,
-                              ),
-                            ),
-                          );
-                        },
-                        errorBuilder: (context, error, stackTrace) => const Icon(Icons.person, color: Colors.grey),
+                        placeholder: (context, url) => const Center(
+                           child: SizedBox(
+                              width: 20, height: 20, 
+                              child: CircularProgressIndicator(strokeWidth: 2)
+                           )
+                        ),
+                        errorWidget: (context, url, error) => const Icon(Icons.person, color: Colors.grey),
                       ),
                     ),
                   ),
