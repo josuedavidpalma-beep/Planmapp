@@ -1,39 +1,39 @@
 class SoundCommandsData {
   static const List<String> chillChallenges = [
-    "Mueve la silla con el pie izquierdo",
-    "Toca la nariz del dueño de casa",
-    "Tráele un vaso de agua al más alto del grupo",
+    "Toca la nariz del grupo",
     "Ponte a saltar en un pie por 10 segundos",
-    "Aplaude tres veces apuntando al techo",
+    "Aplaude tres veces por encima de tu cabeza",
     "Siéntate en el suelo y cruza las piernas",
-    "Haz un sonido de animal de granja",
-    "Toca algo de color azul pastel o azul",
+    "Haz el sonido de un animal de granja",
+    "Toca el zapato derecho de alguien",
     "Pon tus manos en la cabeza de la persona a tu derecha",
     "Da una vuelta completa sobre tu propio eje",
-    "Acércate a una puerta y tócala dos veces",
-    "Quítate el zapato derecho y déjalo en el centro",
+    "Imita a un robot caminando hacia el frente",
+    "Quítate un zapato y déjalo en el centro",
     "Haz una pose de superhéroe por 5 segundos",
-    "Prende o apaga la luz más cercana",
-    "Toca los zapatos de la persona que habla más",
-    "Manda un beso volado a la pared",
+    "Agáchate y tócate las puntas de los pies",
+    "Toca la rodilla de la persona más alta",
     "Baila sin música durante 10 segundos",
-    "Hazle una reverencia al grupo",
+    "Hazle una reverencia dramática al grupo",
     "Señala a la persona que crees que se baña menos",
-    "Imita a un robot caminando hacia el frente"
+    "Simula que estás saltando la cuerda",
+    "Choca los cinco con la persona que tienes al frente",
+    "Camina de puntillas por 5 segundos",
+    "Haz una cara graciosa y mantenla 5 segundos"
   ];
 
   static const List<String> partyChallenges = [
     "Haz twerk por 10 segundos ininterrumpidos",
-    "Dale un pico/beso juguetón a alguien del grupo",
-    "Tómate un shot sin usar las manos",
+    "Dale un beso juguetón a alguien del grupo",
+    "Tómate tu bebida de un sorbo (shot)",
     "Huele el cuello de la persona más cercana",
     "Imita un orgasmo de manera cómica",
-    "Siéntate en las piernas de alguien por 1 ronda",
+    "Pídele a alguien que te cargue (caballito)",
     "Hazle un baile sensual al más callado",
     "Desabróchate un botón o quítate una prenda pequeña",
     "Deja que alguien te dé algo de tomar en la boca",
     "Acaricia el cabello de alguien prolongadamente",
-    "Simula que bailas pole dance con una silla o pared",
+    "Camina sensualmente hacia una persona",
     "Dale un abrazo demasiado largo y raro a alguien",
     "Masajea los hombros de quien tengas a la derecha",
     "Gatea sensualmente hacia el centro del grupo",
@@ -42,6 +42,6 @@ class SoundCommandsData {
     "Haz contacto visual fijo con alguien durante 30 segundos sin reír",
     "Muérdete el labio mientras ves fijamente a alguien",
     "Finge que te declaras amorosamente al más serio",
-    "Sube una pierna sobre el sofá/silla dramáticamente"
+    "Gira la cadera muy lentamente insinuando algo"
   ];
 }
