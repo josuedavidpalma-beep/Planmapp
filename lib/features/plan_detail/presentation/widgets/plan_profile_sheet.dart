@@ -80,7 +80,7 @@ class PlanProfileSheet extends StatelessWidget {
                ),
                
                const SizedBox(height: 12),
-               _buildMetaChip(Icons.location_on, plan.locationName ?? plan.address ?? 'Ubicación por definir'),
+               _buildMetaChip(Icons.location_on, plan.locationName.isNotEmpty ? plan.locationName : 'Ubicación por definir'),
                
                const SizedBox(height: 32),
                const Align(
