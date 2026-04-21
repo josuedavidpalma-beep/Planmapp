@@ -9,8 +9,8 @@ import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/features/expenses/domain/services/balance_service.dart';
 import 'package:planmapp/features/expenses/data/models/payment_model.dart';
-import 'package:planmapp/features/plans/services/plan_members_service.dart';
 import 'package:intl/intl.dart';
+import 'package:planmapp/core/services/chat_service.dart';
 
 // Provider to fetch member details (names, avatars) for the plan
 final planMembersProvider = FutureProvider.family<Map<String, PlanMember>, String>((ref, planId) async {
@@ -28,6 +28,7 @@ class BalancesScreen extends ConsumerWidget {
     // Watch both balances and member profiles
     final balancesAsync = ref.watch(planBalancesProvider(planId));
     final membersAsync = ref.watch(planMembersProvider(planId));
+    final paymentsAsync = ref.watch(planPaymentsProvider(planId));
 
     final currentUserId =  Supabase.instance.client.auth.currentUser?.id;
 
@@ -40,78 +41,85 @@ class BalancesScreen extends ConsumerWidget {
       body: balancesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text("Error: $err")),
-        data: (balances) {
-           return membersAsync.when(
-              loading: () => const Center(child: CircularProgressIndicator()),
-              error: (err, _) => const Center(child: Text("Error cargando perfiles")), // Should degrade gracefully though
-              data: (membersMap) {
-                  if (balances.isEmpty) {
-                    return Center(
-                      child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          const Icon(Icons.check_circle_outline, size: 80, color: Colors.green),
-                          const SizedBox(height: 16),
-                          Text("¡Todo Saldado!", style: Theme.of(context).textTheme.headlineSmall),
-                          const SizedBox(height: 8),
-                          const Text("Nadie le debe nada a nadie en este plan.", style: TextStyle(color: Colors.grey)),
-                        ],
-                      ).animate().scale(duration: 500.ms),
-                    );
-                  }
+            return paymentsAsync.when(
+               loading: () => const Center(child: CircularProgressIndicator()),
+               error: (err, _) => const Center(child: Text("Error cargando pagos")),
+               data: (allPayments) {
+                   return membersAsync.when(
+                      loading: () => const Center(child: CircularProgressIndicator()),
+                      error: (err, _) => const Center(child: Text("Error cargando perfiles")), // Should degrade gracefully though
+                      data: (membersMap) {
+                          if (balances.isEmpty) {
+                            return Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(Icons.check_circle_outline, size: 80, color: Colors.green),
+                                  const SizedBox(height: 16),
+                                  Text("¡Todo Saldado!", style: Theme.of(context).textTheme.headlineSmall),
+                                  const SizedBox(height: 8),
+                                  const Text("Nadie le debe nada a nadie en este plan.", style: TextStyle(color: Colors.grey)),
+                                ],
+                              ).animate().scale(duration: 500.ms),
+                            );
+                          }
 
-                  // Filter my debts and credits
-                  final myDebts = balances.where((b) => b.fromUserId == currentUserId).toList();
-                  final owedToMe = balances.where((b) => b.toUserId == currentUserId).toList();
-                  final others = balances.where((b) => b.fromUserId != currentUserId && b.toUserId != currentUserId).toList();
+                          // Filter my debts and credits
+                          final myDebts = balances.where((b) => b.fromUserId == currentUserId).toList();
+                          final owedToMe = balances.where((b) => b.toUserId == currentUserId).toList();
+                          final others = balances.where((b) => b.fromUserId != currentUserId && b.toUserId != currentUserId).toList();
 
-                  return ListView(
-                    padding: const EdgeInsets.all(16),
-                    children: [
-                      _buildSummaryCard(context, myDebts, owedToMe),
-                      const SizedBox(height: 24),
-                      
-                      if (myDebts.isNotEmpty) ...[
-                          const Text("Tus Deudas (Por Pagar)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                          const SizedBox(height: 8),
-                          ...myDebts.map((b) => _DebtCard(
-                            balance: b, 
-                            isMeDebtor: true, 
-                            planId: planId,
-                            member: membersMap[b.toUserId],
-                            fallbackName: "Usuario Desconocido",
-                          )),
-                      ],
+                          return ListView(
+                            padding: const EdgeInsets.all(16),
+                            children: [
+                              _buildSummaryCard(context, myDebts, owedToMe),
+                              const SizedBox(height: 24),
+                              
+                              if (myDebts.isNotEmpty) ...[
+                                  const Text("Tus Deudas (Por Pagar)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                  const SizedBox(height: 8),
+                                  ...myDebts.map((b) => _DebtCard(
+                                    balance: b, 
+                                    isMeDebtor: true, 
+                                    planId: planId,
+                                    member: membersMap[b.toUserId],
+                                    fallbackName: "Usuario Desconocido",
+                                    allPayments: allPayments,
+                                  )),
+                              ],
 
-                      if (owedToMe.isNotEmpty) ...[
-                          const SizedBox(height: 24),
-                          const Text("Te Deben (Por Cobrar)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
-                          const SizedBox(height: 8),
-                          ...owedToMe.map((b) => _DebtCard(
-                            balance: b, 
-                            isMeDebtor: false, 
-                            planId: planId,
-                            member: membersMap[b.fromUserId],
-                            fallbackName: "Usuario Desconocido",
-                          )),
-                      ],
+                              if (owedToMe.isNotEmpty) ...[
+                                  const SizedBox(height: 24),
+                                  const Text("Te Deben (Por Cobrar)", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                  const SizedBox(height: 8),
+                                  ...owedToMe.map((b) => _DebtCard(
+                                    balance: b, 
+                                    isMeDebtor: false, 
+                                    planId: planId,
+                                    member: membersMap[b.fromUserId],
+                                    fallbackName: "Usuario Desconocido",
+                                    allPayments: allPayments,
+                                  )),
+                              ],
 
-                      if (others.isNotEmpty) ...[
-                          const SizedBox(height: 24),
-                          const Text("Deudas de Otros", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.grey)),
-                          const SizedBox(height: 8),
-                          ...others.map((b) => _DebtCard(
-                            balance: b, 
-                            isMeDebtor: false, 
-                            isReadOnly: true, 
-                            planId: planId,
-                            fallbackName: "${membersMap[b.fromUserId]?.name} le debe a ${membersMap[b.toUserId]?.name}",
-                          )),
-                      ]
-                    ],
-                  );
-              }
-           );
+                              if (others.isNotEmpty) ...[
+                                  const SizedBox(height: 24),
+                                  const Text("Deudas de Otros", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18, color: Colors.grey)),
+                                  const SizedBox(height: 8),
+                                  ...others.map((b) => _DebtCard(
+                                    balance: b, 
+                                    isMeDebtor: false, 
+                                    isReadOnly: true, 
+                                    planId: planId,
+                                    fallbackName: "${membersMap[b.fromUserId]?.name} le debe a ${membersMap[b.toUserId]?.name}",
+                                    allPayments: allPayments,
+                                  )),
+                              ]
+                            ],
+                          );
+                      }
+                   );
+               });
         },
       ),
     );
@@ -159,6 +167,7 @@ class _DebtCard extends ConsumerWidget {
   final String planId;
   final PlanMember? member;
   final String? fallbackName;
+  final List<PaymentModel> allPayments;
 
   const _DebtCard({
     required this.balance, 
@@ -166,11 +175,16 @@ class _DebtCard extends ConsumerWidget {
     required this.planId, 
     this.member,
     this.fallbackName,
-    this.isReadOnly = false
+    this.isReadOnly = false,
+    required this.allPayments,
   });
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    // Find if there is a pending payment for this exact debt
+    final pendingPayment = allPayments.where((p) => p.fromUserId == balance.fromUserId && p.toUserId == balance.toUserId && p.status == 'pending').firstOrNull;
+    final isPending = pendingPayment != null;
+
     return Card(
       elevation: 2,
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
@@ -230,10 +244,27 @@ class _DebtCard extends ConsumerWidget {
                     style: TextStyle(
                       fontWeight: FontWeight.bold, 
                       fontSize: 16,
-                      color: isReadOnly ? Colors.grey : (isMeDebtor ? Colors.red : Colors.green)
+                      color: isReadOnly ? Colors.grey : (isPending ? Colors.orange[800] : (isMeDebtor ? Colors.red : Colors.green))
                     ),
                   ),
-                  if (!isReadOnly && isMeDebtor)
+                  if (isPending && isMeDebtor)
+                     const Text("En Espera...", style: TextStyle(color: Colors.orange, fontSize: 12, fontWeight: FontWeight.bold))
+                  else if (isPending && !isMeDebtor && !isReadOnly)
+                     Row(
+                        children: [
+                            IconButton(
+                                icon: const Icon(Icons.check_circle, color: Colors.green),
+                                tooltip: "Confirmar Pago",
+                                onPressed: () => _updatePayment(context, ref, pendingPayment.id, 'confirmed', member?.name ?? fallbackName, balance.amount)
+                            ),
+                            IconButton(
+                                icon: const Icon(Icons.cancel, color: Colors.red),
+                                tooltip: "Rechazar Pago",
+                                onPressed: () => _updatePayment(context, ref, pendingPayment.id, 'rejected', member?.name ?? fallbackName, balance.amount)
+                            )
+                        ]
+                     )
+                  else if (!isReadOnly && isMeDebtor)
                     ElevatedButton.icon(
                       style: ElevatedButton.styleFrom(
                         backgroundColor: AppTheme.primaryBrand,
@@ -251,6 +282,25 @@ class _DebtCard extends ConsumerWidget {
         ),
       ),
     );
+  }
+
+  Future<void> _updatePayment(BuildContext context, WidgetRef ref, String paymentId, String status, String? debtorName, double amount) async {
+       try {
+           await ref.read(balanceServiceProvider).updatePaymentStatus(paymentId, status);
+           
+           // Notify to chat
+           final chat = ChatService();
+           if (status == 'confirmed') {
+               await chat.sendMessage(planId, "✅ He confirmado tu pago de \$${amount.toStringAsFixed(0)}.", type: 'payment_confirmed');
+           } else {
+               await chat.sendMessage(planId, "❌ Hola $debtorName, hubo un problema con el pago de \$${amount.toStringAsFixed(0)}. Revisa los datos y vuelve a intentarlo.", type: 'payment_rejected');
+           }
+           
+           ref.invalidate(planBalancesProvider(planId));
+           ref.invalidate(planPaymentsProvider(planId));
+       } catch (e) {
+           if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+       }
   }
 
   void _showPaymentDialog(BuildContext context, WidgetRef ref, PlanMember? creditor, String? fallbackName) {
@@ -335,15 +385,26 @@ class _DebtCard extends ConsumerWidget {
                     amount: balance.amount,
                     method: selectedMethod,
                     note: noteController.text.isEmpty ? null : noteController.text,
-                    createdAt: DateTime.now(),
-                    confirmedAt: DateTime.now(), 
+                    status: 'pending',
+                    confirmedAt: null,
+                    createdAt: DateTime.now(), 
                  );
                  
                  await ref.read(balanceServiceProvider).recordPayment(payment);
+                 
+                 // Notify to Chat
+                 final chat = ChatService();
+                 await chat.sendMessage(
+                     planId, 
+                     "💸 He registrado un pago de \$${balance.amount.toStringAsFixed(0)} vía $selectedMethod. Por favor, confirma si lo recibiste en la pestaña de Cuentas.", 
+                     type: 'payment_claim'
+                 );
+
                  ref.invalidate(planBalancesProvider(planId)); 
+                 ref.invalidate(planPaymentsProvider(planId)); 
                  
                  if (context.mounted) {
-                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pago registrado exitosamente")));
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Aviso de pago enviado. Esperando confirmación.")));
                  }
 
                  // ============================================

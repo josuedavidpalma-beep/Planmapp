@@ -28,10 +28,10 @@ serve(async (req) => {
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 api_key: tavilyKey,
-                query: `eventos y promociones HOY ${today} Barranquilla 2x1 Happy Hour conciertos festivales proximos`,
+                query: `eventos promociones Barranquilla (site:instagram.com OR site:tiktok.com OR Tuboleta OR Taquilla Live OR Eventbrite OR Mallplaza OR Buenavista OR Viva) hoy entradas descuentos`,
                 search_depth: "advanced",
                 include_images: true,
-                max_results: 15
+                max_results: 20
             }),
         });
 
@@ -52,12 +52,14 @@ serve(async (req) => {
             ${JSON.stringify(searchData.results)}
             
              Requerimientos para cada evento:
+            - EXTRAE LA MAYOR CANTIDAD POSIBLE DE EVENTOS. No omitas ninguno que sea válido.
             - Solo eventos que ocurran HOY (${today}) o en el futuro cercano.
-            - DEBES encontrar el contacto real: Teléfono (WhatsApp preferiblemente) y link de acción (Reserva, Ticketera, Menú o Web oficial).
-            - Asigna un 'vibe_tag' entre: ["Rumba/Party", "Chill/Café", "Comida/Gastro", "Aventura/Outdoor", "Cine/Cultura"].
+            - DETECCIÓN DE VIRALIDAD: Prioriza publicaciones ruidosas (crecimiento rápido de interacciones, o contenido con intención de compra como "¿Precios?", "¡Vamos!"). Si es irrelevante, ignóralo.
+            - DEBES encontrar el contacto real y el enlace directo (URL a Instagram, TikTok, Ticketera u origen de la promoción).
+            - Asigna un 'vibe_tag' entre: ["Feria", "Festival", "Concierto", "Gastronomía", "Descuento Retail", "Evento Cultural"].
             - Genera un 'visual_keyword': Un término de búsqueda en INGLÉS corto y preciso para Unsplash (ej: "night club neon", "luxury steakhouse", "beach sunset").
             - La 'description' debe ser atractiva y persuasiva.
-            - DEBES extraer un campo 'promo_highlights': MUY CORTO (máz 12 chars). Ej: "2x1", "Happy Hour", "30% OFF", "Free Entry", "Cover $0". Si no hay promo, deja vacío.
+            - DEBES extraer el campo 'promo_highlights' estrictamente (máx 12 chars). Ej: "2x1", "Happy Hour", "30% OFF", "Free Entry", "Cover $0". Si no hay promo, deja vacío.
             - IMPORTANTE: Si un evento dice "SOLD OUT", "Entradas Agotadas" o "Aforo Completo", IGNÓRALO.
             
             Formato de salida (JSON):

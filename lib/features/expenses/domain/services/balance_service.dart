@@ -12,6 +12,11 @@ final planBalancesProvider = FutureProvider.family<List<UserBalance>, String>((r
   return service.calculatePlanBalances(planId);
 });
 
+final planPaymentsProvider = FutureProvider.family<List<PaymentModel>, String>((ref, planId) async {
+  final service = ref.watch(balanceServiceProvider);
+  return service.getAllPayments(planId);
+});
+
 class BalanceService {
   final SupabaseClient _supabase;
 
@@ -91,14 +96,9 @@ class BalanceService {
 
     // Process Payments (They reduce debt)
     for (var pay in payments) {
-      // If A paid B, it reduces A's debt to B.
-      // Which is mathematically equivalent to "B owes A" effectively cancelling out debt.
-      addDebt(pay.toUserId, pay.fromUserId, pay.amount); 
-      // Explanation: If A owes B 100.
-      // Matrix[A][B] = 100.
-      // A pays B 100.
-      // We add debt B->A of 100.
-      // Matrix[B][A] = 100.
+      if (pay.status == 'confirmed') {
+          addDebt(pay.toUserId, pay.fromUserId, pay.amount); 
+      }
     }
 
     // 4. Simplify / Net Out
@@ -132,5 +132,23 @@ class BalanceService {
 
   Future<void> recordPayment(PaymentModel payment) async {
     await _supabase.from('payments').insert(payment.toMap());
+  }
+
+  Future<void> updatePaymentStatus(String paymentId, String status) async {
+    final updates = {'status': status};
+    if (status == 'confirmed') updates['confirmed_at'] = DateTime.now().toIso8601String();
+    
+    await _supabase.from('payments').update(updates).eq('id', paymentId);
+  }
+
+  // Get raw payments to extract pending ones for UI
+  Future<List<PaymentModel>> getAllPayments(String planId) async {
+      final paymentsData = await _supabase
+        .from('payments')
+        .select()
+        .eq('plan_id', planId)
+        .order('created_at', ascending: false);
+
+      return (paymentsData as List).map((e) => PaymentModel.fromJson(e)).toList();
   }
 }

@@ -1,4 +1,3 @@
-
 import 'package:equatable/equatable.dart';
 
 // Represents a direct money transfer (Table: payments)
@@ -11,6 +10,7 @@ class PaymentModel extends Equatable {
   final String currency;
   final String method; // cash, zelle, etc.
   final String? note;
+  final String status; // 'pending', 'confirmed', 'rejected'
   final DateTime? confirmedAt;
   final DateTime createdAt;
 
@@ -23,6 +23,7 @@ class PaymentModel extends Equatable {
     this.currency = 'COP',
     this.method = 'cash',
     this.note,
+    this.status = 'pending',
     this.confirmedAt,
     required this.createdAt,
   });
@@ -37,6 +38,7 @@ class PaymentModel extends Equatable {
       currency: json['currency'] as String? ?? 'COP',
       method: json['method'] as String? ?? 'cash',
       note: json['note'] as String?,
+      status: json['status'] as String? ?? 'confirmed', // Old rows assume confirmed
       confirmedAt: json['confirmed_at'] != null ? DateTime.parse(json['confirmed_at']) : null,
       createdAt: DateTime.parse(json['created_at']),
     );
@@ -51,16 +53,16 @@ class PaymentModel extends Equatable {
       'currency': currency,
       'method': method,
       'note': note,
+      'status': status,
       'confirmed_at': confirmedAt?.toIso8601String(),
     };
   }
 
   @override
-  List<Object?> get props => [id, fromUserId, toUserId, amount, confirmedAt];
+  List<Object?> get props => [id, fromUserId, toUserId, amount, status, confirmedAt];
 }
 
 // Represents a row from 'view_expense_obligations'
-// "User A (debtor) owes User B (creditor) X amount for a specific expense item"
 class ExpenseObligation extends Equatable {
   final String planId;
   final String creditorId; // Who paid
@@ -87,7 +89,6 @@ class ExpenseObligation extends Equatable {
   List<Object?> get props => [planId, creditorId, debtorId, amount];
 }
 
-// Result of the calculation: "User A owes User B total of X"
 class UserBalance extends Equatable {
   final String fromUserId;
   final String toUserId;
