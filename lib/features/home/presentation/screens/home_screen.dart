@@ -23,6 +23,7 @@ import 'package:planmapp/features/home/presentation/widgets/discover_map.dart';
 import 'package:planmapp/features/home/presentation/widgets/pwa_guide_tooltip.dart';
 import 'package:planmapp/features/profile/presentation/widgets/profile_drawer.dart';
 import 'package:planmapp/core/utils/web_utils.dart';
+import 'package:planmapp/features/profile/presentation/screens/submit_ticket_screen.dart';
 import 'package:planmapp/core/widgets/pwa_install_prompt.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
@@ -277,6 +278,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       key: _scaffoldKey,
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+            Navigator.push(context, MaterialPageRoute(builder: (context) => const SubmitTicketScreen()));
+        },
+        backgroundColor: AppTheme.primaryBrand,
+        child: const Icon(Icons.bug_report_rounded, color: Colors.white),
+      ),
       drawer: const ProfileDrawer(),
       appBar: AppBar(
         leading: IconButton(

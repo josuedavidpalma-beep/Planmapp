@@ -1833,19 +1833,25 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
 
             Flexible(
                child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * (isSystem ? 0.85 : 0.7)),
+                  padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+                  constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * (isSystem ? 0.85 : 0.75)),
                   decoration: BoxDecoration(
-                    gradient: isSystem ? LinearGradient(colors: [AppTheme.primaryBrand.withOpacity(0.1), AppTheme.secondaryBrand.withOpacity(0.1)]) : null,
-                    color: isSystem ? null : (isMe ? AppTheme.primaryBrand : Colors.grey[800]),
+                    gradient: isSystem ? LinearGradient(colors: [AppTheme.primaryBrand.withOpacity(0.15), AppTheme.secondaryBrand.withOpacity(0.15)]) : null,
+                    color: isSystem ? null : (isMe ? AppTheme.primaryBrand : AppTheme.darkBackground.withOpacity(0.8)),
                     borderRadius: BorderRadius.only(
-                      topLeft: Radius.circular(isSystem ? 18 : 18),
-                      topRight: Radius.circular(isSystem ? 18 : 18),
-                      bottomLeft: Radius.circular(isSystem ? 18 : (isMe ? 18 : 0)),
-                      bottomRight: Radius.circular(isSystem ? 18 : (isMe ? 0 : 18)),
+                      topLeft: const Radius.circular(20),
+                      topRight: const Radius.circular(20),
+                      bottomLeft: Radius.circular(isSystem ? 20 : (isMe ? 20 : 4)),
+                      bottomRight: Radius.circular(isSystem ? 20 : (isMe ? 4 : 20)),
                     ),
-                    border: isSystem ? Border.all(color: AppTheme.primaryBrand.withOpacity(0.5)) : null,
-                    boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 2, offset: const Offset(0, 1))],
+                    border: isSystem ? Border.all(color: AppTheme.primaryBrand.withOpacity(0.3), width: 1.5) : (isMe ? null : Border.all(color: Colors.white10)),
+                    boxShadow: [
+                        BoxShadow(
+                            color: isMe ? AppTheme.primaryBrand.withOpacity(0.2) : Colors.black26, 
+                            blurRadius: 6, 
+                            offset: const Offset(0, 3)
+                        )
+                    ],
                   ),
                   child: Column(
                     crossAxisAlignment: isSystem ? CrossAxisAlignment.center : (isMe ? CrossAxisAlignment.end : CrossAxisAlignment.start),
