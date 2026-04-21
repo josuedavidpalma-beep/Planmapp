@@ -7,7 +7,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:planmapp/core/theme/theme_provider.dart';
 import 'package:planmapp/features/notifications/services/notification_service.dart';
-import 'package:planmapp/features/notifications/services/push_notification_service.dart';
+import 'package:planmapp/core/services/push_notification_service.dart';
 import 'package:planmapp/features/explore/services/events_service.dart';
 import 'package:planmapp/features/explore/data/models/event_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -111,6 +111,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           final user = Supabase.instance.client.auth.currentUser;
           if (user == null) return;
           final isAnon = user.isAnonymous ?? false;
+          
+          if (!isAnon) {
+              PushNotificationService.initialize();
+          }
+
           final data = await Supabase.instance.client
               .from('profiles')
               .select('full_name, display_name, nickname, interests, preferences, budget_level, birth_date, birthday')
