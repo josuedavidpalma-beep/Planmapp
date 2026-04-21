@@ -34,6 +34,7 @@ class PlanMembersService {
         String? avatarUrl;
         String? phone;
         int reputationScore = 100;
+        List<Map<String, dynamic>> paymentMethods = [];
         List<String> interests = [];
         try {
            final profile = await _supabase.from('profiles').select('*').eq('id', uid).maybeSingle();
@@ -42,6 +43,9 @@ class PlanMembersService {
               avatarUrl = profile['avatar_url'];
               phone = profile['phone'];
               reputationScore = profile['reputation_score'] ?? 100;
+              if (profile['payment_methods'] != null) {
+                  paymentMethods = List<Map<String, dynamic>>.from(profile['payment_methods']);
+              }
               if (profile['interests'] != null) {
                   interests = List<String>.from((profile['interests'] as List).map((e) => e.toString()));
               }
@@ -66,6 +70,7 @@ class PlanMembersService {
             interests: interests,
             phone: phone,
             reputationScore: reputationScore,
+            paymentMethods: paymentMethods,
         ));
       }
 
@@ -125,6 +130,7 @@ class PlanMember {
   final List<String> interests;
   final String? phone;
   final int reputationScore;
+  final List<Map<String, dynamic>> paymentMethods;
 
   PlanMember({
       required this.id, 
@@ -136,5 +142,6 @@ class PlanMember {
       this.interests = const [],
       this.phone,
       this.reputationScore = 100,
+      this.paymentMethods = const [],
   });
 }

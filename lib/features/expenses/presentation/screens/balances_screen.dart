@@ -208,12 +208,14 @@ class _DebtCard extends ConsumerWidget {
                            overflow: TextOverflow.ellipsis,
                          ),
                        ),
-                       if (member != null && member!.reputationScore >= 120) ...[
+                       if (member != null) ...[
                            const SizedBox(width: 8),
-                           const Tooltip(
-                             message: "Pagador Rápido: Suele pagar en menos de 48 hrs",
-                             child: Text("🔥", style: TextStyle(fontSize: 14)),
-                           )
+                           if (member!.reputationScore >= 105)
+                               const Tooltip(message: "🌟 Élite VIP: Súper Paga", child: Text("🌟", style: TextStyle(fontSize: 14))),
+                           if (member!.reputationScore >= 95 && member!.reputationScore < 105)
+                               const Tooltip(message: "🟢 Buen Paga", child: Text("🟢", style: TextStyle(fontSize: 14))),
+                           if (member!.reputationScore < 95)
+                               const Tooltip(message: "⚠️ Moroso Riesgoso", child: Text("⚠️", style: TextStyle(fontSize: 14))),
                        ],
                      ],
                    ),
@@ -232,14 +234,16 @@ class _DebtCard extends ConsumerWidget {
                     ),
                   ),
                   if (!isReadOnly && isMeDebtor)
-                    TextButton(
-                      style: TextButton.styleFrom(
-                        padding: EdgeInsets.zero,
-                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
-                        foregroundColor: AppTheme.primaryBrand,
+                    ElevatedButton.icon(
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: AppTheme.primaryBrand,
+                        foregroundColor: Colors.white,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+                        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
                       ),
+                      icon: const Icon(Icons.credit_card, size: 16),
                       onPressed: () => _showPaymentDialog(context, ref, member, fallbackName),
-                      child: const Text("Registrar Pago"),
+                      label: const Text("Pagar"),
                     ),
                ],
              )
@@ -271,8 +275,29 @@ class _DebtCard extends ConsumerWidget {
                  NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(balance.amount),
                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: AppTheme.primaryBrand),
                ),
+               const Text("Transferir a:", style: TextStyle(fontWeight: FontWeight.bold)),
+               if (creditor != null && creditor.paymentMethods.isNotEmpty)
+                  Container(
+                     margin: const EdgeInsets.only(top: 8, bottom: 8),
+                     padding: const EdgeInsets.all(12),
+                     decoration: BoxDecoration(color: Colors.blueGrey.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                     child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: creditor.paymentMethods.map((m) => Padding(
+                            padding: const EdgeInsets.only(bottom: 4),
+                            child: Row(children: [
+                                  Icon(Icons.monetization_on, size: 14, color: AppTheme.primaryBrand),
+                                  const SizedBox(width: 6),
+                                  Expanded(child: SelectableText("${m['type']}: ${m['details']}", style: const TextStyle(fontWeight: FontWeight.bold))),
+                            ]),
+                        )).toList(),
+                     ),
+                  )
+               else
+                  const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text("Esta persona no tiene Nequi/Daviplata configurados en su perfil.", style: TextStyle(fontSize: 12, color: Colors.grey))),
+               
                const SizedBox(height: 16),
-               const Text("Método de Pago:", style: TextStyle(fontWeight: FontWeight.bold)),
+               const Text("Método con el que pagaste:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                DropdownButton<String>(
                  value: selectedMethod,
                  isExpanded: true,

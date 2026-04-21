@@ -27,6 +27,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
   List<String> _selectedInterests = [];
   String _budgetLevel = 'bacano';
   List<Map<String, dynamic>> _paymentMethods = [];
+  int _reputationScore = 100;
 
   static const _budgetOptions = [
     {'key': 'economico', 'label': '💰 Ahorrador', 'sub': 'Planes tranqui y baratos'},
@@ -94,6 +95,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
           }
           if (data['payment_methods'] != null) {
               _paymentMethods = List<Map<String, dynamic>>.from(data['payment_methods'].map((i) => Map<String, dynamic>.from(i)));
+          }
+          if (data['reputation_score'] != null) {
+              _reputationScore = data['reputation_score'];
           }
           _isLoading = false;
         });
@@ -444,6 +448,48 @@ class _ProfileScreenState extends State<ProfileScreen> {
                         ),
                     ]),
                   ),
+                  const SizedBox(height: 32),
+                  
+                  // Reputation Board
+                  Container(
+                      padding: const EdgeInsets.all(16),
+                      decoration: BoxDecoration(
+                          color: _reputationScore >= 105 ? Colors.orange.withOpacity(0.1) : (_reputationScore < 95 ? Colors.red.withOpacity(0.1) : Colors.green.withOpacity(0.1)),
+                          borderRadius: BorderRadius.circular(16),
+                          border: Border.all(color: _reputationScore >= 105 ? Colors.orange.withOpacity(0.5) : (_reputationScore < 95 ? Colors.red.withOpacity(0.5) : Colors.green.withOpacity(0.5)))
+                      ),
+                      child: Row(
+                          children: [
+                              Container(
+                                  padding: const EdgeInsets.all(12),
+                                  decoration: BoxDecoration(
+                                      color: _reputationScore >= 105 ? Colors.orange : (_reputationScore < 95 ? Colors.red : Colors.green),
+                                      shape: BoxShape.circle,
+                                  ),
+                                  child: Icon(
+                                      _reputationScore >= 105 ? Icons.star : (_reputationScore < 95 ? Icons.warning_rounded : Icons.check_circle),
+                                      color: Colors.white,
+                                  ),
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                  child: Column(
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                          const Text("Fiabilidad Financiera", style: TextStyle(fontSize: 12, color: Colors.grey)),
+                                          Text(
+                                              _reputationScore >= 105 ? "🌟 Élite VIP" : (_reputationScore < 95 ? "⚠️ Moroso" : "🟢 Buen Paga"),
+                                              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: _reputationScore >= 105 ? Colors.orange : (_reputationScore < 95 ? Colors.red : Colors.green)),
+                                          ),
+                                          const SizedBox(height: 4),
+                                          Text("Puntaje actual: $_reputationScore", style: const TextStyle(fontSize: 12, fontWeight: FontWeight.w600)),
+                                      ],
+                                  ),
+                              )
+                          ],
+                      ),
+                  ),
+
                   const SizedBox(height: 32),
 
                   // Friends Section
