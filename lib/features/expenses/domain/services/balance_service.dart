@@ -139,6 +139,23 @@ class BalanceService {
     if (status == 'confirmed') updates['confirmed_at'] = DateTime.now().toIso8601String();
     
     await _supabase.from('payments').update(updates).eq('id', paymentId);
+
+    // Gamification: Increase reputation score for the debtor when payment is confirmed!
+    if (status == 'confirmed') {
+        try {
+            final payment = await _supabase.from('payments').select('from_user_id').eq('id', paymentId).single();
+            final debtorId = payment['from_user_id'];
+            
+            // Increment by 5 points. To do this safely, we read current score first.
+            final profile = await _supabase.from('profiles').select('reputation_score').eq('id', debtorId).maybeSingle();
+            if (profile != null) {
+                int currentScore = profile['reputation_score'] as int? ?? 100;
+                await _supabase.from('profiles').update({'reputation_score': currentScore + 5}).eq('id', debtorId);
+            }
+        } catch (e) {
+            print("Gamification update error: $e");
+        }
+    }
   }
 
   // Get raw payments to extract pending ones for UI
