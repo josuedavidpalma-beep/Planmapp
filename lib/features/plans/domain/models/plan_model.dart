@@ -20,6 +20,7 @@ class Plan {
   final String? contactInfo;
   final String? promoHighlights;
   final bool isDirectChat;
+  final List<Map<String, dynamic>> itinerarySteps;
 
   const Plan({
     required this.id,
@@ -41,6 +42,7 @@ class Plan {
     this.contactInfo,
     this.promoHighlights,
     this.isDirectChat = false,
+    this.itinerarySteps = const [],
   });
 
   // ... existing code ...
@@ -62,6 +64,7 @@ class Plan {
       'contact_info': contactInfo,
       'promo_highlights': promoHighlights,
       'is_direct_chat': isDirectChat,
+      'itinerary_steps': itinerarySteps,
     };
   }
 
@@ -93,6 +96,7 @@ class Plan {
         contactInfo: json['contact_info']?.toString(),
         promoHighlights: json['promo_highlights']?.toString(),
         isDirectChat: json['is_direct_chat'] == true,
+        itinerarySteps: _parseItinerarySteps(json['itinerary_steps']),
       );
     } catch (e) {
       print("Error parsing Plan ${json['id']}: $e");
@@ -102,8 +106,19 @@ class Plan {
          creatorId: 'sys',
          title: 'Error de Datos', 
          eventDate: DateTime.now(), 
-         locationName: 'Error'
+         locationName: 'Error',
+         itinerarySteps: const [],
       );
     }
+  }
+
+  static List<Map<String, dynamic>> _parseItinerarySteps(dynamic raw) {
+      if (raw == null) return [];
+      try {
+          if (raw is List) {
+              return List<Map<String, dynamic>>.from(raw.map((e) => Map<String, dynamic>.from(e)));
+          }
+      } catch (_) {}
+      return [];
   }
 }

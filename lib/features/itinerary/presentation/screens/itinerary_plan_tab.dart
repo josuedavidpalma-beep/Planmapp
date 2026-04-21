@@ -7,6 +7,7 @@ import 'package:planmapp/features/itinerary/presentation/widgets/simple_plan_hea
 import 'package:planmapp/features/plans/domain/models/plan_model.dart';
 import 'package:planmapp/core/services/plan_service.dart';
 import 'package:intl/intl.dart';
+import 'package:planmapp/features/itinerary/domain/services/ai_itinerary_service.dart';
 
 class ItineraryPlanTab extends StatefulWidget {
   final String planId;
@@ -22,6 +23,7 @@ class ItineraryPlanTab extends StatefulWidget {
 class _ItineraryPlanTabState extends State<ItineraryPlanTab> {
   Plan? _plan;
   bool _isLoading = true;
+  bool _isGeneratingAI = false;
   RealtimeChannel? _planSubscription;
 
   @override
@@ -69,7 +71,18 @@ class _ItineraryPlanTabState extends State<ItineraryPlanTab> {
         floatingActionButton: Column(
             mainAxisAlignment: MainAxisAlignment.end,
             children: [
-                if (_canEdit()) ...[
+                if (_canEdit() && _plan != null) ...[
+                    if (_plan!.itinerarySteps.isEmpty && !_isGeneratingAI)
+                        Padding(
+                            padding: const EdgeInsets.only(bottom: 16),
+                            child: FloatingActionButton.extended(
+                                heroTag: "aiBtn",
+                                backgroundColor: Colors.amber, // Magic Color
+                                icon: const Icon(Icons.auto_awesome, color: Colors.black),
+                                label: const Text("Auto-Armar", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                                onPressed: () => _generateAIItinerary(),
+                            ),
+                        ),
                     FloatingActionButton.extended(
                         heroTag: "finalizeBtn",
                         backgroundColor: AppTheme.secondaryBrand,
@@ -93,10 +106,97 @@ class _ItineraryPlanTabState extends State<ItineraryPlanTab> {
                              onPaymentModeChanged: _updatePaymentMode,
                              onEditDescription: () => _updatePlanDescription(context),
                          ),
+                    if (_plan != null && _plan!.itinerarySteps.isNotEmpty)
+                         Padding(
+                             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 8),
+                             child: Column(
+                                 crossAxisAlignment: CrossAxisAlignment.start,
+                                 children: [
+                                     const Text("Crono-Itinerario", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
+                                     const SizedBox(height: 16),
+                                     ..._plan!.itinerarySteps.map((step) => _buildItineraryStepCard(step)).toList(),
+                                     const SizedBox(height: 80), // Fab space
+                                 ],
+                             ),
+                         )
+                    else if (_isLoading || _isGeneratingAI)
+                         const Padding(padding: EdgeInsets.all(32), child: Center(child: CircularProgressIndicator()))
+                    else if (_plan != null)
+                         Padding(
+                             padding: const EdgeInsets.symmetric(horizontal: 32, vertical: 32),
+                             child: Column(
+                                 children: [
+                                     const Icon(Icons.list_alt, size: 48, color: Colors.grey),
+                                     const SizedBox(height: 16),
+                                     const Text("Itinerario Vacío", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                                     const SizedBox(height: 8),
+                                     const Text("Aún no han organizado los pasos de este plan.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                                     if (_canEdit()) ...[
+                                         const SizedBox(height: 24),
+                                         const Text("👇 Toca 'Auto-Armar' para que la IA lo construya mágicamente.", textAlign: TextAlign.center, style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold)),
+                                     ]
+                                 ],
+                             ),
+                         )
                 ],
             ),
         ),
     );
+  }
+
+  Widget _buildItineraryStepCard(Map<String, dynamic> step) {
+      return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(16),
+              boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
+              border: Border.all(color: Colors.grey.withOpacity(0.1))
+          ),
+          child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                  Container(
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                      decoration: BoxDecoration(color: AppTheme.primaryBrand.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
+                      child: Text(step['time'] ?? '--:--', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBrand)),
+                  ),
+                  const SizedBox(width: 16),
+                  Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                              Text(step['title'] ?? 'Paso', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                              const SizedBox(height: 4),
+                              Text(step['description'] ?? '', style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                          ],
+                      )
+                  )
+              ],
+          ),
+      );
+  }
+
+  Future<void> _generateAIItinerary() async {
+      if (_plan == null) return;
+      setState(() => _isGeneratingAI = true);
+      try {
+          final ai = AiItineraryService();
+          final genericSteps = await ai.generateItinerary(_plan!);
+          
+          if (genericSteps.isNotEmpty) {
+              await Supabase.instance.client.from('plans').update({
+                   'itinerary_steps': genericSteps
+              }).eq('id', widget.planId);
+              
+              await _loadPlan();
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("✨ Itinerario generado con éxito!")));
+          }
+      } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error de IA: $e")));
+      }
+      if (mounted) setState(() => _isGeneratingAI = false);
   }
 
   bool _canEdit() {
