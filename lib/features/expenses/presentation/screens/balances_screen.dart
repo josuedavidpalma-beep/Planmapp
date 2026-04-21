@@ -9,6 +9,7 @@ import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/features/expenses/domain/services/balance_service.dart';
 import 'package:planmapp/features/expenses/data/models/payment_model.dart';
+import 'package:planmapp/features/plans/services/plan_members_service.dart';
 import 'package:intl/intl.dart';
 import 'package:planmapp/core/services/chat_service.dart';
 
@@ -41,6 +42,7 @@ class BalancesScreen extends ConsumerWidget {
       body: balancesAsync.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (err, _) => Center(child: Text("Error: $err")),
+        data: (balances) {
             return paymentsAsync.when(
                loading: () => const Center(child: CircularProgressIndicator()),
                error: (err, _) => const Center(child: Text("Error cargando pagos")),
