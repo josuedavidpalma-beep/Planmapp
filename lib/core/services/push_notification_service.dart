@@ -4,14 +4,22 @@ import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class PushNotificationService {
-  static final FirebaseMessaging _fcm = FirebaseMessaging.instance;
-  static final SupabaseClient _supabase = Supabase.instance.client;
-  static bool _initialized = false;
+  final FirebaseMessaging _fcm = FirebaseMessaging.instance;
+  final SupabaseClient _supabase = Supabase.instance.client;
+  
+  static const String webVapidKey = "BKsSw5O52r-eT_M32Ga_izSm245TytUq_9bp6yFhWxGTSpUpCDpYHHuX8aKxI_JoIq6sTazhRGJqtLBrNa22eIM";
 
-  static Future<void> initialize() async {
-    if (_initialized) return;
+  // Singleton pattern
+  static final PushNotificationService _instance = PushNotificationService._internal();
+  factory PushNotificationService() => _instance;
+  PushNotificationService._internal();
+
+  bool _initialized = false;
+
+  Future<bool> requestPermissionAndSaveToken() async {
+    if (_initialized) return true; // Pretend granted if already ran
     try {
-      // 1. Request permissions (shows popup on iOS / Android 13+)
+      // 1. Request OS Permission
       NotificationSettings settings = await _fcm.requestPermission(
         alert: true,
         badge: true,
@@ -25,18 +33,16 @@ class PushNotificationService {
           debugPrint('Push Notification Permission Granted or Provisional');
           
           final String? userId = _supabase.auth.currentUser?.id;
-          if (userId == null) return;
+          if (userId == null) return true;
 
           // 2. Get FCM token
           String? token;
           if (kIsWeb) {
               try {
-                  // For web you normally pass a vapidKey
-                  // token = await _fcm.getToken(vapidKey: '...');
-                  token = await _fcm.getToken();
+                  token = await _fcm.getToken(vapidKey: webVapidKey);
               } catch (e) {
                  debugPrint("FCM Web token failed (vapidKey needed or unsupported): $e");
-                 return;
+                 return true; // Still granted permission, just no token
               }
           } else {
               token = await _fcm.getToken();
@@ -54,25 +60,29 @@ class PushNotificationService {
                  _registerToken(uid, newToken);
              }
           });
+          
+          return true;
       } else {
           debugPrint('Push Notification Permission Denied');
+          return false;
       }
     } catch (e) {
       debugPrint('Push Notification Init Error: $e');
+      return false;
     }
   }
 
-  static String _getDeviceType() {
+  String _getDeviceType() {
       if (kIsWeb) return 'web';
       if (Platform.isIOS) return 'ios';
       if (Platform.isAndroid) return 'android';
       return 'unknown';
   }
 
-  static Future<void> _registerToken(String userId, String token) async {
+  Future<void> _registerToken(String userId, String token) async {
       try {
-          // Check if it exists first
-          final existing = await _supabase.from('fcm_tokens').select('id').eq('user_id', userId).eq('token', token).maybeSingle();
+          final existing = await _supabase.from('fcm_tokens')
+              .select('id').eq('user_id', userId).eq('token', token).maybeSingle();
           if (existing != null) return;
 
           await _supabase.from('fcm_tokens').insert({
@@ -84,6 +94,29 @@ class PushNotificationService {
           debugPrint('Push Notification Token Uploaded to Supabase fcm_tokens');
       } catch (e) {
           debugPrint('Error uploading FCM token: $e');
+      }
+  }
+
+  Future<void> deleteToken() async {
+      final user = _supabase.auth.currentUser;
+      if (user == null) return;
+      try {
+          String? token;
+          if (kIsWeb) {
+              token = await _fcm.getToken(vapidKey: webVapidKey);
+          } else {
+              token = await _fcm.getToken();
+          }
+
+          if (token != null) {
+              await _supabase.from('fcm_tokens').delete().match({
+                  'user_id': user.id,
+                  'token': token
+              });
+          }
+          await _fcm.deleteToken();
+      } catch (e) {
+          debugPrint("Error deleting token: $e");
       }
   }
 }

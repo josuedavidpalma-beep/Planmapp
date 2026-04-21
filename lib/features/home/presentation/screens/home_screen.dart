@@ -113,7 +113,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
           final isAnon = user.isAnonymous ?? false;
           
           if (!isAnon) {
-              PushNotificationService.initialize();
+              // Wait for auth initialization
           }
 
           final data = await Supabase.instance.client
