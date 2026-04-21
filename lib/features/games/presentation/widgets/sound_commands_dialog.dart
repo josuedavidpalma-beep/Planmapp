@@ -53,7 +53,7 @@ class _SoundCommandsDialogState extends State<SoundCommandsDialog> {
   @override
   Widget build(BuildContext context) {
     return Dialog(
-       backgroundColor: AppTheme.darkSurface,
+       backgroundColor: AppTheme.surfaceDark,
        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(24)),
        child: AnimatedSwitcher(
           duration: const Duration(milliseconds: 300),

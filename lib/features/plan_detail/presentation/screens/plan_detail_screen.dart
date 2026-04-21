@@ -2092,7 +2092,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                   builder: (context) => SoundCommandsDialog(
                       participants: options,
                       onResult: (msg) {
-                          _chatService.sendMessage(widget.planId, msg, isSystem: true, metadata: {'type': 'system'});
+                          _chatService.sendMessage(widget.planId, msg, type: 'system');
                       }
                   )
               );
