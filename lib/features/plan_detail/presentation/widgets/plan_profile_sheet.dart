@@ -1,15 +1,15 @@
 import 'package:flutter/material.dart';
-import 'package:planmapp/features/plans/data/models/plan_model.dart';
+import 'package:planmapp/features/plans/domain/models/plan_model.dart';
 import 'package:intl/intl.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
-import 'package:planmapp/features/plans/services/invitation_service.dart';
-import 'package:planmapp/features/plans/services/google_calendar_service.dart';
+import 'package:planmapp/core/services/invitation_service.dart';
 
 class PlanProfileSheet extends StatelessWidget {
   final Plan plan;
   final Map<String, dynamic> membersMap;
   final String myRole;
-  final Function onDelete; // To trigger delete dialog from parent
+  final Function onDelete; 
+  final Function onExport;
 
   const PlanProfileSheet({
     super.key,
@@ -17,6 +17,7 @@ class PlanProfileSheet extends StatelessWidget {
     required this.membersMap,
     required this.myRole,
     required this.onDelete,
+    required this.onExport,
   });
 
   @override
@@ -24,7 +25,7 @@ class PlanProfileSheet extends StatelessWidget {
     return Container(
        padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
        decoration: BoxDecoration(
-          color: AppTheme.darkSurface,
+          color: AppTheme.surfaceDark,
           borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
           border: Border(top: BorderSide(color: AppTheme.primaryBrand.withOpacity(0.2), width: 1))
        ),
@@ -72,14 +73,14 @@ class PlanProfileSheet extends StatelessWidget {
                Row(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                      _buildMetaChip(Icons.calendar_month, DateFormat('MMM dd, hh:mm a').format(plan.date)),
+                      _buildMetaChip(Icons.calendar_month, DateFormat('MMM dd, hh:mm a').format(plan.eventDate ?? DateTime.now())),
                       const SizedBox(width: 12),
                       _buildMetaChip(Icons.group, "${membersMap.length} Amigos"),
                   ],
                ),
                
                const SizedBox(height: 12),
-               _buildMetaChip(Icons.location_on, plan.address ?? 'Ubicación por definir'),
+               _buildMetaChip(Icons.location_on, plan.locationName ?? plan.address ?? 'Ubicación por definir'),
                
                const SizedBox(height: 32),
                const Align(
@@ -154,10 +155,10 @@ class PlanProfileSheet extends StatelessWidget {
                ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading: const Icon(Icons.calendar_month, color: Colors.orangeAccent),
-                  title: const Text("Exportar a Google Calendar", style: TextStyle(color: Colors.white)),
+                  title: const Text("Exportar a Calendario", style: TextStyle(color: Colors.white)),
                   onTap: () async {
                       Navigator.pop(context);
-                      await GoogleCalendarService.exportPlanToCalendar(plan);
+                      onExport();
                   },
                ),
                ListTile(

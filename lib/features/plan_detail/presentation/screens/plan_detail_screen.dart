@@ -497,6 +497,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                                       membersMap: _membersMap,
                                       myRole: _myRole,
                                       onDelete: _confirmDeletePlan,
+                                      onExport: _exportToCalendar,
                                   )
                               );
                           }
