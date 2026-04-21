@@ -38,12 +38,12 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
       // Smart Redirect: If already a member or creator, go to Dashboard
       final uid = Supabase.instance.client.auth.currentUser?.id;
       if (uid != null) {
-          final isMember = members.any((m) => m.id == uid);
+          final isMember = members.any((m) => m.id == uid && m.status == 'accepted');
           final isCreator = (plan != null && plan!.creatorId == uid);
           
           if (isMember || isCreator) {
               if (mounted) {
-                  context.go('/plan/${widget.planId}');
+                  context.pushReplacement('/plan/${widget.planId}');
                   return;
               }
           }
@@ -73,7 +73,7 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
       final session = Supabase.instance.client.auth.currentSession;
       if (session == null || session.user.isAnonymous) {
           // Send anonymous or null users directly into the plan as guests.
-          context.go('/plan/${widget.planId}?guest=true');
+          context.pushReplacement('/plan/${widget.planId}?guest=true');
       } else {
           _joinPlan();
       }
@@ -169,7 +169,7 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
               'status': 'accepted', // Crucial to override pending status
           });
           if (mounted) {
-             setState(() => _accepted = true); // Show CTA instead of navigating immediately
+             context.pushReplacement('/plan/${widget.planId}');
           }
       } catch (e) {
           if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error al unirse: $e")));

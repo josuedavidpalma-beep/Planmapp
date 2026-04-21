@@ -122,35 +122,48 @@ class _PwaInstallPromptState extends State<PwaInstallPrompt> with SingleTickerPr
             const SizedBox(height: 16),
             Container(
                 padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                child: Row(
+                decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Icon(_isIOS ? Icons.ios_share : Icons.more_vert, color: Colors.blueAccent, size: 24),
-                    const SizedBox(width: 12),
-                    Expanded(
-                        child: RichText(
-                            text: TextSpan(
-                                style: const TextStyle(color: Colors.white, fontSize: 13),
-                                children: _isIOS 
-                                ? const [
-                                    TextSpan(text: "Toca el ícono "),
-                                    TextSpan(text: "Compartir", style: TextStyle(fontWeight: FontWeight.bold)),
-                                    TextSpan(text: " en Safári y luego selecciona "),
-                                    TextSpan(text: "Añadir a la pantalla de inicio", style: TextStyle(fontWeight: FontWeight.bold)),
-                                    TextSpan(text: "."),
-                                  ]
-                                : const [
-                                    TextSpan(text: "Toca el ícono de "),
-                                    TextSpan(text: "Menú (⋮)", style: TextStyle(fontWeight: FontWeight.bold)),
-                                    TextSpan(text: " arriba en Chrome y selecciona "),
-                                    TextSpan(text: "Instalar aplicación", style: TextStyle(fontWeight: FontWeight.bold)),
-                                    TextSpan(text: " o Añadir a inicio."),
-                                  ]
-                            )
+                    Row(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
+                          child: const Text("1", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text("Toca el icono de ", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                        Icon(_isIOS ? Icons.ios_share : Icons.more_vert, color: Colors.blueAccent, size: 18),
+                        Text(_isIOS ? " Compartir" : " Menú", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                      ],
+                    ),
+                    const SizedBox(height: 12),
+                    Row(
+                      children: [
+                         Container(
+                          padding: const EdgeInsets.all(6),
+                          decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
+                          child: const Text("2", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                        ),
+                        const SizedBox(width: 12),
+                        const Text("Selecciona ", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                        Container(
+                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                           decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(8)),
+                           child: Row(
+                               children: [
+                                  Icon(_isIOS ? Icons.add_box_outlined : Icons.install_mobile, color: Colors.white, size: 16),
+                                  const SizedBox(width: 6),
+                                  Text(_isIOS ? "Añadir a inicio" : "Instalar aplicación", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                               ]
+                           )
                         )
+                      ],
                     )
-                  ],
-                ),
+                  ]
+                )
             )
           ],
         ),

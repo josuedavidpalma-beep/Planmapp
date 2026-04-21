@@ -1836,7 +1836,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                   constraints: BoxConstraints(maxWidth: MediaQuery.of(context).size.width * (isSystem ? 0.85 : 0.7)),
                   decoration: BoxDecoration(
                     gradient: isSystem ? LinearGradient(colors: [AppTheme.primaryBrand.withOpacity(0.1), AppTheme.secondaryBrand.withOpacity(0.1)]) : null,
-                    color: isSystem ? null : (isMe ? AppTheme.primaryBrand : Colors.white),
+                    color: isSystem ? null : (isMe ? AppTheme.primaryBrand : Colors.grey[800]),
                     borderRadius: BorderRadius.only(
                       topLeft: Radius.circular(isSystem ? 18 : 18),
                       topRight: Radius.circular(isSystem ? 18 : 18),
@@ -1867,7 +1867,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                          msg.content, 
                          textAlign: isSystem ? TextAlign.center : TextAlign.start,
                          style: TextStyle(
-                           color: isSystem ? Colors.white : (isMe ? Colors.white : Theme.of(context).textTheme.bodyLarge?.color),
+                           color: isSystem ? Colors.white : Colors.white,
                            fontSize: 15,
                          ),
                        ),
@@ -1944,9 +1944,9 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
 
                        const SizedBox(height: 4),
                        Text(
-                         DateFormat('HH:mm').format(msg.createdAt),
+                         DateFormat('HH:mm').format(msg.createdAt.toLocal()),
                          style: TextStyle(
-                           color: isSystem ? Colors.grey : (isMe ? Colors.white70 : Colors.black38),
+                           color: isSystem ? Colors.grey : (isMe ? Colors.white70 : Colors.white60),
                            fontSize: 10,
                          ),
                        ),
