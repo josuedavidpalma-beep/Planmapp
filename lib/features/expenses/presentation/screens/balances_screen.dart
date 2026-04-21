@@ -257,7 +257,7 @@ class _DebtCard extends ConsumerWidget {
      final creditorName = creditor?.name ?? fallbackName ?? 'Usuario';
      final noteController = TextEditingController();
      String selectedMethod = 'Efectivo';
-     final methods = ['Efectivo', 'Nequi', 'DaviPlata', 'Transferencia', 'Zelle'];
+     final originMethods = ['Efectivo', 'Mi Nequi', 'Mi DaviPlata', 'Mi Bancolombia', 'Mi Davivienda', 'Otro Banco', 'Zelle'];
 
      showDialog(
        context: context,
@@ -297,11 +297,11 @@ class _DebtCard extends ConsumerWidget {
                   const Padding(padding: EdgeInsets.symmetric(vertical: 8), child: Text("Esta persona no tiene Nequi/Daviplata configurados en su perfil.", style: TextStyle(fontSize: 12, color: Colors.grey))),
                
                const SizedBox(height: 16),
-               const Text("Método con el que pagaste:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
+               const Text("Indica desde dónde TÚ enviaste el dinero:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
                DropdownButton<String>(
                  value: selectedMethod,
                  isExpanded: true,
-                 items: methods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
+                 items: originMethods.map((m) => DropdownMenuItem(value: m, child: Text(m))).toList(),
                  onChanged: (val) {
                    if (val != null) setState(() => selectedMethod = val);
                  },
