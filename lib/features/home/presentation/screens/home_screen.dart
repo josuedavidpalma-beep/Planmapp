@@ -23,6 +23,7 @@ import 'package:planmapp/features/home/presentation/widgets/discover_map.dart';
 import 'package:planmapp/features/home/presentation/widgets/pwa_guide_tooltip.dart';
 import 'package:planmapp/features/profile/presentation/widgets/profile_drawer.dart';
 import 'package:planmapp/core/utils/web_utils.dart';
+import 'package:planmapp/core/widgets/pwa_install_prompt.dart';
 
 class HomeScreen extends ConsumerStatefulWidget {
   const HomeScreen({super.key});
@@ -567,6 +568,10 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
             PwaGuideTooltip(
               onDismiss: () => setState(() => _showPwaTip = false),
             ),
+          const Align(
+            alignment: Alignment.bottomCenter,
+            child: SafeArea(child: PwaInstallPrompt()),
+          ),
         ],
       ),
     );

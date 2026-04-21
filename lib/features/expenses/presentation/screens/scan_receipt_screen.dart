@@ -130,6 +130,13 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
           _tax = receipt.tax ?? 0.0;
           _tip = receipt.tip ?? 0.0;
           _total = receipt.total ?? (_subtotal + _tax + _tip);
+          
+          // PROTECCIÓN MATEMÁTICA SEGURA PARA SUBTOTAL
+          if (_subtotal == 0 && _total > 0) {
+              _subtotal = _total - _tax - _tip;
+              if (_subtotal < 0) _subtotal = 0;
+          }
+          
           _isScanning = false;
         });
         _timer.cancel();
