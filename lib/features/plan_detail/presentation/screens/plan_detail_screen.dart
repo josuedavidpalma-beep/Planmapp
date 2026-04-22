@@ -481,6 +481,61 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
               pinned: true,
               backgroundColor: isDirectChat ? AppTheme.darkBackground : AppTheme.primaryBrand,
               iconTheme: const IconThemeData(color: Colors.white),
+              actions: [
+                  if (!isDirectChat && _plan != null && _myRole == 'admin')
+                      IconButton(
+                          icon: const Icon(Icons.person_add, color: Colors.white),
+                          tooltip: "Invitar Amigos",
+                          onPressed: () => InvitationService.inviteToPlan(_plan!),
+                      ),
+                  if (!isDirectChat && _plan != null)
+                      IconButton(
+                          icon: const Icon(Icons.info_outline, color: Colors.white),
+                          tooltip: "Perfil del Plan",
+                          onPressed: () {
+                              showModalBottomSheet(
+                                  context: context,
+                                  isScrollControlled: true,
+                                  backgroundColor: Colors.transparent,
+                                  builder: (context) => PlanProfileSheet(
+                                      plan: _plan!,
+                                      membersMap: _membersMap,
+                                      myRole: _myRole,
+                                      onDelete: _confirmDeletePlan,
+                                      onExport: _exportToCalendar,
+                                  )
+                              );
+                          },
+                      ),
+                  if (isDirectChat)
+                      PopupMenuButton<String>(
+                        icon: const Icon(Icons.more_vert),
+                        onSelected: (value) async {
+                            if (value == 'delete') {
+                                _confirmDeletePlan();
+                            } else if (value == 'convert_plan') {
+                                _convertToPlan();
+                            }
+                        },
+                        itemBuilder: (BuildContext context) {
+                            return [
+                                const PopupMenuItem<String>(
+                                  value: 'convert_plan',
+                                  child: Row(
+                                      children: [Icon(Icons.rocket_launch, color: Colors.blue), SizedBox(width: 8), Text('Convertir a Plan Grupal')],
+                                  ),
+                                ),
+                                if (_myRole == 'admin')
+                                  const PopupMenuItem<String>(
+                                    value: 'delete',
+                                    child: Row(
+                                        children: [Icon(Icons.delete, color: Colors.red), SizedBox(width: 8), Text('Eliminar Chat Privado')],
+                                    ),
+                                  ),
+                            ];
+                        },
+                      ),
+              ],
               flexibleSpace: FlexibleSpaceBar(
                   centerTitle: true,
                   title: GestureDetector(
@@ -527,49 +582,37 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                   ),
                   background: isDirectChat 
                       ? Container(color: AppTheme.darkBackground) // Clean dark background for chats
-                      : Hero(
-                          tag: 'plan_bg_${widget.planId}', 
-                          child: Container(
-                            decoration: const BoxDecoration(
-                                gradient: LinearGradient(
-                                    colors: [AppTheme.primaryBrand, AppTheme.secondaryBrand],
-                                    begin: Alignment.topLeft,
-                                    end: Alignment.bottomRight,
+                      : GestureDetector(
+                          onTap: () {
+                              if (_plan != null) {
+                                  showModalBottomSheet(
+                                      context: context,
+                                      isScrollControlled: true,
+                                      backgroundColor: Colors.transparent,
+                                      builder: (context) => PlanProfileSheet(
+                                          plan: _plan!,
+                                          membersMap: _membersMap,
+                                          myRole: _myRole,
+                                          onDelete: _confirmDeletePlan,
+                                          onExport: _exportToCalendar,
+                                      )
+                                  );
+                              }
+                          },
+                          child: Hero(
+                              tag: 'plan_bg_${widget.planId}', 
+                              child: Container(
+                                decoration: const BoxDecoration(
+                                    gradient: LinearGradient(
+                                        colors: [AppTheme.primaryBrand, AppTheme.secondaryBrand],
+                                        begin: Alignment.topLeft,
+                                        end: Alignment.bottomRight,
+                                    ),
                                 ),
-                            ),
+                              ),
                           ),
                       ),
               ),
-              actions: [
-                if (isDirectChat)
-                    PopupMenuButton<String>(
-                      icon: const Icon(Icons.more_vert),
-                      onSelected: (value) async {
-                          if (value == 'delete') {
-                              _confirmDeletePlan();
-                          } else if (value == 'convert_plan') {
-                              _convertToPlan();
-                          }
-                      },
-                      itemBuilder: (BuildContext context) {
-                          return [
-                              const PopupMenuItem<String>(
-                                value: 'convert_plan',
-                                child: Row(
-                                    children: [Icon(Icons.rocket_launch, color: Colors.blue), SizedBox(width: 8), Text('Convertir a Plan Grupál')],
-                                ),
-                              ),
-                              if (_myRole == 'admin')
-                                const PopupMenuItem<String>(
-                                  value: 'delete',
-                                  child: Row(
-                                      children: [Icon(Icons.delete, color: Colors.red), SizedBox(width: 8), Text('Eliminar Chat Privado')],
-                                  ),
-                                ),
-                          ];
-                      },
-                    ),
-              ],
               bottom: PreferredSize(
                 preferredSize: const Size.fromHeight(48),
                 child: Container(

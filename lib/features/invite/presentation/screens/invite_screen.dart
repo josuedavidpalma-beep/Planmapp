@@ -168,6 +168,20 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
               'role': 'member',
               'status': 'accepted', // Crucial to override pending status
           });
+          
+          if (_plan != null && _plan!.creatorId != uid) {
+             try {
+                // Determine implicit friendship direction: uid requested creatorId
+                await Supabase.instance.client.from('friendships').upsert({
+                    'requester_id': uid,
+                    'receiver_id': _plan!.creatorId,
+                    'status': 'accepted',
+                }, onConflict: 'requester_id, receiver_id');
+             } catch (e) {
+                 debugPrint("Implicit friendship error: $e");
+             }
+          }
+
           if (mounted) {
              context.pushReplacement('/plan/${widget.planId}');
           }

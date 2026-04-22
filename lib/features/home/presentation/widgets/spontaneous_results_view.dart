@@ -178,7 +178,9 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
           'date': row['date'],
           'address': row['address'] ?? row['venue_name'],
           'contact_phone': row['contact_phone'],
-          'promo_highlights': row['promo_highlights']
+          'promo_highlights': row['promo_highlights'],
+          'price_range': row['price_range'],
+          'vibe_tag': row['vibe_tag']
       });
   }
 
@@ -427,6 +429,13 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                                   child: Column(
                                       crossAxisAlignment: CrossAxisAlignment.start,
                                       children: [
+                                          if (place['promo_highlights'] != null && place['promo_highlights'].toString().isNotEmpty)
+                                            Container(
+                                                margin: const EdgeInsets.only(bottom: 6),
+                                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                                decoration: BoxDecoration(color: AppTheme.secondaryBrand, borderRadius: BorderRadius.circular(6)),
+                                                child: Text(place['promo_highlights'].toString().toUpperCase(), style: const TextStyle(color: Colors.white, fontSize: 11, fontWeight: FontWeight.bold, letterSpacing: 1.2)),
+                                            ),
                                           Row(
                                               crossAxisAlignment: CrossAxisAlignment.start,
                                               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -548,14 +557,26 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                                                            }
                                                        } catch (_) {}
                                                    },
-                                                   icon: const Icon(Icons.confirmation_number, color: AppTheme.primaryBrand),
+                                                   icon: Icon(
+                                                     place['vibe_tag'] == 'Master Fest' ? Icons.restaurant_menu 
+                                                     : (place['vibe_tag'] == 'Local Promo' || place['vibe_tag'] == 'Descuento') ? Icons.local_offer 
+                                                     : Icons.confirmation_number, 
+                                                     color: Colors.white
+                                                   ),
                                                    style: ElevatedButton.styleFrom(
-                                                     backgroundColor: AppTheme.primaryBrand.withOpacity(0.15),
-                                                     foregroundColor: AppTheme.primaryBrand,
+                                                     backgroundColor: place['vibe_tag'] == 'Master Fest' ? Colors.orange[800] 
+                                                                    : (place['vibe_tag'] == 'Local Promo' || place['vibe_tag'] == 'Descuento') ? Colors.green[600] 
+                                                                    : AppTheme.secondaryBrand,
+                                                     foregroundColor: Colors.white,
                                                      padding: const EdgeInsets.symmetric(vertical: 14),
                                                      elevation: 0,
                                                    ),
-                                                   label: const Text("Ver Entradas / Reservas", style: TextStyle(fontWeight: FontWeight.bold))
+                                                   label: Text(
+                                                     place['vibe_tag'] == 'Master Fest' ? "Ver Participantes Master" 
+                                                     : (place['vibe_tag'] == 'Local Promo' || place['vibe_tag'] == 'Descuento') ? "Aprovechar Promo ${place['price_range'] != null ? '(${place['price_range']})' : ''}" 
+                                                     : "🎟 Comprar Tickets ${place['price_range'] != null ? '(${place['price_range']})' : ''}", 
+                                                     style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)
+                                                   )
                                                 ),
                                               ),
                                               

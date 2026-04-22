@@ -21,17 +21,17 @@ serve(async (req) => {
         if (!tavilyKey || !geminiKey) throw new Error("API Keys not set");
         const supabase = createClient(supabaseUrl!, supabaseServiceRoleKey!);
 
-        // 1. Tavily Search optimized for Spontaneous (Plan Ya) results
+        // 1. Tavily Search optimized for Aggregation (Master, Tickets, AND Local Business Promos)
         const today = new Date().toISOString().split('T')[0];
         const searchResponse = await fetch("https://api.tavily.com/search", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
             body: JSON.stringify({
                 api_key: tavilyKey,
-                query: `eventos promociones Barranquilla (site:instagram.com OR site:tiktok.com OR Tuboleta OR Taquilla Live OR Eventbrite OR Mallplaza OR Buenavista OR Viva) hoy entradas descuentos`,
+                query: `(Restaurantes locales Barranquilla promociones fijos 2x1 happy hour dias de la semana descuento) OR (Burger Master OR Conciertos TuBoleta Taquilla Live) Barranquilla hoy enlaces Instagram`,
                 search_depth: "advanced",
                 include_images: true,
-                max_results: 20
+                max_results: 30
             }),
         });
 
@@ -41,43 +41,43 @@ serve(async (req) => {
         }
         const searchData = await searchResponse.json();
         
-        // 2. Extracts with Gemini (Acting as Categorizer)
+        // 2. Extracts with Gemini (Acting as Transactional & Local Deals Aggregator)
         const prompt = `
-            Contexto: Eres un experto en extracción y categorización de eventos para Planmapp.
-            Fecha Actual: ${today} (Excluye cualquier evento que ya haya pasado o esté marcado como AGOTADO/SOLD OUT).
+            Contexto: Eres un "Master Aggregator" para la aplicación social Planmapp.
+            Fecha Actual: ${today} (Excluye cualquier evento que ya haya pasado permanentemente).
             
-            Analiza los siguientes resultados de búsqueda y extrae una lista de eventos REALES y VIGENTES en Barranquilla o el Atlántico.
+            Analiza los siguientes resultados de búsqueda y extrae una lista de eventos Y PROMOCIONES DE NEGOCIOS REALES en Barranquilla o el Atlántico. 
+            Queremos que Planmapp no solo sea directorio, sino un conector directo a compras y además el experto en descuentos locales (Ej: "Precios especiales en Phortos los martes").
             
             Resultados de Búsqueda:
             ${JSON.stringify(searchData.results)}
             
-             Requerimientos para cada evento:
-            - EXTRAE LA MAYOR CANTIDAD POSIBLE DE EVENTOS. No omitas ninguno que sea válido.
-            - Solo eventos que ocurran HOY (${today}) o en el futuro cercano.
-            - DETECCIÓN DE VIRALIDAD: Prioriza publicaciones ruidosas (crecimiento rápido de interacciones, o contenido con intención de compra como "¿Precios?", "¡Vamos!"). Si es irrelevante, ignóralo.
-            - DEBES encontrar el contacto real y el enlace directo (URL a Instagram, TikTok, Ticketera u origen de la promoción).
-            - Asigna un 'vibe_tag' entre: ["Feria", "Festival", "Concierto", "Gastronomía", "Descuento Retail", "Evento Cultural"].
-            - Genera un 'visual_keyword': Un término de búsqueda en INGLÉS corto y preciso para Unsplash (ej: "night club neon", "luxury steakhouse", "beach sunset").
-            - La 'description' debe ser atractiva y persuasiva.
-            - DEBES extraer el campo 'promo_highlights' estrictamente (máx 12 chars). Ej: "2x1", "Happy Hour", "30% OFF", "Free Entry", "Cover $0". Si no hay promo, deja vacío.
-            - IMPORTANTE: Si un evento dice "SOLD OUT", "Entradas Agotadas" o "Aforo Completo", IGNÓRALO.
+             Requerimientos para cada evento/promo:
+            - EXTRAE la información de promociones fijas o "Happy Hours" de restaurantes y locales. Identifícalos explícitamente en el 'vibe_tag' como "Local Promo" o "Descuento".
+            - MÁS EXTRAE la información de festivales tipo "Master" (vibe_tag: "Master Fest") y Conciertos (vibe_tag: "Ticketing").
+            - OBLIGATORIO: Extraer el enlace directo para Comprar Entradas, Reservar, o el link oficial del Instagram del local que confirma la promo.
+            - OBLIGATORIO: Mapear el rango de precios en 'price_range' (ej: "$18.000 COP", "$25.000 2x1").
+            - FECHAS: Si es un evento único, pon esa fecha exacta. Si es una promoción recurrente (Ej: "Todos los martes"), calcula la fecha del PRÓXIMO martes más cercano a hoy (${today}) e insértala en 'date'. Si aplica hoy, pon hoy.
+            - La 'description' debe sonar comercial y emocionante ("¡Aprovecha el Burger Master!" o "¡Miércoles de 2x1 en Phortos!").
+            - Extrae 'promo_highlights' (máx 15 chars). Ej: "Combo $18k", "2x1 Martes", "Happy Hour".
+            - Asigna la fecha en 'date'.
             
             Formato de salida (JSON):
             {
                 "events": [
                     {
-                        "event_name": "Nombre",
+                        "event_name": "Nombre de Artista o Festival",
                         "description": "Descripción",
-                        "promo_highlights": "2x1",
+                        "promo_highlights": "Combo $18k",
                         "date": "YYYY-MM-DD",
                         "venue_name": "Lugar",
                         "address": "Dirección",
                         "city": "Barranquilla",
-                        "reservation_link": "URL",
+                        "reservation_link": "https://tuboleta.com/... o instagram... DEBE existir",
                         "contact_phone": "+57...",
-                        "price_range": "Ej: $50.000",
+                        "price_range": "Ej: $18.000",
                         "image_url": "URL original si existe",
-                        "vibe_tag": "Vibe",
+                        "vibe_tag": "Master Fest",
                         "status": "active"
                     }
                 ]

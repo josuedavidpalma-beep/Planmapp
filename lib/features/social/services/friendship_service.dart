@@ -19,9 +19,16 @@ class FriendshipService {
           .select()
           .or('display_name.ilike.%$query%,phone.ilike.%$query%')
           .neq('id', currentUserId!) 
-          .limit(15);
+          .limit(20);
 
-      return (res as List).map((e) => UserProfile.fromJson(e)).toList();
+      final list = (res as List).map((e) => UserProfile.fromJson(e)).toList();
+      // Sort to prioritize users with avatars so the 'real' test account shows up first
+      list.sort((a, b) {
+          if (a.avatarUrl != null && b.avatarUrl == null) return -1;
+          if (a.avatarUrl == null && b.avatarUrl != null) return 1;
+          return 0;
+      });
+      return list;
     } catch (e) {
       print("Search error: $e");
       return [];
@@ -35,21 +42,22 @@ class FriendshipService {
     final myId = currentUser.id;
 
     try {
-        await _supabase.from('friendships').insert({
+        final friendshipDoc = await _supabase.from('friendships').insert({
           'requester_id': myId,
           'receiver_id': receiverId,
           'status': 'pending',
-        });
+        }).select('id').single();
         
-        final profile = await _supabase.from('profiles').select('full_name, nickname').eq('id', myId).maybeSingle();
+        final profile = await _supabase.from('profiles').select('full_name, nickname, avatar_url').eq('id', myId).maybeSingle();
         final name = profile?['nickname'] ?? profile?['full_name'] ?? 'Alguien';
+        final avatar = profile?['avatar_url'] ?? '';
         
         await _supabase.from('notifications').insert({
             'user_id': receiverId,
             'title': 'Solicitud de Amistad',
             'body': '$name te ha enviado una solicitud de amistad.',
             'type': 'friend_request',
-            'data': {'route': '/social'}
+            'data': {'route': '/social', 'requester_id': myId, 'friendship_id': friendshipDoc['id'], 'requester_avatar': avatar, 'requester_name': name}
         });
         
     } on PostgrestException catch (e) {

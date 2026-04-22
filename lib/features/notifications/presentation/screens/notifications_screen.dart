@@ -7,6 +7,8 @@ import 'package:timeago/timeago.dart' as timeago;
 import 'package:go_router/go_router.dart';
 import 'package:planmapp/core/presentation/widgets/dancing_empty_state.dart';
 
+import 'package:planmapp/features/social/services/friendship_service.dart';
+
 class NotificationsScreen extends StatelessWidget {
   const NotificationsScreen({super.key});
 
@@ -18,6 +20,55 @@ class NotificationsScreen extends StatelessWidget {
 
     // 2. Navigate based on type
     if (context.mounted) {
+      if (notification.type == 'friend_request') {
+        final requesterName = notification.data['requester_name'] ?? 'Alguien';
+        final requesterAvatar = notification.data['requester_avatar'] ?? '';
+        final friendshipId = notification.data['friendship_id'];
+        
+        showDialog(
+            context: context,
+            builder: (context) => AlertDialog(
+                title: const Text("Solicitud de Amistad"),
+                content: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                        if (requesterAvatar.isNotEmpty)
+                            CircleAvatar(radius: 30, backgroundImage: NetworkImage(requesterAvatar))
+                        else
+                            const CircleAvatar(radius: 30, child: Icon(Icons.person, size: 30)),
+                        const SizedBox(height: 16),
+                        Text("¿Aceptar solicitud de $requesterName?"),
+                    ]
+                ),
+                actions: [
+                    TextButton(
+                        onPressed: () => Navigator.pop(context), 
+                        child: const Text("Cerrar", style: TextStyle(color: Colors.grey))
+                    ),
+                    TextButton(
+                        onPressed: () async {
+                            Navigator.pop(context);
+                            if (friendshipId != null) {
+                                try {
+                                    await FriendshipService().acceptRequest(friendshipId);
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Solicitud aceptada. ¡Ahora son amigos!"), backgroundColor: Colors.green));
+                                    }
+                                } catch (e) {
+                                    if (context.mounted) {
+                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e"), backgroundColor: Colors.red));
+                                    }
+                                }
+                            }
+                        }, 
+                        child: const Text("Aceptar", style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBrand))
+                    )
+                ]
+            )
+        );
+        return;
+      }
+
       final planId = notification.data['plan_id'] as String?;
       
       if (planId != null) {

@@ -278,12 +278,15 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
     return Scaffold(
       key: _scaffoldKey,
-      floatingActionButton: FloatingActionButton(
-        onPressed: () {
-            Navigator.push(context, MaterialPageRoute(builder: (context) => const SubmitTicketScreen()));
-        },
-        backgroundColor: AppTheme.primaryBrand,
-        child: const Icon(Icons.bug_report_rounded, color: Colors.white),
+      floatingActionButton: Padding(
+        padding: const EdgeInsets.only(bottom: 80.0),
+        child: FloatingActionButton(
+          onPressed: () {
+              Navigator.push(context, MaterialPageRoute(builder: (context) => const SubmitTicketScreen()));
+          },
+          backgroundColor: AppTheme.primaryBrand,
+          child: const Icon(Icons.bug_report_rounded, color: Colors.white),
+        ),
       ),
       drawer: const ProfileDrawer(),
       appBar: AppBar(
@@ -871,8 +874,38 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                   foregroundColor: AppTheme.primaryBrand,
                                   shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20))
                               ),
-                              onPressed: () => context.push('/invite/$pid'),
+                              onPressed: () {
+                                  setState(() {
+                                      _dbPendingInvites.removeWhere((i) => i['plan_id'] == pid);
+                                  });
+                                  context.push('/invite/$pid');
+                              },
                               child: const Text("Ver", style: TextStyle(fontWeight: FontWeight.bold))
+                          ),
+                          const SizedBox(width: 4),
+                          IconButton(
+                              onPressed: () async {
+                                  // Update UI immediately
+                                  setState(() {
+                                      _dbPendingInvites.removeWhere((i) => i['plan_id'] == pid);
+                                  });
+                                  
+                                  // Update backend
+                                  final user = Supabase.instance.client.auth.currentUser;
+                                  if (user != null) {
+                                      try {
+                                          await Supabase.instance.client
+                                              .from('plan_members')
+                                              .update({'status': 'declined'})
+                                              .eq('plan_id', pid)
+                                              .eq('user_id', user.id);
+                                      } catch (e) {
+                                          debugPrint("Error dismissing invite: $e");
+                                      }
+                                  }
+                              }, 
+                              icon: const Icon(Icons.close, color: Colors.white),
+                              tooltip: "Ocultar",
                           )
                       ],
                   ),

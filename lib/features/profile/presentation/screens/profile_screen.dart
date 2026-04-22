@@ -372,7 +372,13 @@ class _ProfileScreenState extends State<ProfileScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: const Text("Mi Perfil", style: TextStyle(fontWeight: FontWeight.bold))),
+      appBar: AppBar(
+          title: const Text("Mi Perfil", style: TextStyle(fontWeight: FontWeight.bold)),
+          leading: IconButton(
+              icon: const Icon(Icons.arrow_back),
+              onPressed: () => context.go('/home'),
+          ),
+      ),
       body: _isLoading 
           ? const Center(child: CircularProgressIndicator())
           : SingleChildScrollView(
