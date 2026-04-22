@@ -94,24 +94,38 @@ class FriendshipService {
   }
 
   /// Get my friends (accepted) and pending requests
-  /// This requires a complex query or multiple queries because "Friend" can be requester or receiver.
   Future<List<Friendship>> getFriendships() async {
     final myId = _supabase.auth.currentUser?.id;
     if (myId == null) return [];
 
-    // Query where I am requester OR receiver
-    // We also want to fetch the profile of the counterparty.
-    // Supabase standard join syntax:
-    // select(*, receiver:profiles!receiver_id(*), requester:profiles!requester_id(*))
-    
     try {
-       final res = await _supabase.from('friendships').select('''
-          *,
-          receiver:profiles!receiver_id(display_name, nickname, avatar_url, interests),
-          requester:profiles!requester_id(display_name, nickname, avatar_url, interests)
-       ''').or('requester_id.eq.$myId,receiver_id.eq.$myId');
+       // 1. Fetch raw friendships directly (avoids PostgREST relation errors if FKs are directed to auth.users instead of profiles)
+       final resRaw = await _supabase.from('friendships').select('*').or('requester_id.eq.$myId,receiver_id.eq.$myId');
+       final List<Map<String,dynamic>> res = List<Map<String,dynamic>>.from(resRaw);
 
-       return (res as List).map((item) => Friendship.fromJson(item, myUserId: myId)).toList();
+       if (res.isEmpty) return [];
+
+       // 2. Extract profile IDs we need to fetch
+       final Set<String> profileIdsToFetch = {};
+       for (final item in res) {
+           profileIdsToFetch.add(item['requester_id']);
+           profileIdsToFetch.add(item['receiver_id']);
+       }
+
+       // 3. Fetch all related profiles in one query
+       final profilesRaw = await _supabase.from('profiles').select('id, display_name, nickname, avatar_url, interests').inFilter('id', profileIdsToFetch.toList());
+       
+       final Map<String, dynamic> profilesMap = {
+           for (final p in profilesRaw) p['id'] as String: p
+       };
+
+       // 4. Inject profiles into each friendship JSON so fromJson parses normally
+       for (final item in res) {
+           item['requester'] = profilesMap[item['requester_id']];
+           item['receiver'] = profilesMap[item['receiver_id']];
+       }
+
+       return res.map((item) => Friendship.fromJson(item, myUserId: myId)).toList();
     } catch (e) {
       print("Get Friendships Error: $e");
       return [];
