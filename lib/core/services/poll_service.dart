@@ -120,7 +120,38 @@ class PollService {
              final anyVote = await _supabase.from('poll_votes').select().eq('option_id', optionId).maybeSingle();
              if (anyVote != null) throw Exception("Este ítem ya fue asignado a otro participante.");
         }
+        // Check if this is the very first vote in the poll to send Push Notification
+        final allVotesRes = await _supabase.from('poll_votes').select('id').eq('poll_id', pollId).limit(1);
+        final isFirstVote = allVotesRes.isEmpty;
+
         await _supabase.from('poll_votes').insert({'poll_id': pollId, 'option_id': optionId, 'user_id': userId});
+
+        if (isFirstVote) {
+             // Send notification to incentivize others
+             try {
+                 final pollData = await _supabase.from('polls').select('plan_id, question').eq('id', pollId).single();
+                 final planId = pollData['plan_id'];
+                 final planData = await _supabase.from('plans').select('title').eq('id', planId).single();
+                 final profileData = await _supabase.from('profiles').select('full_name, avatar_url').eq('id', userId).single();
+                 
+                 final members = await _supabase.from('plan_members').select('user_id').eq('plan_id', planId).neq('user_id', userId);
+                 final List<Map<String, dynamic>> notifications = [];
+                 for (var member in members) {
+                      notifications.add({
+                          'user_id': member['user_id'],
+                          'type': 'poll_vote',
+                          'title': '¡Sondeo Activo!',
+                          'body': '${profileData['full_name']} acaba de responder la encuesta en ${planData['title']}. ¡Entra y vota!',
+                          'data': {'plan_id': planId, 'route': '/plan/$planId'}
+                      });
+                 }
+                 if (notifications.isNotEmpty) {
+                      await _supabase.from('notifications').insert(notifications);
+                 }
+             } catch (e) {
+                 print("Error sending poll vote notification: $e");
+             }
+        }
     }
   }
   

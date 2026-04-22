@@ -360,13 +360,10 @@ class ExpenseRepository {
           final currentUid = _supabase.auth.currentUser?.id;
           if (currentUid == null) return [];
           
-          // Unified Ledger: payment_trackers
-          // Query where current user is the owner of the plan (which covers tools plan and standard Vaca)
           var query = _supabase
               .from('payment_trackers')
               .select('id, plan_id, bill_id, user_id, guest_name, amount_owe, amount_paid, status, description, created_at, profiles:user_id(full_name, avatar_url, phone), plans!inner(creator_id)')
-              .eq('plans.creator_id', currentUid)
-              .or('user_id.neq.$currentUid,user_id.is.null') // Include guests and others, exclude myself
+              .or('user_id.neq.$currentUid,user_id.is.null') // Definitively exclude my own debts
               .neq('status', 'paid')
               .gt('amount_owe', 0);
               
@@ -376,21 +373,40 @@ class ExpenseRepository {
           
           final response = await query;
           
-          // Adapter to map payment_trackers shape to legacy UI expectations temporarily
-          return List<Map<String, dynamic>>.from(response).map((pt) {
-              return {
-                  'expense_id': pt['id'], // use tracker id as mock expense_id for UI logic
-                  'user_id': pt['user_id'],
-                  'guest_name': pt['guest_name'],
-                  'amount_owed': (pt['amount_owe'] as num).toDouble() - (pt['amount_paid'] as num).toDouble(),
-                  'status': pt['status'],
-                  'profiles': pt['profiles'],
-                  'expenses': {
-                      'title': pt['description'] ?? 'Gasto Unificado',
-                      'plan_id': pt['plan_id']
-                  }
-              };
-          }).toList();
+          // Fetch expenses to determine true creditors for bill splits
+          final expenses = await _supabase.from('expenses').select('title, created_by');
+          final expenseMap = { for (var e in expenses) e['title'] : e['created_by'] };
+          
+          final List<Map<String, dynamic>> receivables = [];
+          
+          for (var pt in response) {
+              final String desc = pt['description'] ?? '';
+              final bool isVaca = desc == 'Gastos Unificados' || desc == 'Gasto Unificado';
+              
+              bool isOwedToMe = false;
+              if (isVaca) {
+                  isOwedToMe = pt['plans']['creator_id'] == currentUid;
+              } else {
+                  final expenseCreator = expenseMap[desc];
+                  isOwedToMe = expenseCreator == currentUid;
+              }
+              
+              if (isOwedToMe) {
+                  receivables.add({
+                      'expense_id': pt['id'], // use tracker id as mock expense_id for UI logic
+                      'user_id': pt['user_id'],
+                      'guest_name': pt['guest_name'],
+                      'amount_owed': (pt['amount_owe'] as num).toDouble() - (pt['amount_paid'] as num).toDouble(),
+                      'status': pt['status'],
+                      'profiles': pt['profiles'],
+                      'expenses': {
+                          'title': desc.isNotEmpty ? desc : 'Gasto',
+                          'plan_id': pt['plan_id']
+                      }
+                  });
+              }
+          }
+          return receivables;
       } catch (e) {
           print("ERROR FETCHING RECEIVABLES: $e");
           return [];
@@ -407,7 +423,6 @@ class ExpenseRepository {
               .from('payment_trackers')
               .select('id, plan_id, bill_id, user_id, guest_name, amount_owe, amount_paid, status, description, created_at, plans!inner(creator_id, profiles:creator_id(full_name, avatar_url, phone, payment_methods))')
               .eq('user_id', currentUid)
-              .neq('plans.creator_id', currentUid) // Don't owe myself
               .neq('status', 'paid')
               .gt('amount_owe', 0);
               
@@ -417,19 +432,41 @@ class ExpenseRepository {
           
           final response = await query;
           
-          return List<Map<String, dynamic>>.from(response).map((pt) {
-              return {
-                  'expense_id': pt['id'], // mock
-                  'user_id': pt['user_id'],
-                  'amount_owed': (pt['amount_owe'] as num).toDouble() - (pt['amount_paid'] as num).toDouble(),
-                  'status': pt['status'],
-                  'profiles': pt['plans']['profiles'], // Emulate the joined profile of the creator
-                  'expenses': {
-                      'title': pt['description'] ?? 'Gasto Unificado',
-                      'plan_id': pt['plan_id']
-                  }
-              };
-          }).toList();
+          final expenses = await _supabase.from('expenses').select('title, created_by, profiles:created_by(full_name, avatar_url, phone, payment_methods)');
+          final expenseMap = { for (var e in expenses) e['title'] : e };
+          
+          final List<Map<String, dynamic>> payables = [];
+          
+          for (var pt in response) {
+              final String desc = pt['description'] ?? '';
+              final bool isVaca = desc == 'Gastos Unificados' || desc == 'Gasto Unificado';
+              
+              bool isIOwed = true; 
+              dynamic creditorProfile = pt['plans']['profiles'];
+              
+              if (!isVaca && expenseMap.containsKey(desc)) {
+                  final exp = expenseMap[desc]!;
+                  if (exp['created_by'] == currentUid) isIOwed = false; // I don't owe it to myself if I paid the bill
+                  creditorProfile = exp['profiles'];
+              } else {
+                  if (pt['plans']['creator_id'] == currentUid) isIOwed = false;
+              }
+              
+              if (isIOwed && creditorProfile != null) {
+                  payables.add({
+                      'expense_id': pt['id'], // mock
+                      'user_id': pt['user_id'],
+                      'amount_owed': (pt['amount_owe'] as num).toDouble() - (pt['amount_paid'] as num).toDouble(),
+                      'status': pt['status'],
+                      'profiles': creditorProfile, // dynamic creditor via expense or plan creator
+                      'expenses': {
+                          'title': desc.isNotEmpty ? desc : 'Gasto',
+                          'plan_id': pt['plan_id']
+                      }
+                  });
+              }
+          }
+          return payables;
       } catch (e) {
           print("ERROR FETCHING PAYABLES: $e");
           return [];

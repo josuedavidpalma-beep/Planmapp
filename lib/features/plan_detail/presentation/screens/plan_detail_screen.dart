@@ -423,6 +423,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
              ];
           },
           body: TabBarView(
+            key: ValueKey('tabbarview_${_tabController.length}'),
             controller: _tabController,
             children: [
                isDesktop ? const Center(child: Text("El chat está abierto en el panel derecho 👉", style: TextStyle(color: Colors.grey))) : _buildChatAndPolls(), 
@@ -629,6 +630,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                 child: Container(
                    color: Theme.of(context).scaffoldBackgroundColor, 
                    child: TabBar(
+                      key: ValueKey('tabbar_${_tabController.length}'),
                       controller: _tabController,
                       isScrollable: false,
                       labelColor: AppTheme.primaryBrand,
@@ -805,7 +807,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
               child: StreamBuilder<List<Message>>(
                 stream: _chatStream,
                 builder: (context, snapshot) {
-                  if (snapshot.hasError) {
+                  if (snapshot.hasError && (!snapshot.hasData || snapshot.data!.isEmpty)) {
                       return Center(
                         child: Column(
                           mainAxisAlignment: MainAxisAlignment.center,
@@ -820,7 +822,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                         ),
                       );
                   }
-                  if (snapshot.connectionState == ConnectionState.waiting) {
+                  if (snapshot.connectionState == ConnectionState.waiting && (!snapshot.hasData || snapshot.data!.isEmpty)) {
                     return const Center(child: CircularProgressIndicator());
                   }
                   final messages = snapshot.data ?? [];
@@ -1304,10 +1306,10 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
           child: StreamBuilder<List<Message>>(
             stream: _chatStream,
             builder: (context, snapshot) {
-              if (snapshot.hasError) {
+              if (snapshot.hasError && (!snapshot.hasData || snapshot.data!.isEmpty)) {
                 return Center(child: Text("Error al cargar chat: ${snapshot.error}"));
               }
-              if (snapshot.connectionState == ConnectionState.waiting) {
+              if (snapshot.connectionState == ConnectionState.waiting && (!snapshot.hasData || snapshot.data!.isEmpty)) {
                 return const Center(child: CircularProgressIndicator());
               }
               final messages = snapshot.data ?? [];
@@ -1338,10 +1340,10 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
      return StreamBuilder<List<Poll>>(
         stream: _pollsStream,
         builder: (context, snapshot) {
-          if (snapshot.hasError) {
+          if (snapshot.hasError && (!snapshot.hasData || snapshot.data!.isEmpty)) {
              return Center(child: Padding(padding: const EdgeInsets.all(16), child: Text("Error: ${snapshot.error}", style: const TextStyle(color: Colors.red)))); 
           }
-          if (snapshot.connectionState == ConnectionState.waiting) {
+          if (snapshot.connectionState == ConnectionState.waiting && (!snapshot.hasData || snapshot.data!.isEmpty)) {
             return const Center(child: CircularProgressIndicator());
           }
           final allPolls = snapshot.data ?? [];
@@ -2191,3 +2193,5 @@ class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
     return false;
   }
 }
+
+

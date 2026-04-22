@@ -1,26 +1,26 @@
 import 'dart:convert';
-import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/core/config/api_config.dart';
 import 'package:planmapp/features/plans/domain/models/plan_model.dart';
 import 'package:intl/intl.dart';
 
 class AiItineraryService {
-  late final GenerativeModel _model;
-
-  AiItineraryService() {
-    _model = GenerativeModel(
-      model: 'gemini-2.5-flash',
-      apiKey: ApiConfig.geminiApiKey,
-    );
-  }
+  AiItineraryService();
 
   Future<List<Map<String, dynamic>>> generateItinerary(Plan plan) async {
     try {
       final prompt = _buildPrompt(plan);
       
-      final response = await _model.generateContent([Content.text(prompt)]);
+      final res = await Supabase.instance.client.functions.invoke(
+          'ai-itinerary',
+          body: {'prompt': prompt}
+      );
       
-      final text = response.text;
+      if (res.error != null) {
+          throw Exception(res.error!.message);
+      }
+      
+      final text = res.data['result'] as String?;
       if (text == null) throw Exception("La IA no devolvió respuesta");
       
       // Extract JSON array from markdown
