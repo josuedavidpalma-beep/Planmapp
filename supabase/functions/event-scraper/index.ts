@@ -27,7 +27,8 @@ serve(async (req) => {
         const queries = [
             `site:eventbrite.co OR site:tuboleta.com OR site:joinnus.com Colombia (concierto OR festival OR taller) eventos destacados hoy proximos dias`,
             `(site:cuponatic.com.co OR site:atrapalo.com.co) Colombia (2x1 OR descuento OR "happy hour" OR restaurante) promociones activas hoy`,
-            `("planes recomendados" OR "que hacer en" OR "restaurantes virales") (Bogotá OR Medellín OR Barranquilla OR Cartagena) (tiktok OR instagram) spot viral`
+            `("planes recomendados" OR "que hacer en" OR "restaurantes virales") (Bogotá OR Medellín OR Barranquilla OR Cartagena) (tiktok OR instagram) spot viral`,
+            `site:tuliorecomienda.com OR "@quepasaenbaq" OR "@baqfoodies" OR "Tendencias El Heraldo" (Burger Master OR Pizza Master OR Sushi Master OR Salchipapa Fest OR festival gastronómico) Colombia participantes`
         ];
 
         let allSearchResults = [];
@@ -53,18 +54,22 @@ serve(async (req) => {
 
         // 2. Extracts with Gemini using User's Optimized Prompt
         const prompt = `
-            Actúa como un analista de eventos locales en Colombia. Escanea los resultados provistos buscando actividades para hoy y los próximos 30 días (${today}).
+            Actúa como un analista de tendencias urbanas y eventos locales en Colombia. Escanea los resultados provistos buscando actividades para hoy y los próximos 30 días (${today}).
             Prioriza lugares que sean tendencia en redes sociales (Spot Virales), eventos oficiales, o que ofrezcan descuentos directos (2x1, % OFF).
+
+            Además, busca eventos bajo el modelo de 'Festivales de Ciudad' (ej. Burger Master, Pizza Master, Salchipapa Fest, Medellín Gourmet).
+            Si detectas un festival: No traigas un solo resultado general; extrae el listado de establecimientos (restaurantes) participantes por ciudad, el nombre del plato en promoción, el precio estandarizado y el enlace al mapa oficial o cuenta del evento.
+            Trata a CADA restaurante/participante del festival como un evento individual en el JSON para nutrir la app.
 
             Resultados de Búsqueda:
             ${JSON.stringify(allSearchResults.slice(0, 40))}
             
-            Requerimientos para cada evento/promo:
+            Requerimientos para cada evento/promo (o restaurante de festival):
             - Extrae la información en el formato estricto JSON solicitado.
-            - "Tipo de oferta" / vibe_tag: Clasificar en "2x1", "% Descuento", "Entrada Gratuita", "Lanzamiento", "Viral", "Concierto", o "Cultura".
+            - "Tipo de oferta" / vibe_tag: Clasificar en "2x1", "% Descuento", "Entrada Gratuita", "Lanzamiento", "Viral", "Concierto", "Cultura" o "Festival de Ciudad".
             - FECHAS: Asigna la fecha en 'date'. Si es una promoción recurrente (Ej: "Miércoles de 2x1"), calcula la fecha del PRÓXIMO miércoles.
-            - La 'description' es el contexto. Suena comercial y emocionante. Si el lugar es un 'Spot Viral', menciónalo.
-            - 'promo_highlights' (máx 15 chars). Ej: "Combo $18k", "2x1 Martes".
+            - La 'description' es el contexto. Suena comercial y emocionante. Si es de un festival, detalla: "#BurgerMaster: [Nombre del plato]". Si es un 'Spot Viral', menciónalo.
+            - 'promo_highlights' (máx 15 chars). Ej: "Combo $18k", "Festival $25k", "2x1 Martes".
             - OBLIGATORIO: Extraer el enlace directo para Comprar Entradas, Reservar, o el link oficial del Instagram/Lugar ('reservation_link').
             
             Formato de salida (JSON):
