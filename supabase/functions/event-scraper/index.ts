@@ -21,63 +21,68 @@ serve(async (req) => {
         if (!tavilyKey || !geminiKey) throw new Error("API Keys not set");
         const supabase = createClient(supabaseUrl!, supabaseServiceRoleKey!);
 
-        // 1. Tavily Search optimized for Aggregation (Master, Tickets, AND Local Business Promos)
+        // 1. Multi-category Tavily Searches for better coverage
         const today = new Date().toISOString().split('T')[0];
-        const searchResponse = await fetch("https://api.tavily.com/search", {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                api_key: tavilyKey,
-                query: `(Restaurantes locales Barranquilla promociones fijos 2x1 happy hour dias de la semana descuento) OR (Burger Master OR Conciertos TuBoleta Taquilla Live) Barranquilla hoy enlaces Instagram`,
-                search_depth: "advanced",
-                include_images: true,
-                max_results: 30
-            }),
-        });
-
-        if (!searchResponse.ok) {
-            const tavilyErr = await searchResponse.text();
-            throw new Error(`Tavily Search failed: ${tavilyErr}`);
-        }
-        const searchData = await searchResponse.json();
         
-        // 2. Extracts with Gemini (Acting as Transactional & Local Deals Aggregator)
+        const queries = [
+            `site:eventbrite.co OR site:tuboleta.com OR site:joinnus.com Colombia (concierto OR festival OR taller) eventos destacados hoy proximos dias`,
+            `(site:cuponatic.com.co OR site:atrapalo.com.co) Colombia (2x1 OR descuento OR "happy hour" OR restaurante) promociones activas hoy`,
+            `("planes recomendados" OR "que hacer en" OR "restaurantes virales") (Bogotá OR Medellín OR Barranquilla OR Cartagena) (tiktok OR instagram) spot viral`
+        ];
+
+        let allSearchResults = [];
+        for (const query of queries) {
+            const searchResponse = await fetch("https://api.tavily.com/search", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({
+                    api_key: tavilyKey,
+                    query: query,
+                    search_depth: "advanced",
+                    include_images: true,
+                    max_results: 15
+                }),
+            });
+            if (searchResponse.ok) {
+                const data = await searchResponse.json();
+                allSearchResults = allSearchResults.concat(data.results || []);
+            }
+        }
+
+        if (allSearchResults.length === 0) throw new Error("All Tavily searches failed.");
+
+        // 2. Extracts with Gemini using User's Optimized Prompt
         const prompt = `
-            Contexto: Eres un "Master Aggregator" para la aplicación social Planmapp.
-            Fecha Actual: ${today} (Excluye cualquier evento que ya haya pasado permanentemente).
-            
-            Analiza los siguientes resultados de búsqueda y extrae una lista de eventos Y PROMOCIONES DE NEGOCIOS REALES en Barranquilla o el Atlántico. 
-            Queremos que Planmapp no solo sea directorio, sino un conector directo a compras y además el experto en descuentos locales (Ej: "Precios especiales en Phortos los martes").
-            
+            Actúa como un analista de eventos locales en Colombia. Escanea los resultados provistos buscando actividades para hoy y los próximos 30 días (${today}).
+            Prioriza lugares que sean tendencia en redes sociales (Spot Virales), eventos oficiales, o que ofrezcan descuentos directos (2x1, % OFF).
+
             Resultados de Búsqueda:
-            ${JSON.stringify(searchData.results)}
+            ${JSON.stringify(allSearchResults.slice(0, 40))}
             
-             Requerimientos para cada evento/promo:
-            - EXTRAE la información de promociones fijas o "Happy Hours" de restaurantes y locales. Identifícalos explícitamente en el 'vibe_tag' como "Local Promo" o "Descuento".
-            - MÁS EXTRAE la información de festivales tipo "Master" (vibe_tag: "Master Fest") y Conciertos (vibe_tag: "Ticketing").
-            - OBLIGATORIO: Extraer el enlace directo para Comprar Entradas, Reservar, o el link oficial del Instagram del local que confirma la promo.
-            - OBLIGATORIO: Mapear el rango de precios en 'price_range' (ej: "$18.000 COP", "$25.000 2x1").
-            - FECHAS: Si es un evento único, pon esa fecha exacta. Si es una promoción recurrente (Ej: "Todos los martes"), calcula la fecha del PRÓXIMO martes más cercano a hoy (${today}) e insértala en 'date'. Si aplica hoy, pon hoy.
-            - La 'description' debe sonar comercial y emocionante ("¡Aprovecha el Burger Master!" o "¡Miércoles de 2x1 en Phortos!").
-            - Extrae 'promo_highlights' (máx 15 chars). Ej: "Combo $18k", "2x1 Martes", "Happy Hour".
-            - Asigna la fecha en 'date'.
+            Requerimientos para cada evento/promo:
+            - Extrae la información en el formato estricto JSON solicitado.
+            - "Tipo de oferta" / vibe_tag: Clasificar en "2x1", "% Descuento", "Entrada Gratuita", "Lanzamiento", "Viral", "Concierto", o "Cultura".
+            - FECHAS: Asigna la fecha en 'date'. Si es una promoción recurrente (Ej: "Miércoles de 2x1"), calcula la fecha del PRÓXIMO miércoles.
+            - La 'description' es el contexto. Suena comercial y emocionante. Si el lugar es un 'Spot Viral', menciónalo.
+            - 'promo_highlights' (máx 15 chars). Ej: "Combo $18k", "2x1 Martes".
+            - OBLIGATORIO: Extraer el enlace directo para Comprar Entradas, Reservar, o el link oficial del Instagram/Lugar ('reservation_link').
             
             Formato de salida (JSON):
             {
                 "events": [
                     {
-                        "event_name": "Nombre de Artista o Festival",
-                        "description": "Descripción",
-                        "promo_highlights": "Combo $18k",
+                        "event_name": "Nombre de Artista, Festival o Restaurante",
+                        "description": "Descripción del ambiente (contexto)",
+                        "promo_highlights": "2x1 / Viral",
                         "date": "YYYY-MM-DD",
-                        "venue_name": "Lugar",
-                        "address": "Dirección",
-                        "city": "Barranquilla",
-                        "reservation_link": "https://tuboleta.com/... o instagram... DEBE existir",
+                        "venue_name": "Nombre comercial o recinto",
+                        "address": "Dirección exacta",
+                        "city": "Filtra por: Barranquilla, Medellín, Bogotá, Cali, Cartagena o Santa Marta",
+                        "reservation_link": "URL directa de compra o redes sociales",
                         "contact_phone": "+57...",
-                        "price_range": "Ej: $18.000",
+                        "price_range": "Ej: $18.000 / Gratis",
                         "image_url": "URL original si existe",
-                        "vibe_tag": "Master Fest",
+                        "vibe_tag": "Ej: Viral",
                         "status": "active"
                     }
                 ]
