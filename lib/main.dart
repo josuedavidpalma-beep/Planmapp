@@ -9,6 +9,7 @@ import 'package:intl/date_symbol_data_local.dart'; // Import this
 import 'package:planmapp/core/config/supabase_config.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:planmapp/firebase_options.dart';
+import 'package:planmapp/core/globals.dart'; // Import rootSnackbarKey
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -43,6 +44,7 @@ class PlanmappApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Planmapp',
       debugShowCheckedModeBanner: false,
+      scaffoldMessengerKey: rootSnackbarKey,
       theme: AppTheme.lightTheme,
       darkTheme: AppTheme.darkTheme,
       themeMode: themeMode,

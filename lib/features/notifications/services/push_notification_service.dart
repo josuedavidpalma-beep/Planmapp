@@ -1,7 +1,9 @@
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'dart:io' show Platform;
+import 'package:planmapp/core/globals.dart'; // To show foreground snackbars
 
 class PushNotificationService {
   final FirebaseMessaging _fcm = FirebaseMessaging.instance;
@@ -56,10 +58,36 @@ class PushNotificationService {
         // 3. Listen to foreground messages (Optional, to show local snackbars when app is open)
         FirebaseMessaging.onMessage.listen((RemoteMessage message) {
             print('Got a message whilst in the foreground!');
-            print('Message data: ${message.data}');
             if (message.notification != null) {
-                print('Message also contained a notification: ${message.notification}');
-                // You could trigger a local NotificationService here or a Snackbar alert
+                final title = message.notification?.title ?? "Planmapp";
+                final body = message.notification?.body ?? "Nueva notificación";
+                
+                rootSnackbarKey.currentState?.showSnackBar(
+                    SnackBar(
+                        content: Row(
+                            children: [
+                                const Icon(Icons.notifications_active, color: Colors.white),
+                                const SizedBox(width: 12),
+                                Expanded(
+                                    child: Column(
+                                        mainAxisSize: MainAxisSize.min,
+                                        crossAxisAlignment: CrossAxisAlignment.start,
+                                        children: [
+                                            Text(title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                            Text(body, style: const TextStyle(fontSize: 13)),
+                                        ]
+                                    )
+                                )
+                            ]
+                        ),
+                        backgroundColor: Colors.indigoAccent,
+                        behavior: SnackBarBehavior.floating,
+                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                        duration: const Duration(seconds: 4),
+                        margin: const EdgeInsets.only(bottom: 20, left: 16, right: 16),
+                        elevation: 10,
+                    )
+                );
             }
         });
         

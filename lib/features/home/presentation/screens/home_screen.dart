@@ -155,35 +155,32 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               // NEW: Solicitar permiso automáticamente al iniciar sesión a usuarios antiguos
               if (!isAnon) {
                  final granted = await PushNotificationService().requestPermissionAndSaveToken();
-                 if (!granted && kIsWeb && isPwaStandalone && !isNotificationGranted) {
-                     // Check if we should annoy them (limit to once per session maybe, but since it's an initState call it happens once per app launch)
+                 if (!granted && kIsWeb && !isNotificationGranted) {
                      if (mounted) {
+                         final isIos = defaultTargetPlatform == TargetPlatform.iOS;
                          showDialog(
                              context: context, 
                              builder: (c) => AlertDialog(
                                  backgroundColor: AppTheme.darkBackground,
                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
-                                 title: const Row(
+                                 title: Row(
                                     children: [
-                                        Icon(Icons.notifications_off, color: Colors.orange),
-                                        SizedBox(width: 10),
-                                        Text("Activa las Alertas", style: TextStyle(color: Colors.white, fontSize: 18))
+                                        Icon(isIos ? Icons.add_to_home_screen : Icons.notifications_off, color: Colors.orange),
+                                        const SizedBox(width: 10),
+                                        Text(isIos ? "Instala la App" : "Activa las Alertas", style: const TextStyle(color: Colors.white, fontSize: 18))
                                     ]
                                  ),
-                                 content: const Text(
-                                     "Estás usando Planmapp app pero tienes las notificaciones bloqueadas. Para enterarte de respuestas de chat y cobros, es necesario habilitarlas en la configuración de la app de tu teléfono (Settings).",
-                                     style: TextStyle(color: Colors.white70)
+                                 content: Text(
+                                     isIos 
+                                     ? "Para que tu iPhone suene y recibas notificaciones de chat o cobros, debes instalar Planmapp:\n\n1. Toca en 'Compartir' (el cuadrado con flecha abajo en Safari).\n2. Selecciona 'Agregar a inicio'.\n3. Abre Planmapp desde tu pantalla de inicio."
+                                     : "Estás usando Planmapp app pero tienes las notificaciones bloqueadas. Para enterarte de respuestas de chat y cobros, es necesario habilitarlas en la configuración de Chrome o de la app de tu teléfono (Settings).",
+                                     style: const TextStyle(color: Colors.white70)
                                  ),
                                  actions: [
                                      TextButton(
                                         onPressed: () => Navigator.pop(c), 
-                                        child: const Text("Lo haré después", style: TextStyle(color: Colors.grey))
+                                        child: const Text("Entendido", style: TextStyle(color: Colors.grey))
                                      ),
-                                     ElevatedButton(
-                                        style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand),
-                                        onPressed: () => Navigator.pop(c), 
-                                        child: const Text("Entendido")
-                                     )
                                  ]
                              )
                          );
