@@ -36,7 +36,7 @@ class _InAppInviteSheetState extends State<InAppInviteSheet> {
     try {
       final friendships = await _friendshipService.getFriendships();
       setState(() {
-        _friends = friendships.where((f) => f.status == 'accepted').toList();
+        _friends = friendships.where((f) => f.status == FriendshipStatus.accepted).toList();
         _isLoading = false;
       });
     } catch (e) {
