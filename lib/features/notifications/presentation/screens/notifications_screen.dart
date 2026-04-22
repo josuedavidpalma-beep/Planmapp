@@ -108,7 +108,7 @@ class NotificationsScreen extends StatelessWidget {
                                       });
                                       if (context.mounted) {
                                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Te has unido al plan!"), backgroundColor: Colors.green));
-                                          context.push('/plan/$planId');
+                                          context.go('/plan/$planId');
                                       }
                                   } catch (e) {
                                       if (context.mounted) {

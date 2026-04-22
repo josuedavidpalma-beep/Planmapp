@@ -28,6 +28,29 @@ messaging.onBackgroundMessage((payload) => {
   return self.registration.showNotification(notificationTitle, notificationOptions);
 });
 
+// Deep link handler for Push Notifications in PWA
+self.addEventListener('notificationclick', function(event) {
+  event.notification.close();
+  const route = event.notification.data?.route || '/?invite=notifications'; // Use query param for GH pages router safe routing, or direct route if configured. Actually, '/#/' + route is safer for Flutter web hash router, but GoRouter without hash needs '/notifications'. We'll use '/?nav=notifications'.
+  // Actually, Planmapp uses GoRouter. Let's redirect to '/?nav=notifications' or just open the root URL and let Flutter handle getInitialMessage.
+  // The safest web approach for GoRouter without native deep-linking headers is appending a query arg or path
+  const targetUrl = self.registration.scope + '?nav=notifications';
+  
+  event.waitUntil(
+    clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
+      for (let i = 0; i < windowClients.length; i++) {
+        const client = windowClients[i];
+        if (client.url.includes(self.registration.scope) && 'focus' in client) {
+          return client.focus().then(c => c.navigate(targetUrl));
+        }
+      }
+      if (clients.openWindow) {
+        return clients.openWindow(targetUrl);
+      }
+    })
+  );
+});
+
 // PWA Cache Interceptor for Supabase Offline Data (Master System)
 self.addEventListener('fetch', (event) => {
   if (event.request.url.includes('plan_members') || event.request.url.includes('plans')) {

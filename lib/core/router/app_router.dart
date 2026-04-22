@@ -43,7 +43,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     ],
     refreshListenable: _StreamRouterRefresh(Supabase.instance.client.auth.onAuthStateChange),
     redirect: (context, state) async {
-      // 1. Anti-404 Query Parameter Interceptor (GitHub Pages Fix)
+      // 1. Anti-404 Query Parameter Interceptor (GitHub Pages Fix & Push Notifications)
+      if (state.uri.queryParameters.containsKey('nav')) {
+          return '/${state.uri.queryParameters['nav']}';
+      }
       if (state.uri.queryParameters.containsKey('invite')) {
           return '/invite/${state.uri.queryParameters['invite']}';
       }
