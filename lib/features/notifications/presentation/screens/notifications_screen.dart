@@ -67,12 +67,67 @@ class NotificationsScreen extends StatelessWidget {
             )
         );
         return;
+      } else if (notification.type == 'plan_invite') {
+          final planId = notification.data['plan_id'] as String?;
+          final planTitle = notification.data['plan_title'] ?? 'un plan';
+          final inviterName = notification.data['inviter_name'] ?? 'Alguien';
+          final inviterAvatar = notification.data['inviter_avatar'] ?? '';
+
+          if (planId != null) {
+              showDialog(
+                  context: context,
+                  builder: (context) => AlertDialog(
+                      title: const Text("Invitación a Plan"),
+                      content: Column(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                              if (inviterAvatar.isNotEmpty)
+                                  CircleAvatar(radius: 30, backgroundImage: NetworkImage(inviterAvatar))
+                              else
+                                  const CircleAvatar(radius: 30, child: Icon(Icons.person, size: 30)),
+                              const SizedBox(height: 16),
+                              Text("¿Aceptar invitación de $inviterName para unirte a '$planTitle'?"),
+                          ]
+                      ),
+                      actions: [
+                          TextButton(
+                              onPressed: () => Navigator.pop(context), 
+                              child: const Text("Rechazar", style: TextStyle(color: Colors.grey))
+                          ),
+                          TextButton(
+                              onPressed: () async {
+                                  Navigator.pop(context);
+                                  try {
+                                      // Insert directly to plan_members to join
+                                      await Supabase.instance.client.from('plan_members').upsert({
+                                          'plan_id': planId,
+                                          'user_id': Supabase.instance.client.auth.currentUser!.id,
+                                          'role': 'member',
+                                          'status': 'accepted',
+                                      });
+                                      if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Te has unido al plan!"), backgroundColor: Colors.green));
+                                          context.push('/plan/$planId');
+                                      }
+                                  } catch (e) {
+                                      if (context.mounted) {
+                                          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error al unirse: $e"), backgroundColor: Colors.red));
+                                      }
+                                  }
+                              }, 
+                              child: const Text("Unirme", style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBrand))
+                          )
+                      ]
+                  )
+              );
+              return;
+          }
       }
 
       final planId = notification.data['plan_id'] as String?;
       
       if (planId != null) {
-          // Go to plan
+          // Go to plan fallback
           context.push('/plan/$planId');
       } else {
          // Just show generic message if no deep link

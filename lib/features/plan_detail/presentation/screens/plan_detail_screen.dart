@@ -23,6 +23,7 @@ import 'package:planmapp/core/widgets/auth_guard.dart';
 import 'package:planmapp/core/presentation/widgets/dancing_empty_state.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:planmapp/features/games/presentation/widgets/wheel_spin_dialog.dart'; // NEW Wheel
+import 'package:planmapp/features/invite/presentation/widgets/in_app_invite_sheet.dart';
 import 'package:planmapp/features/games/presentation/widgets/sound_commands_dialog.dart';
 import 'package:planmapp/features/plan_detail/presentation/widgets/roulette_message_bubble.dart';
 import 'package:planmapp/features/plan_detail/presentation/widgets/final_confirmation_bubble.dart';
@@ -486,7 +487,17 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                       IconButton(
                           icon: const Icon(Icons.person_add, color: Colors.white),
                           tooltip: "Invitar Amigos",
-                          onPressed: () => InvitationService.inviteToPlan(_plan!),
+                          onPressed: () {
+                              showModalBottomSheet(
+                                 context: context,
+                                 isScrollControlled: true,
+                                 backgroundColor: Colors.transparent,
+                                 builder: (_) => InAppInviteSheet(
+                                    plan: _plan!,
+                                    existingMembers: _membersMap,
+                                 )
+                              );
+                          },
                       ),
                   if (!isDirectChat && _plan != null)
                       IconButton(

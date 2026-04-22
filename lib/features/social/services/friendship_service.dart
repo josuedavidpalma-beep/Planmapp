@@ -136,4 +136,27 @@ class FriendshipService {
         orElse: () => FriendshipStatus.pending,
       );
   }
+
+  /// Sends an in-app plan invitation to a friend
+  Future<void> sendPlanInvite(String friendId, dynamic plan) async {
+      final currentUser = _supabase.auth.currentUser;
+      if (currentUser == null) throw Exception("Not logged in");
+      
+      final profile = await _supabase.from('profiles').select('full_name, nickname, avatar_url').eq('id', currentUser.id).maybeSingle();
+      final name = profile?['nickname'] ?? profile?['full_name'] ?? 'Alguien';
+      final avatar = profile?['avatar_url'] ?? '';
+
+      await _supabase.from('notifications').insert({
+          'user_id': friendId,
+          'title': 'Invitación a Plan',
+          'body': '$name te ha invitado al plan "${plan.title}".',
+          'type': 'plan_invite',
+          'data': {
+              'plan_id': plan.id,
+              'plan_title': plan.title,
+              'inviter_name': name,
+              'inviter_avatar': avatar
+          }
+      });
+  }
 }

@@ -3,6 +3,7 @@ import 'package:planmapp/features/plans/domain/models/plan_model.dart';
 import 'package:intl/intl.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:planmapp/core/services/invitation_service.dart';
+import 'package:planmapp/features/invite/presentation/widgets/in_app_invite_sheet.dart';
 
 class PlanProfileSheet extends StatelessWidget {
   final Plan plan;
@@ -99,7 +100,15 @@ class PlanProfileSheet extends StatelessWidget {
                         GestureDetector(
                            onTap: () {
                               Navigator.pop(context);
-                              InvitationService.inviteToPlan(plan);
+                              showModalBottomSheet(
+                                 context: context,
+                                 isScrollControlled: true,
+                                 backgroundColor: Colors.transparent,
+                                 builder: (_) => InAppInviteSheet(
+                                    plan: plan,
+                                    existingMembers: membersMap,
+                                 )
+                              );
                            },
                            child: Container(
                               width: 70,
