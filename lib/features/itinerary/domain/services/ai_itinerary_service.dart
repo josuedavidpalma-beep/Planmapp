@@ -16,10 +16,6 @@ class AiItineraryService {
           body: {'prompt': prompt}
       );
       
-      if (res.error != null) {
-          throw Exception(res.error!.message);
-      }
-      
       final text = res.data['result'] as String?;
       if (text == null) throw Exception("La IA no devolvió respuesta");
       
