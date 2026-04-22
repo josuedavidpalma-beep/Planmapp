@@ -13,7 +13,7 @@ import 'package:planmapp/features/explore/data/models/event_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 import 'package:url_launcher/url_launcher.dart';
 import 'package:geolocator/geolocator.dart';
-import 'package:flutter/foundation.dart' show kIsWeb;
+import 'package:flutter/foundation.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:planmapp/core/services/session_persistence_service.dart';
 import 'package:planmapp/core/presentation/widgets/premium_empty_state.dart';

@@ -48,7 +48,8 @@ class _InAppInviteSheetState extends State<InAppInviteSheet> {
   }
 
   Future<void> _sendInternalInvite(Friendship friend) async {
-    final friendId = friend.otherUserId;
+    final friendId = friend.friendId;
+    if (friendId == null) return;
     if (_sentInvites.contains(friendId)) return;
 
     setState(() => _sentInvites.add(friendId));
@@ -120,17 +121,21 @@ class _InAppInviteSheetState extends State<InAppInviteSheet> {
                 separatorBuilder: (context, index) => const Divider(color: Colors.white10),
                 itemBuilder: (context, index) {
                   final friend = _friends[index];
-                  final isAlreadyMember = widget.existingMembers.containsKey(friend.otherUserId);
-                  final hasSentInvite = _sentInvites.contains(friend.otherUserId);
+                  final friendIdStr = friend.friendId ?? '';
+                  final friendAvatar = friend.friendAvatarUrl ?? '';
+                  final friendNameStr = friend.friendName ?? 'Amigo';
+                  
+                  final isAlreadyMember = widget.existingMembers.containsKey(friendIdStr);
+                  final hasSentInvite = _sentInvites.contains(friendIdStr);
 
                   return ListTile(
                     contentPadding: EdgeInsets.zero,
                     leading: CircleAvatar(
-                      backgroundImage: friend.otherAvatar.isNotEmpty ? NetworkImage(friend.otherAvatar) : null,
+                      backgroundImage: friendAvatar.isNotEmpty ? NetworkImage(friendAvatar) : null,
                       backgroundColor: Colors.grey[800],
-                      child: friend.otherAvatar.isEmpty ? const Icon(Icons.person, color: Colors.white) : null,
+                      child: friendAvatar.isEmpty ? const Icon(Icons.person, color: Colors.white) : null,
                     ),
-                    title: Text(friend.otherName, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
+                    title: Text(friendNameStr, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500)),
                     trailing: isAlreadyMember 
                         ? const Text("Ya es miembro", style: TextStyle(color: Colors.white38, fontSize: 13))
                         : ElevatedButton(

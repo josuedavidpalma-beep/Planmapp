@@ -6,6 +6,7 @@ import 'package:planmapp/features/notifications/services/notification_service.da
 import 'package:timeago/timeago.dart' as timeago;
 import 'package:go_router/go_router.dart';
 import 'package:planmapp/core/presentation/widgets/dancing_empty_state.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 import 'package:planmapp/features/social/services/friendship_service.dart';
 
