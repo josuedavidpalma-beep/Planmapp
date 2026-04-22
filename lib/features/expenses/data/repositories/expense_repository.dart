@@ -432,7 +432,7 @@ class ExpenseRepository {
           
           final response = await query;
           
-          final expenses = await _supabase.from('expenses').select('title, created_by, profiles:created_by(full_name, avatar_url, phone, payment_methods)');
+          final expenses = await _supabase.from('expenses').select('title, created_by');
           final expenseMap = { for (var e in expenses) e['title'] : e };
           
           final List<Map<String, dynamic>> payables = [];
@@ -446,13 +446,20 @@ class ExpenseRepository {
               
               if (!isVaca && expenseMap.containsKey(desc)) {
                   final exp = expenseMap[desc]!;
-                  if (exp['created_by'] == currentUid) isIOwed = false; // I don't owe it to myself if I paid the bill
-                  creditorProfile = exp['profiles'];
+                  if (exp['created_by'] == currentUid) isIOwed = false; // I don't owe myself
+                  
+                  // In Vaca, creditor is the plan creator (from pt['plans']). In Bill, we need to fetch the creator's profile
+                  // We can temporarily assign the base uid and fetch full profile if needed, or if it's already cached.
+                  // For now, let's keep it robust and prevent null crashes.
+                  creditorProfile = null; // Will fetch later or rely on ID mapping
+                  try {
+                      creditorProfile = await _supabase.from('profiles').select('full_name, avatar_url, phone, payment_methods').eq('id', exp['created_by']).maybeSingle();
+                  } catch (_) {}
               } else {
                   if (pt['plans']['creator_id'] == currentUid) isIOwed = false;
               }
               
-              if (isIOwed && creditorProfile != null) {
+              if (isIOwed) {
                   payables.add({
                       'expense_id': pt['id'], // mock
                       'user_id': pt['user_id'],

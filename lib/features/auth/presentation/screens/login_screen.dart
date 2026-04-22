@@ -7,6 +7,7 @@ import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:planmapp/core/widgets/pwa_install_prompt.dart';
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -310,6 +311,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 ),
               ),
             ),
+          ),
+          
+          // PWA Install Prompt (Floating at the top right)
+          const Positioned(
+              top: 40,
+              right: 16,
+              left: 16,
+              child: SafeArea(child: PwaInstallPrompt())
           ),
         ],
       ),
