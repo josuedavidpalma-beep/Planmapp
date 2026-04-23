@@ -51,8 +51,16 @@ class PlacesService {
       // Convert our internal categories to valid Google Places types
       List<String> validTypes = [];
       if (category != null) {
-          if (category == 'sports') {
-              validTypes = ["gym", "stadium", "fitness_center", "bowling_alley", "sports_club", "sports_complex", "athletic_field"];
+          if (category == 'restaurant') {
+              validTypes = ["restaurant", "cafe", "bakery"];
+          } else if (category == 'bar') {
+              validTypes = ["bar", "night_club"];
+          } else if (category == 'movie_theater') {
+              validTypes = ["movie_theater", "museum", "art_gallery"];
+          } else if (category == 'gym') {
+              validTypes = ["gym", "spa", "park", "stadium", "fitness_center", "sports_club"];
+          } else if (category == 'park') {
+              validTypes = ["park", "campground", "amusement_park", "tourist_attraction"];
           } else {
               validTypes = [category];
           }

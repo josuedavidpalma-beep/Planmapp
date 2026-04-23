@@ -117,12 +117,12 @@ class EventsService {
           final Set<String> validTags = {};
           for (final raw in userInterests) {
               final interest = raw.toLowerCase();
-              if (interest.contains('comida') || interest.contains('gastro') || interest.contains('restaurante')) { validTags.addAll(['restaurant', 'food', 'cafe']); }
+              if (interest.contains('comida') || interest.contains('gastro') || interest.contains('restaurante')) { validTags.addAll(['restaurant', 'food', 'cafe', 'bakery']); }
               if (interest.contains('rumba') || interest.contains('party') || interest.contains('fiesta')) { validTags.addAll(['bar', 'night_club']); }
               if (interest.contains('aventura') || interest.contains('outdoor')) { validTags.addAll(['park', 'amusement_park', 'campground']); }
               if (interest.contains('cultura') || interest.contains('cine') || interest.contains('arte')) { validTags.addAll(['museum', 'tourist_attraction', 'movie_theater', 'art_gallery']); }
               if (interest.contains('chill') || interest.contains('café')) { validTags.addAll(['cafe', 'spa', 'park']); }
-              if (interest.contains('belleza')) { validTags.addAll(['beauty_salon', 'spa', 'hair_care']); }
+              if (interest.contains('belleza') || interest.contains('deporte')) { validTags.addAll(['beauty_salon', 'spa', 'gym', 'sports_club']); }
           }
           
           // Group events by category
@@ -255,12 +255,12 @@ class EventsService {
             final Set<String> validTags = {};
             for (final raw in userInterests) {
                 final interest = raw.toLowerCase();
-                if (interest.contains('comida') || interest.contains('gastro')) { validTags.addAll(['comida', 'gastro', 'food', 'restaurant']); }
-                if (interest.contains('rumba') || interest.contains('party')) { validTags.addAll(['rumba', 'party', 'bar', 'club', 'nightlife']); }
+                if (interest.contains('comida') || interest.contains('gastro')) { validTags.addAll(['gastronomía', 'gastronomia', 'restaurant']); }
+                if (interest.contains('rumba') || interest.contains('party')) { validTags.addAll(['vida nocturna', 'bar', 'club', 'nightlife']); }
                 if (interest.contains('aventura') || interest.contains('outdoor')) { validTags.addAll(['aventura', 'outdoor', 'park']); }
-                if (interest.contains('cultura') || interest.contains('cine')) { validTags.addAll(['cultura', 'cine', 'museum', 'art']); }
-                if (interest.contains('chill') || interest.contains('café')) { validTags.addAll(['chill', 'cafe', 'coffee']); }
-                if (interest.contains('belleza')) { validTags.addAll(['belleza', 'spa', 'wellness']); }
+                if (interest.contains('cultura') || interest.contains('cine')) { validTags.addAll(['cultura & ocio', 'cultura', 'cine', 'museum', 'art']); }
+                if (interest.contains('chill') || interest.contains('café')) { validTags.addAll(['gastronomía', 'cafe', 'coffee']); }
+                if (interest.contains('belleza') || interest.contains('deporte')) { validTags.addAll(['bienestar & deporte', 'spa', 'gym']); }
             }
             
             // Remove strict filtering for daily events so we show all city events,

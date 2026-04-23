@@ -79,24 +79,37 @@ def process_with_gemini(raw_text: str, place: dict, known_events: list) -> list:
     known_events_str = ", ".join([e.get('event_name', '') for e in known_events])
     
     prompt = f"""
-    Actúa como un agente extractor de eventos y promociones. 
+    Actúa como un agente extractor de eventos, promociones y clasificador de lugares para Planmapp. 
     Analiza este texto crudo (resultados de búsqueda en internet del local '{place['name']}' en {place.get('city', '')}).
     
     Extrae PROMOCIONES ACTIVAS O EVENTOS FUTUROS (ej. '2x1 los Jueves', 'Música en vivo este viernes', 'Descuento 20%').
     
-    REGLA 1: Ignora descripciones genéricas como 'hamburguesas deliciosas'. Solo quiero OFERTAS o EVENTOS con temporalidad.
+    Instrucción de Clasificación y Deduplicación para PlanMaps:
+    - Identificador Único (UID): Usa el Nombre exacto del Lugar para evitar duplicados.
+    
+    - Lógica de Etiquetado Exclusivo (campo vibe_tag DEBE SER EXACTAMENTE UNA DE ESTAS ETIXQUETAS):
+      1. Preventa: Si venden boletas anticipadas para fechas específicas (Conciertos/Festivales).
+      2. Gastronomía: Restaurantes y cafés.
+      3. Vida Nocturna: Bares, discotecas. El "Validador de Contexto": Si en la info deduce que cierra después de las 2:00 AM, etiquétalo como "Vida Nocturna" aunque vendan comida.
+      4. Bienestar & Deporte: Actividad física, gimnasios, spas.
+      5. Cultura & Ocio: Exposiciones, teatro, cines.
+      6. Aventura: Parques, caminatas, planes de naturaleza al aire libre.
+      
+    - Filtrado Geográfico: Valida que corresponda a {place.get('city', '')}.
+    
+    REGLA 1: Ignora descripciones genéricas como 'hamburguesas deliciosas'. Solo extrae OFERTAS o EVENTOS con temporalidad.
     REGLA 2: Ignora estos eventos que ya tenemos en memoria: [{known_events_str}].
     
     Devuelve estrictamente un arreglo JSON, sin backticks ni markdown, con este esquema exacto para cada evento encontrado:
     [
       {{
         "event_name": "Event/Promo title (eg. 2x1 en Cócteles)",
-        "description": "Una breve descripcion atractiva de lo que ofrecen y del local...",
-        "promo_highlights": "El resumen textual de la promo (Ej. 2x1, 15% Dcto, Cover Gratis)",
+        "description": "Una breve descripcion atractiva...",
+        "promo_highlights": "Resumen de promo (Ej. 2x1)",
         "date": "YYYY-MM-DD",
         "end_date": "YYYY-MM-DD",
         "price_range": "$$",
-        "vibe_tag": "Promo" o "Casual"
+        "vibe_tag": "Gastronomía"
       }}
     ]
     Si no encuentras ofertas relevantes o claras, devuelve un arreglo vacío [].

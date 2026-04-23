@@ -460,12 +460,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                            scrollDirection: Axis.horizontal,
                            children: [
                              _buildFilterChip("Todo"),
-                             _buildFilterChip("Comida"),
-                             _buildFilterChip("Rumba"),
-                             _buildFilterChip("Cine & Arte"),
+                             _buildFilterChip("Gastronomía"),
+                             _buildFilterChip("Vida Nocturna"),
+                             _buildFilterChip("Cultura & Ocio"),
+                             _buildFilterChip("Bienestar & Deporte"),
                              _buildFilterChip("Aventura"),
-                             _buildFilterChip("Deportes 🏃"),
-                             _buildFilterChip("Preventas"),
+                             _buildFilterChip("Grandes Eventos"),
                            ],
                          ),
                        ),
@@ -620,12 +620,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
 
   String _getPlacesCategory(String filter) {
     switch (filter) {
-      case "Comida": return "restaurant";
-      case "Rumba": return "bar";
-      case "Cine & Arte": return "movie_theater";
+      case "Gastronomía": return "restaurant";
+      case "Vida Nocturna": return "bar";
+      case "Cultura & Ocio": return "movie_theater";
+      case "Bienestar & Deporte": return "gym";
       case "Aventura": return "park";
-      case "Deportes 🏃": return "sports";
-      case "Preventas": return "preventas"; // Handled explicitly in EventsService
+      case "Grandes Eventos": return "preventas";
       default: return "restaurant";
     }
   }
