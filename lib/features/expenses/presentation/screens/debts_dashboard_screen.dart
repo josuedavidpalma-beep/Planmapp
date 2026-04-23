@@ -100,13 +100,21 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
   }
 
   Future<void> _loadReceivables() async {
-    final data = await _repository.getReceivables(widget.planId);
-    if (mounted) setState(() => _receivables = data);
+      try {
+          final data = await _repository.getReceivables(widget.planId);
+          if (mounted) setState(() => _receivables = data);
+      } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error Receivables: $e"), backgroundColor: Colors.red));
+      }
   }
 
   Future<void> _loadPayables() async {
-    final data = await _repository.getPayables(widget.planId);
-    if (mounted) setState(() => _payables = data);
+      try {
+          final data = await _repository.getPayables(widget.planId);
+          if (mounted) setState(() => _payables = data);
+      } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error Payables: $e"), backgroundColor: Colors.red));
+      }
   }
 
   // ============== RECEIVABLES ACTIONS (Por Cobrar) ============== //

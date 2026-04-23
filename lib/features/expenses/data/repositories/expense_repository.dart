@@ -412,10 +412,6 @@ class ExpenseRepository {
               }
           }
           return receivables;
-      } catch (e) {
-          print("ERROR FETCHING RECEIVABLES: $e");
-          return [];
-      }
   }
 
   // Fetch debts the current user owes (Payables)
@@ -479,10 +475,6 @@ class ExpenseRepository {
               }
           }
           return payables;
-      } catch (e) {
-          print("ERROR FETCHING PAYABLES: $e");
-          return [];
-      }
   }
 
   // Fetch granular items consumed by a user across multiple expenses
