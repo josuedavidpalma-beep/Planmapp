@@ -361,7 +361,7 @@ class ExpenseRepository {
           
           var query = _supabase
               .from('payment_trackers')
-              .select('id, plan_id, bill_id, user_id, guest_name, amount_owe, amount_paid, status, description, created_at, plans!inner(creator_id)')
+              .select('id, plan_id, bill_id, user_id, guest_name, amount_owe, amount_paid, status, description, created_at, plans!inner(id, title, creator_id)')
               .or('user_id.neq.$currentUid,user_id.is.null') // Definitively exclude my own debts
               .neq('status', 'paid')
               .gt('amount_owe', 0);
@@ -399,7 +399,7 @@ class ExpenseRepository {
                   dynamic debtorProfile;
                   if (pt['user_id'] != null) {
                       try {
-                          debtorProfile = await _supabase.from('profiles').select('full_name, avatar_url, phone').eq('id', pt['user_id']).maybeSingle();
+                          debtorProfile = await _supabase.from('profiles').select('id, full_name, avatar_url, phone').eq('id', pt['user_id']).maybeSingle();
                       } catch (_) {}
                   }
                   
@@ -409,6 +409,8 @@ class ExpenseRepository {
                       'guest_name': pt['guest_name'],
                       'amount_owed': (pt['amount_owe'] as num).toDouble() - (pt['amount_paid'] as num).toDouble(),
                       'status': pt['status'],
+                      'created_at': pt['created_at'],
+                      'plan_title': pt['plans']?['title'] ?? 'Plan',
                       'profiles': debtorProfile,
                       'expenses': {
                           'title': desc.isNotEmpty ? desc : 'Gasto',
@@ -427,7 +429,7 @@ class ExpenseRepository {
           
           var query = _supabase
               .from('payment_trackers')
-              .select('id, plan_id, bill_id, user_id, guest_name, amount_owe, amount_paid, status, description, created_at, plans!inner(creator_id)')
+              .select('id, plan_id, bill_id, user_id, guest_name, amount_owe, amount_paid, status, description, created_at, plans!inner(id, title, creator_id)')
               .eq('user_id', currentUid)
               .neq('status', 'paid')
               .gt('amount_owe', 0);
@@ -455,14 +457,14 @@ class ExpenseRepository {
                   if (exp['created_by'] == currentUid) isIOwed = false; // I don't owe myself
                   
                   try {
-                      creditorProfile = await _supabase.from('profiles').select('full_name, avatar_url, phone, payment_methods').eq('id', exp['created_by']).maybeSingle();
+                      creditorProfile = await _supabase.from('profiles').select('id, full_name, avatar_url, phone, payment_methods').eq('id', exp['created_by']).maybeSingle();
                   } catch (_) {}
               } else {
                   if (pt['plans']['creator_id'] == currentUid) {
                       isIOwed = false;
                   } else {
                       try {
-                          creditorProfile = await _supabase.from('profiles').select('full_name, avatar_url, phone, payment_methods').eq('id', pt['plans']['creator_id']).maybeSingle();
+                          creditorProfile = await _supabase.from('profiles').select('id, full_name, avatar_url, phone, payment_methods').eq('id', pt['plans']['creator_id']).maybeSingle();
                       } catch (_) {}
                   }
               }
@@ -473,6 +475,8 @@ class ExpenseRepository {
                       'user_id': pt['user_id'],
                       'amount_owed': (pt['amount_owe'] as num).toDouble() - (pt['amount_paid'] as num).toDouble(),
                       'status': pt['status'],
+                      'created_at': pt['created_at'],
+                      'plan_title': pt['plans']?['title'] ?? 'Plan',
                       'profiles': creditorProfile, // dynamic creditor via expense or plan creator
                       'expenses': {
                           'title': desc.isNotEmpty ? desc : 'Gasto',

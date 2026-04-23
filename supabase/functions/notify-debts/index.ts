@@ -4,6 +4,14 @@ import { createClient } from 'https://esm.sh/@supabase/supabase-js@2.7.1'
 console.log("Notify-Debts CRON Trigger Active")
 
 serve(async (req) => {
+  if (req.method !== 'POST') return new Response('Method Not Allowed', { status: 405 })
+  
+  const authHeader = req.headers.get('Authorization');
+  if (authHeader !== `Bearer ${Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')}`) {
+      console.warn("Unauthorized attempt to trigger CRON");
+      return new Response('Unauthorized', { status: 403 });
+  }
+
   try {
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',

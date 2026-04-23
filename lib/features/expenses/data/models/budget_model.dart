@@ -32,7 +32,7 @@ class BudgetItem {
   };
 }
 
-enum PaymentStatus { pending, verifying, paid, partial }
+enum PaymentStatus { pending, reported, paid, partial }
 
 class PaymentTracker {
   final String id;
@@ -44,6 +44,7 @@ class PaymentTracker {
   final double amountOwe;
   final String? billId;
   final String? description;
+  final String? receiptUrl;
 
   PaymentTracker({
     required this.id,
@@ -55,6 +56,7 @@ class PaymentTracker {
     required this.amountOwe,
     this.billId,
     this.description,
+    this.receiptUrl,
   });
 
   String get displayName => (guestName?.isNotEmpty == true) ? guestName! : "Usuario";
@@ -73,6 +75,7 @@ class PaymentTracker {
       amountOwe: (json['amount_owe'] as num?)?.toDouble() ?? 0.0,
       billId: json['bill_id'],
       description: json['description'],
+      receiptUrl: json['receipt_url'],
     );
   }
 }

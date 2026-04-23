@@ -10,6 +10,8 @@ import 'package:share_plus/share_plus.dart';
 import 'package:intl/intl.dart';
 import 'package:planmapp/core/utils/currency_formatter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
+import 'package:image_picker/image_picker.dart';
+import 'package:uuid/uuid.dart';
 
 class BudgetPlanTab extends StatefulWidget {
   final String planId;
@@ -661,13 +663,11 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
                                    }),
                                 
                                 // Case 2: Verifying (Yellow) -> Creator approves
-                                if (t.status == PaymentStatus.verifying)
+                                if (t.status == PaymentStatus.reported)
                                    ElevatedButton(
                                        onPressed: () async {
                                            if (_isCurrentUserCreator) {
-                                              await _repository.updatePaymentStatus(t.id, PaymentStatus.paid);
-                                              _loadData();
-                                              if(mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pago Aprobado")));
+                                              await _verifyReceiptVaca(t);
                                            } else if (isMe) {
                                               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Esperando aprobación del organizador.")));
                                            }
@@ -725,7 +725,7 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
                    children: [
                        const Text("Realizar Pago", style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
                        const SizedBox(height: 8),
-                       Text("Monto a pagar: ${CurrencyInputFormatter.format(quota)}", style: const TextStyle(fontSize: 18, color: Colors.green, fontWeight: FontWeight.bold)),
+                       Text("Monto sugerido: ${CurrencyInputFormatter.format(quota)}", style: const TextStyle(fontSize: 18, color: Colors.green, fontWeight: FontWeight.bold)),
                        const SizedBox(height: 16),
                        const Text("Medios de pago del organizador:", style: TextStyle(fontWeight: FontWeight.bold)),
                        const SizedBox(height: 8),
@@ -741,20 +741,28 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
                                
                                if (links.isEmpty) return const Text("El organizador no ha configurado medios de pago en su perfil. Acuerda con él directamente.", style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic));
                                
-                               return Column(
-                                   children: links.map((pm) => Card(
-                                       color: Colors.grey.shade50,
-                                       margin: const EdgeInsets.only(bottom: 8),
-                                       child: ListTile(
-                                           leading: const Icon(Icons.account_balance_wallet, color: AppTheme.primaryBrand),
-                                           title: Text(pm['type'] ?? 'Banco', style: const TextStyle(fontWeight: FontWeight.bold)),
-                                           subtitle: Text(pm['details'] ?? ''),
-                                           trailing: IconButton(icon: const Icon(Icons.copy, size: 18), onPressed: () async {
-                                               await Clipboard.setData(ClipboardData(text: pm['details'] ?? ''));
-                                               if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Copiado al portapapeles")));
-                                           }),
-                                       ),
-                                   )).toList()
+                               return Wrap(
+                                   spacing: 8, runSpacing: 8,
+                                   children: links.map((pm) {
+                                       final type = pm['type']?.toString().toLowerCase() ?? '';
+                                       return ActionChip(
+                                           backgroundColor: Colors.black12,
+                                           avatar: const Icon(Icons.account_balance_wallet, size: 16, color: AppTheme.primaryBrand),
+                                           label: Text("${pm['type']}: ${pm['details']}"),
+                                           onPressed: () async {
+                                               Clipboard.setData(ClipboardData(text: pm['details'] ?? ''));
+                                               if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Abre tu app bancaria. Copiado: ${pm['details']}")));
+                                               
+                                               if (type.contains('nequi')) {
+                                                   final uri = Uri.parse('nequi://');
+                                                   if (await canLaunchUrl(uri)) await launchUrl(uri);
+                                               } else if (type.contains('daviplata')) {
+                                                   final uri = Uri.parse('daviplata://');
+                                                   if (await canLaunchUrl(uri)) await launchUrl(uri);
+                                               }
+                                           },
+                                       );
+                                   }).toList()
                                );
                            }
                        ),
@@ -764,9 +772,7 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
                            child: ElevatedButton(
                                onPressed: () async {
                                    Navigator.pop(c);
-                                   await _repository.updatePaymentStatus(trackerId, PaymentStatus.verifying);
-                                   _loadData();
-                                   if (context.mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pago enviado a verificación por el organizador!")));
+                                   _notifyMyPayment(trackerId);
                                }, 
                                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16)),
                                child: const Text("Notificar que Ya Pagué", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16))
@@ -774,6 +780,125 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
                        )
                    ],
                ),
+           )
+       );
+  }
+
+  Future<void> _notifyMyPayment(String trackerId) async {
+      final picker = ImagePicker();
+      
+      final result = await showModalBottomSheet<String>(
+          context: context,
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          builder: (c) => SafeArea(child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                  const Padding(
+                    padding: EdgeInsets.all(16.0),
+                    child: Text("Reportar Pago a la Vaca", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                  ),
+                  const Padding(
+                    padding: EdgeInsets.symmetric(horizontal: 16.0),
+                    child: Text("¿Deseas adjuntar una captura de tu transferencia Nequi/Banco? Ayuda al organizador a validarlo más rápido. (Se borrará en 30 días)", style: TextStyle(color: Colors.grey, fontSize: 13), textAlign: TextAlign.center),
+                  ),
+                  const SizedBox(height: 16),
+                  ListTile(
+                      leading: const Icon(Icons.photo_library, color: AppTheme.primaryBrand),
+                      title: const Text("Subir Comprobante (Recomendado)"),
+                      onTap: () => Navigator.pop(c, 'photo'),
+                  ),
+                  ListTile(
+                      leading: const Icon(Icons.check_circle_outline, color: Colors.green),
+                      title: const Text("Reportar sin comprobante"),
+                      onTap: () => Navigator.pop(c, 'without_photo'),
+                  ),
+                  const SizedBox(height: 16),
+              ],
+          ))
+      );
+
+      if (result == null) return;
+
+      String? uploadedUrl;
+      setState(() => _isLoading = true);
+
+      try {
+          if (result == 'photo') {
+              final xFile = await picker.pickImage(source: ImageSource.gallery, imageQuality: 50); // Heavily compress
+              if (xFile != null) {
+                  final bytes = await xFile.readAsBytes();
+                  final ext = xFile.name.split('.').last;
+                  final path = '${Supabase.instance.client.auth.currentUser!.id}/${const Uuid().v4()}.$ext';
+                  
+                  await Supabase.instance.client.storage.from('payment_vouchers').uploadBinary(path, bytes);
+                  uploadedUrl = Supabase.instance.client.storage.from('payment_vouchers').getPublicUrl(path);
+              }
+          }
+
+          // Important: Status is 'reported' (enum PaymentStatus.reported)
+          await _repository.updatePaymentStatus(trackerId, PaymentStatus.reported, receiptUrl: uploadedUrl);
+          
+          try {
+              if (_creatorIdDebug != null) {
+                  await Supabase.instance.client.from('notifications').insert({
+                      'user_id': _creatorIdDebug,
+                      'type': 'payment_reported',
+                      'title': 'Comprobante Subido 🧾',
+                      'content': 'Un usuario acaba de notificar el pago de su cuota de Vaca. Toca aquí para ver su comprobante.',
+                      'plan_id': widget.planId
+                  });
+              }
+          } catch(e) {
+              print(e);
+          }
+
+          await _loadData(); 
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pago notificado al organizador!")));
+          
+      } catch (e) {
+          setState(() => _isLoading = false);
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+      }
+  }
+
+  Future<void> _verifyReceiptVaca(PaymentTracker t) async {
+       await showDialog(
+           context: context,
+           builder: (c) => AlertDialog(
+               title: const Text("Verificar Pago"),
+               content: Column(
+                   mainAxisSize: MainAxisSize.min,
+                   children: [
+                        if (t.receiptUrl != null && t.receiptUrl!.isNotEmpty)
+                           Padding(
+                               padding: const EdgeInsets.symmetric(vertical: 8.0),
+                               child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(t.receiptUrl!, height: 250, width: double.infinity, fit: BoxFit.contain),
+                               )
+                           ),
+                        Text("¿Confirmas que has recibido el dinero de ${t.displayName}?"),
+                   ]
+               ),
+               actions: [
+                   TextButton(
+                       onPressed: () {
+                           Navigator.pop(c);
+                           _repository.updatePaymentStatus(t.id, PaymentStatus.pending);
+                           _loadData();
+                       }, 
+                       child: const Text("Rechazar", style: TextStyle(color: Colors.red))
+                   ),
+                   ElevatedButton(
+                       onPressed: () {
+                           Navigator.pop(c);
+                           _repository.updatePaymentStatus(t.id, PaymentStatus.paid);
+                           _loadData();
+                       }, 
+                       style: ElevatedButton.styleFrom(backgroundColor: Colors.green),
+                       child: const Text("Aprobar Pago")
+                   ),
+               ]
            )
        );
   }
@@ -813,7 +938,7 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
   Color _getColorForStatus(PaymentStatus s) {
       switch(s) {
           case PaymentStatus.paid: return Colors.green;
-          case PaymentStatus.verifying: return Colors.orange;
+          case PaymentStatus.reported: return Colors.orange;
           default: return Colors.red;
       }
   }
@@ -821,7 +946,7 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
   String _getTextForStatus(PaymentStatus s) {
       switch(s) {
           case PaymentStatus.paid: return "Recibido";
-          case PaymentStatus.verifying: return "Verificando";
+          case PaymentStatus.reported: return "Verificando";
           default: return "Pendiente";
       }
   }

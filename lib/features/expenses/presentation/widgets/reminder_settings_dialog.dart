@@ -87,7 +87,7 @@ class _ReminderSettingsDialogState extends State<ReminderSettingsDialog> {
           onSelected: (v) => setState(() => _selectedChannel = value),
           selectedColor: AppTheme.primaryBrand,
           checkmarkColor: Colors.white,
-          labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.black),
+          labelStyle: TextStyle(color: isSelected ? Colors.white : Colors.white70),
       );
   }
 

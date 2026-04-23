@@ -41,6 +41,7 @@ class BudgetRepository {
               'plan_id': planId,
               'user_id': uid,
               'status': 'pending', 
+              'description': 'Cuota Vaca',
               'amount_owe': 0 // Will recalculate later
           }).toList();
           
@@ -63,13 +64,16 @@ class BudgetRepository {
           'plan_id': planId,
           'guest_name': guestName,
           'status': 'pending',
+          'description': 'Cuota Vaca',
           'amount_owe': 0,
           'responsible_user_id': currentUserId // Link guest to the creator
       });
   }
 
-  Future<void> updatePaymentStatus(String trackerId, PaymentStatus status) async {
-      await _supabase.from('payment_trackers').update({'status': status.name}).eq('id', trackerId);
+  Future<void> updatePaymentStatus(String trackerId, PaymentStatus status, {String? receiptUrl}) async {
+      final updates = {'status': status.name};
+      if (receiptUrl != null) updates['receipt_url'] = receiptUrl;
+      await _supabase.from('payment_trackers').update(updates).eq('id', trackerId);
   }
   
   // LOGIC: Recalculate Quota per Person

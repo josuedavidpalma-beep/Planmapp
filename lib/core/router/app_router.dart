@@ -8,6 +8,7 @@ import 'package:planmapp/core/providers/auth_provider.dart';
 import 'package:planmapp/features/auth/presentation/screens/login_screen.dart';
 import 'package:planmapp/features/auth/presentation/screens/register_screen.dart';
 import 'package:planmapp/features/auth/presentation/screens/forgot_password_screen.dart';
+import 'package:planmapp/features/auth/presentation/screens/update_password_screen.dart';
 import 'package:planmapp/features/onboarding/presentation/screens/onboarding_setup_screen.dart';
 import 'package:planmapp/features/onboarding/presentation/screens/welcome_screen.dart';
 import 'package:planmapp/core/presentation/screens/main_wrapper_screen.dart';
@@ -31,6 +32,7 @@ import 'package:planmapp/features/matchmaker/presentation/screens/ai_matchmaker_
 import 'package:planmapp/features/chat/presentation/screens/peer_chat_redirector.dart' as planmapp_imports;
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(); // Key for root navigator
+bool isRecoveringPasswordGlobal = false; // Add global state flag for auth callbacks
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   // Do NOT watch authProvider here to avoid rebuilding GoRouter on every auth change.
@@ -76,6 +78,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                      state.uri.path.startsWith('/vaca') || 
                      state.uri.queryParameters['guest'] == 'true' || 
                      state.uri.path == '/onboarding-setup';
+
+      if (_isRecoveringPasswordGlobalCheck()) {
+         if (state.uri.path != '/update-password') return '/update-password';
+         return null;
+      }
 
       if (!isLoggedIn && !isLoggingIn && !isPublic) {
         return '/onboarding'; // Default landing for guests
@@ -127,6 +134,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/forgot-password',
         builder: (context, state) => const ForgotPasswordScreen(),
+      ),
+      GoRoute(
+        path: '/update-password',
+        builder: (context, state) => const UpdatePasswordScreen(),
       ),
       GoRoute(
         path: '/onboarding-setup',
@@ -283,11 +294,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
   );
 });
 
+// Helper function
+bool _isRecoveringPasswordGlobalCheck() => isRecoveringPasswordGlobal;
+
 // Helper for Riverpod Stream to GoRouter RefreshListenable
 class _StreamRouterRefresh extends ChangeNotifier {
-  _StreamRouterRefresh(Stream stream) {
+  _StreamRouterRefresh(Stream<AuthState> stream) {
     notifyListeners();
-    _subscription = stream.listen((_) => notifyListeners());
+    _subscription = stream.listen((authState) {
+        if (authState.event == AuthChangeEvent.passwordRecovery) {
+            isRecoveringPasswordGlobal = true;
+        }
+        notifyListeners();
+    });
   }
   late final dynamic _subscription;
   @override

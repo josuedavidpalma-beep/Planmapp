@@ -188,7 +188,7 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
       
       if (debtorId != null) {
           try {
-              await _supabase.from('notifications').insert({
+              await Supabase.instance.client.from('notifications').insert({
                   'user_id': debtorId,
                   'title': 'Recordatorio de Cobro',
                   'body': 'Hola $name, recuerda que me debes $formattedTotal en Planmapp. Usa la app para reportar el pago.',
@@ -498,7 +498,7 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
                                               child: ElevatedButton.icon(
                                                   onPressed: () {},
                                                   icon: const Icon(Icons.hourglass_bottom),
-                                                  label: const Text("En VerificaciA"n"),
+                                                  label: const Text("En Verificación"),
                                                   style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade800, foregroundColor: Colors.white),
                                               ),
                                           ),
@@ -510,7 +510,7 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
                                        child: ElevatedButton.icon(
                                            onPressed: () => _notifyMyPayment(debt),
                                            icon: const Icon(Icons.upload_file),
-                                           label: const Text("Ya PaguAc (Subir Foto)", style: TextStyle(fontWeight: FontWeight.bold)),
+                                           label: const Text("Ya Pagué (Subir Foto)", style: TextStyle(fontWeight: FontWeight.bold)),
                                            style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 40)),
                                        )
                                    )
