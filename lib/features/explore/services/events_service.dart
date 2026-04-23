@@ -36,10 +36,15 @@ final feedEventsProvider = FutureProvider.family<List<Event>, String>((ref, cach
       ).toList();
 
       if (matchingPromos.isNotEmpty) {
-          // Flatten multiple promos into the badge string
           final List<String> promoTexts = matchingPromos.map((p) => p.promoHighlights ?? p.title).toList();
           final combinedPromo = promoTexts.join(' • '); // e.g. "2x1 Cocktails • Cover Free"
-          nestedPlaces.add(place.copyWith(promoHighlights: combinedPromo));
+          final phoneInfos = matchingPromos.where((p) => p.contactPhone != null).toList();
+          final linkInfos = matchingPromos.where((p) => p.reservationLink != null).toList();
+          nestedPlaces.add(place.copyWith(
+              promoHighlights: combinedPromo,
+              contactPhone: phoneInfos.isNotEmpty ? phoneInfos.first.contactPhone : null,
+              reservationLink: linkInfos.isNotEmpty ? linkInfos.first.reservationLink : null,
+          ));
       } else {
           nestedPlaces.add(place); // Keep intact
       }
@@ -93,7 +98,8 @@ class EventsService {
                   sourceUrl: e['reservation_link'] ?? e['primary_source'],
                   city: e['city'],
                   promoHighlights: e['promo_highlights'],
-                  contactInfo: e['contact_phone']
+                  contactPhone: e['contact_phone'],
+                  reservationLink: e['reservation_link']
               )).toList();
           }
           return [];
@@ -157,12 +163,12 @@ class EventsService {
           final Set<String> validTags = {};
           for (final raw in userInterests) {
               final interest = raw.toLowerCase();
-              if (interest.contains('comida') || interest.contains('gastro') || interest.contains('restaurante')) { validTags.addAll(['restaurant', 'food', 'cafe', 'bakery']); }
-              if (interest.contains('rumba') || interest.contains('party') || interest.contains('fiesta')) { validTags.addAll(['bar', 'night_club']); }
-              if (interest.contains('aventura') || interest.contains('outdoor')) { validTags.addAll(['park', 'amusement_park', 'campground']); }
-              if (interest.contains('cultura') || interest.contains('cine') || interest.contains('arte')) { validTags.addAll(['museum', 'tourist_attraction', 'movie_theater', 'art_gallery']); }
+              if (interest == 'gastronomy' || interest.contains('comida') || interest.contains('gastro')) { validTags.addAll(['restaurant', 'food', 'cafe', 'bakery']); }
+              if (interest == 'nightlife' || interest.contains('rumba') || interest.contains('party')) { validTags.addAll(['bar', 'night_club']); }
+              if (interest == 'outdoors' || interest.contains('aventura')) { validTags.addAll(['park', 'amusement_park', 'campground']); }
+              if (interest == 'culture' || interest == 'cinema' || interest.contains('cultura') || interest.contains('cine') || interest.contains('arte')) { validTags.addAll(['museum', 'tourist_attraction', 'movie_theater', 'art_gallery']); }
               if (interest.contains('chill') || interest.contains('café')) { validTags.addAll(['cafe', 'spa', 'park']); }
-              if (interest.contains('belleza') || interest.contains('deporte')) { validTags.addAll(['beauty_salon', 'spa', 'gym', 'sports_club']); }
+              if (interest == 'sports' || interest.contains('belleza') || interest.contains('deporte')) { validTags.addAll(['beauty_salon', 'spa', 'gym', 'sports_club']); }
           }
           
           // Group events by category

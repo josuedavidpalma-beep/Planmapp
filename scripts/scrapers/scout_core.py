@@ -81,22 +81,21 @@ def process_with_gemini(raw_text: str, place: dict, known_events: list) -> list:
     Actúa como un agente extractor de eventos, promociones y clasificador de lugares para Planmapp. 
     Analiza este texto crudo (resultados de búsqueda en internet del local '{place['name']}' en {place.get('city', '')}).
     
-    Extrae PROMOCIONES ACTIVAS O EVENTOS FUTUROS (ej. '2x1 los Jueves', 'Música en vivo este viernes', 'Descuento 20%').
-    
+    Tus Misiones Principales:
+    1. Extrae PROMOCIONES ACTIVAS O EVENTOS FUTUROS (ej. '2x1 los Jueves', 'Música en vivo este viernes', 'Descuento 20%').
+    2. Extrae como máxima prioridad cualquier NÚMERO DE WHATSAPP / CELULAR visible.
+    3. Extrae como máxima prioridad cualquier ENLACE DE REDES O RESERVAS (Instagram, Linktree, Facebook).
+
     Instrucción de Clasificación y Deduplicación para PlanMaps:
-    - Identificador Único (UID): Usa el Nombre exacto del Lugar para evitar duplicados.
-    
     - Lógica de Etiquetado Exclusivo (campo vibe_tag DEBE SER EXACTAMENTE UNA DE ESTAS ETIXQUETAS):
-      1. Preventa: Si venden boletas anticipadas para fechas específicas (Conciertos/Festivales).
-      2. Gastronomía: Restaurantes y cafés.
-      3. Vida Nocturna: Bares, discotecas. El "Validador de Contexto": Si en la info deduce que cierra después de las 2:00 AM, etiquétalo como "Vida Nocturna" aunque vendan comida.
-      4. Bienestar & Deporte: Actividad física, gimnasios, spas.
-      5. Cultura & Ocio: Exposiciones, teatro, cines.
-      6. Aventura: Parques, caminatas, planes de naturaleza al aire libre.
+      1. Preventa (Conciertos)
+      2. Gastronomía
+      3. Vida Nocturna
+      4. Bienestar & Deporte
+      5. Cultura & Ocio
+      6. Aventura
       
-    - Filtrado Geográfico: Valida que corresponda a {place.get('city', '')}.
-    
-    REGLA 1: Ignora descripciones genéricas como 'hamburguesas deliciosas'. Solo extrae OFERTAS o EVENTOS con temporalidad.
+    REGLA 1: Ignora descripciones genéricas. Solo extrae OFERTAS o EVENTOS con temporalidad o al menos extrae los datos de contacto del lugar.
     REGLA 2: Ignora estos eventos que ya tenemos en memoria: [{known_events_str}].
     
     Devuelve estrictamente un arreglo JSON, sin backticks ni markdown, con este esquema exacto para cada evento encontrado:
@@ -108,7 +107,9 @@ def process_with_gemini(raw_text: str, place: dict, known_events: list) -> list:
         "date": "YYYY-MM-DD",
         "end_date": "YYYY-MM-DD",
         "price_range": "$$",
-        "vibe_tag": "Gastronomía"
+        "vibe_tag": "Gastronomía",
+        "contact_phone": "+573000000000 (Solo si está en el texto crudo, sino null)",
+        "reservation_link": "https://instagram.com/... (Solo si está en el texto crudo, sino null)"
       }}
     ]
     Si no encuentras ofertas relevantes o claras, devuelve un arreglo vacío [].
@@ -144,7 +145,9 @@ def safe_insert_event(city: str, place: dict, event: dict):
         "vibe_tag": event.get('vibe_tag', 'Oferta'),
         "latitude": place.get('latitude'),
         "longitude": place.get('longitude'),
-        "place_id": place.get('place_id')
+        "place_id": place.get('place_id'),
+        "contact_phone": event.get('contact_phone'),
+        "reservation_link": event.get('reservation_link')
     }
     
     try:

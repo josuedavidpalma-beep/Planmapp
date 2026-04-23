@@ -11,7 +11,8 @@ class Event {
   final String? sourceUrl;
   final String? endDate;
   final String? address;
-  final String? contactInfo;
+  final String? contactPhone;
+  final String? reservationLink;
   final String city;
   final String? visualKeyword;
   final double? latitude;
@@ -34,7 +35,8 @@ class Event {
     this.sourceUrl,
     this.endDate,
     this.address,
-    this.contactInfo,
+    this.contactPhone,
+    this.reservationLink,
     this.city = 'Bogotá',
     this.visualKeyword,
     this.latitude,
@@ -58,7 +60,8 @@ class Event {
     String? sourceUrl,
     String? endDate,
     String? address,
-    String? contactInfo,
+    String? contactPhone,
+    String? reservationLink,
     String? city,
     String? visualKeyword,
     double? latitude,
@@ -81,7 +84,8 @@ class Event {
       sourceUrl: sourceUrl ?? this.sourceUrl,
       endDate: endDate ?? this.endDate,
       address: address ?? this.address,
-      contactInfo: contactInfo ?? this.contactInfo,
+      contactPhone: contactPhone ?? this.contactPhone,
+      reservationLink: reservationLink ?? this.reservationLink,
       city: city ?? this.city,
       visualKeyword: visualKeyword ?? this.visualKeyword,
       latitude: latitude ?? this.latitude,
@@ -175,7 +179,8 @@ class Event {
       sourceUrl: json['source_url'] as String?,
       endDate: json['end_date'] as String?,
       address: json['address'] as String?,
-      contactInfo: json['contact_info'] as String?,
+      contactPhone: json['contact_phone'] as String?,
+      reservationLink: json['reservation_link'] as String?,
       city: json['city'] as String? ?? 'Bogotá',
       visualKeyword: json['visual_keyword'] as String?,
       latitude: json['latitude'] != null ? (json['latitude'] as num).toDouble() : null,
@@ -200,7 +205,8 @@ class Event {
       'source_url': sourceUrl,
       'end_date': endDate,
       'address': address,
-      'contact_info': contactInfo,
+      'contact_phone': contactPhone,
+      'reservation_link': reservationLink,
       'city': city,
       'visual_keyword': visualKeyword,
       'latitude': latitude,

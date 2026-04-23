@@ -450,6 +450,47 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                                               ],
                                           ),
                                           const SizedBox(height: 8),
+                                          
+                                          // SURPRISE BONUS: Inteligencia Artificial Direct Contact Toolbar
+                                          if ((place['contact_phone'] != null && place['contact_phone'].toString().isNotEmpty) || 
+                                              (place['reservation_link'] != null && place['reservation_link'].toString().isNotEmpty))
+                                            Container(
+                                                margin: const EdgeInsets.only(bottom: 8),
+                                                child: Row(
+                                                    children: [
+                                                        if (place['reservation_link'] != null && place['reservation_link'].toString().isNotEmpty)
+                                                           GestureDetector(
+                                                               onTap: () async {
+                                                                   final u = Uri.parse(place['reservation_link']);
+                                                                   if (await canLaunchUrl(u)) await launchUrl(u, mode: LaunchMode.externalApplication);
+                                                               },
+                                                               child: Container(
+                                                                   margin: const EdgeInsets.only(right: 8),
+                                                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                                   decoration: BoxDecoration(
+                                                                       gradient: const LinearGradient(colors: [Colors.purpleAccent, Colors.pinkAccent]),
+                                                                       borderRadius: BorderRadius.circular(12),
+                                                                   ),
+                                                                   child: const Row(children: [Icon(Icons.camera_alt_outlined, color: Colors.white, size: 14), SizedBox(width: 6), Text("Ignorar Google, IR REDES", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))]),
+                                                               )
+                                                           ),
+                                                        if (place['contact_phone'] != null && place['contact_phone'].toString().isNotEmpty)
+                                                           GestureDetector(
+                                                               onTap: () async {
+                                                                   final num = place['contact_phone'].toString().replaceAll(RegExp(r'[^\d+]'), '');
+                                                                   final u = Uri.parse("https://wa.me/$num");
+                                                                   if (await canLaunchUrl(u)) await launchUrl(u, mode: LaunchMode.externalApplication);
+                                                               },
+                                                               child: Container(
+                                                                   padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                                                                   decoration: BoxDecoration(color: Colors.greenAccent[700], borderRadius: BorderRadius.circular(12)),
+                                                                   child: const Row(children: [Icon(Icons.chat_bubble_outline, color: Colors.white, size: 14), SizedBox(width: 4), Text("WhatsApp IA", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))]),
+                                                               )
+                                                           )
+                                                    ]
+                                                )
+                                            ),
+                                            
                                           Text(place['desc'], style: TextStyle(color: Colors.white.withOpacity(0.8), height: 1.4), maxLines: 2, overflow: TextOverflow.ellipsis),
                                           const SizedBox(height: 16),
                                           Row(
