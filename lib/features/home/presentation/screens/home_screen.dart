@@ -1,4 +1,5 @@
 import 'dart:ui';
+import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -502,12 +503,12 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                 SliverToBoxAdapter(
                   child: Builder(
                     builder: (context) {
-                      final eventsAsyncValue = ref.watch(feedEventsProvider({
+                      final eventsAsyncValue = ref.watch(feedEventsProvider(jsonEncode({
                         'city': _selectedCity,
                         'category': _selectedFilter == "Todo" ? null : _getPlacesCategory(_selectedFilter),
                         'userInterests': _userInterests,
                         'budgetLevel': _budgetLevel,
-                      }));
+                      })));
 
                       return eventsAsyncValue.when(
                         loading: () => const Padding(

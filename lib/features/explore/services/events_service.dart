@@ -1,14 +1,16 @@
+import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planmapp/features/explore/data/models/event_model.dart';
 import 'package:planmapp/features/explore/services/places_service.dart';
 
 // CACHE PROVIDER: Evita recargas molestas al cambiar de tabs
-final feedEventsProvider = FutureProvider.family<List<Event>, Map<String, dynamic>>((ref, params) async {
+final feedEventsProvider = FutureProvider.family<List<Event>, String>((ref, cacheKey) async {
+  final params = jsonDecode(cacheKey);
   return EventsService().getPlaces(
     city: params['city'] as String? ?? 'Bogotá',
     category: params['category'] as String?,
-    userInterests: params['userInterests'] as List<String>?,
+    userInterests: (params['userInterests'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
     budgetLevel: params['budgetLevel'] as String?,
   );
 });

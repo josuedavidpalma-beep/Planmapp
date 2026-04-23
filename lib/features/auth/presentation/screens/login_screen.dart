@@ -45,6 +45,12 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   _passwordController.text = password;
                   _rememberMe = true;
               });
+          } else {
+              // Always fill the last used email even if not remembering password
+              final lastEmail = prefs.getString('last_email');
+              if (lastEmail != null && mounted) {
+                  setState(() { _emailController.text = lastEmail; });
+              }
           }
       } catch (e) {
           // Fail silently
@@ -59,12 +65,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         _passwordController.text.trim(),
       );
 
+      final prefs = await SharedPreferences.getInstance();
+      // Siempre guardamos el último correo usado por conveniencia
+      await prefs.setString('last_email', _emailController.text.trim());
+
       if (_rememberMe) {
-          final prefs = await SharedPreferences.getInstance();
           await prefs.setString('remember_email', _emailController.text.trim());
           await prefs.setString('remember_password', _passwordController.text.trim());
       } else {
-          final prefs = await SharedPreferences.getInstance();
           await prefs.remove('remember_email');
           await prefs.remove('remember_password');
       }
