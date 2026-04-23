@@ -1,0 +1,35 @@
+name: Planmapp Smart Scout
+
+on:
+  schedule:
+    # Corre cada 2 días en el minuto 0 de las 3 AM (Hora UTC -> 10 PM Hora Col)
+    - cron: '0 3 */2 * *' 
+  workflow_dispatch: # Permite ejecución manual desde GitHub
+
+jobs:
+  run-scout-agents:
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        # Aquí definimos todas las ciudades que queremos minar simultáneamente
+        city: ["Barranquilla", "Bogotá", "Medellín", "Cartagena", "Santa Marta", "Cali"]
+      
+    steps:
+      - name: 📥 Check out repository
+        uses: actions/checkout@v3
+
+      - name: 🐍 Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.10'
+
+      - name: 📦 Install Python Dependencies
+        run: pip install -r scripts/scrapers/requirements.txt
+
+      - name: 🤖 Run Scout Agent for ${{ matrix.city }}
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_KEY: ${{ secrets.SUPABASE_KEY }}
+          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
+          TARGET_CITY: ${{ matrix.city }}
+        run: python scripts/scrapers/agent_runner.py
