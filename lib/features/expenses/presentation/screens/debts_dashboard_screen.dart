@@ -421,7 +421,7 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
 
   Widget _buildGroupedPayableCard(List<Map<String, dynamic>> personDebts) {
       final firstDebt = personDebts.first;
-      final profileData = firstDebt['expenses']['profiles'] as Map<String, dynamic>?;
+      final profileData = firstDebt['profiles'] as Map<String, dynamic>?;
       final name = profileData?['full_name'] ?? 'Organizador';
       final avatarUrl = profileData?['avatar_url'] as String?;
       final paymentMethods = profileData?['payment_methods'] as List<dynamic>? ?? [];

@@ -57,11 +57,13 @@ class _ReminderSettingsDialogState extends State<ReminderSettingsDialog> {
                 const Divider(height: 32),
                 const Text("Canal de Envío:", style: TextStyle(fontWeight: FontWeight.bold)),
                 const SizedBox(height: 8),
-                Row(
+                Wrap(
+                    spacing: 8,
+                    runSpacing: 8,
                     children: [
                         _buildChannelChip("WhatsApp", "whatsapp", Icons.message),
-                        const SizedBox(width: 8),
                         _buildChannelChip("Email", "email", Icons.email),
+                        _buildChannelChip("Push (App)", "push", Icons.notifications),
                     ],
                 )
             ],
