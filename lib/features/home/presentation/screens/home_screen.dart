@@ -500,29 +500,25 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                     )
               else 
                 SliverToBoxAdapter(
-                  child: FutureBuilder<List<Event>>(
-                    key: ValueKey("$_selectedCity-$_selectedFilter-$_refreshCounter"), 
-                    future: EventsService().getPlaces(
-                      city: _selectedCity, 
-                      category: _selectedFilter == "Todo" ? null : _getPlacesCategory(_selectedFilter),
-                      userInterests: _userInterests,
-                      budgetLevel: _budgetLevel,
-                    ),
-                    builder: (context, snapshot) {
-                      if (snapshot.connectionState == ConnectionState.waiting) {
-                         return const Padding(
+                  child: Builder(
+                    builder: (context) {
+                      final eventsAsyncValue = ref.watch(feedEventsProvider({
+                        'city': _selectedCity,
+                        'category': _selectedFilter == "Todo" ? null : _getPlacesCategory(_selectedFilter),
+                        'userInterests': _userInterests,
+                        'budgetLevel': _budgetLevel,
+                      }));
+
+                      return eventsAsyncValue.when(
+                        loading: () => const Padding(
                            padding: EdgeInsets.all(16.0), 
                            child: SkeletonList(count: 3)
-                         );
-                      }
-                      if (snapshot.hasError) {
-                         return Padding(
+                        ),
+                        error: (error, stack) => Padding(
                            padding: const EdgeInsets.all(16),
-                           child: Center(child: Text("Error: ${snapshot.error}")),
-                         );
-                      }
-            
-                      final filteredEvents = snapshot.data ?? [];
+                           child: Center(child: Text("Error: $error")),
+                        ),
+                        data: (filteredEvents) {
             
                       if (_isMapView) {
                          return Padding(
@@ -567,6 +563,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                             ),
                           )).toList(),
                         ),
+                        }
                       );
                     }
                   ),

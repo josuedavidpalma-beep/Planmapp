@@ -1,6 +1,17 @@
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planmapp/features/explore/data/models/event_model.dart';
 import 'package:planmapp/features/explore/services/places_service.dart';
+
+// CACHE PROVIDER: Evita recargas molestas al cambiar de tabs
+final feedEventsProvider = FutureProvider.family<List<Event>, Map<String, dynamic>>((ref, params) async {
+  return EventsService().getPlaces(
+    city: params['city'] as String? ?? 'Bogotá',
+    category: params['category'] as String?,
+    userInterests: params['userInterests'] as List<String>?,
+    budgetLevel: params['budgetLevel'] as String?,
+  );
+});
 
 class EventsService {
   final SupabaseClient _supabase = Supabase.instance.client;
@@ -112,25 +123,46 @@ class EventsService {
               if (interest.contains('belleza')) { validTags.addAll(['beauty_salon', 'spa', 'hair_care']); }
           }
           
-          // Sort locations intelligently
-          events.sort((a,b) {
-             if (a.id == 'cartelera_nacional') return -1;
-             if (b.id == 'cartelera_nacional') return 1;
+          // Group events by category
+          final Map<String, List<Event>> categorizedEvents = {};
+          final List<Event> otherEvents = [];
+          
+          for (var e in events) {
+             if (e.id == 'cartelera_nacional') continue; // Handled later
+             final cat = e.category?.toLowerCase() ?? '';
+             bool hasVibe = validTags.any((t) => cat.contains(t));
+             bool exactMatch = userInterests.any((int) => e.title.toLowerCase().contains(int.toLowerCase()));
              
-             final catA = a.category?.toLowerCase() ?? '';
-             final catB = b.category?.toLowerCase() ?? '';
-             
-             bool aHasVibe = validTags.any((t) => catA.contains(t));
-             bool bHasVibe = validTags.any((t) => catB.contains(t));
-             
-             bool aExactMatch = userInterests.any((interest) => a.title.toLowerCase().contains(interest.toLowerCase()));
-             bool bExactMatch = userInterests.any((interest) => b.title.toLowerCase().contains(interest.toLowerCase()));
-             
-             int scoreA = (aExactMatch ? 2 : 0) + (aHasVibe ? 1 : 0);
-             int scoreB = (bExactMatch ? 2 : 0) + (bHasVibe ? 1 : 0);
-             
-             return scoreB.compareTo(scoreA);
-          });
+             if (hasVibe || exactMatch) {
+                 categorizedEvents.putIfAbsent(cat, () => []).add(e);
+             } else {
+                 otherEvents.add(e);
+             }
+          }
+          
+          // Interleave (Round-Robin) to avoid long lists of identical place types
+          final List<Event> interleaved = [];
+          bool added = true;
+          while(added) {
+              added = false;
+              for (var key in categorizedEvents.keys) {
+                  if (categorizedEvents[key]!.isNotEmpty) {
+                      interleaved.add(categorizedEvents[key]!.removeAt(0));
+                      added = true;
+                  }
+              }
+          }
+          
+          // Add remaining non-matched events at the bottom
+          interleaved.addAll(otherEvents);
+          
+          // Inject billboard back at the top if it was present
+          final billboardIndex = events.indexWhere((e) => e.id == 'cartelera_nacional');
+          if (billboardIndex != -1) {
+              interleaved.insert(0, events[billboardIndex]);
+          }
+          
+          events = interleaved;
       }
 
       return events;
