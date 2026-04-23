@@ -9,6 +9,7 @@ import 'package:planmapp/core/services/plan_service.dart';
 import 'package:planmapp/features/plan_detail/presentation/screens/plan_detail_screen.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/features/explore/data/models/event_model.dart';
+import 'package:planmapp/features/explore/services/places_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SpontaneousResultsView extends StatefulWidget {
@@ -110,7 +111,54 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
               _processRow(row, loaded, isLocal: true);
           }
 
-          // (Removed legacy 'events' fallback to ensure ONLY upcoming events with dates are shown)
+          // 2. BACKUP: Fetch from cached_places (Google Data) if AI scout has poor coverage
+          if (loaded.length < 15) {
+              var googleQuery = Supabase.instance.client.from('cached_places').select('*');
+              if (widget.city.trim().isNotEmpty && widget.city.toLowerCase() != 'desconocida') {
+                  googleQuery = googleQuery.ilike('city', '%${widget.city.trim()}%');
+              }
+              if (widget.category != 'Dados') {
+                  String gCat = '';
+                  if (widget.category == 'Rumba') gCat = 'bar';
+                  else if (widget.category == 'Chill') gCat = 'cafe';
+                  else if (widget.category == 'Comida') gCat = 'restaurant';
+                  else if (widget.category == 'Aventura') gCat = 'park';
+                  else if (widget.category == 'Cultura') gCat = 'museum';
+                  else if (widget.category == 'Deportes 🏃') gCat = 'gym';
+                  
+                  if (gCat.isNotEmpty) {
+                      googleQuery = googleQuery.ilike('category', '%$gCat%');
+                  }
+              }
+              
+              final googleRes = await googleQuery.limit(30);
+              for (var row in googleRes) {
+                  // Skip duplicates by name
+                  if (loaded.any((L) => L['name'] == row['name'])) continue;
+                  
+                  // Filters
+                  if (userAge != null && userAge < 18) {
+                      final tag = (row['category'] ?? '').toString().toLowerCase();
+                      if (tag.contains('bar') || tag.contains('night_club')) continue;
+                  }
+                  if (budgetLevel == 'economico' && (row['price_level']?.length ?? 0) > 1) continue;
+                  if (budgetLevel == 'bacano' && (row['price_level']?.length ?? 0) > 3) continue;
+
+                  // Transform Google Place Row to Event Row structure
+                  final mockRow = {
+                      'id': row['place_id'],
+                      'event_name': row['name'],
+                      'description': row['address'],
+                      'image_url': PlacesService().getPhotoUrl(row['photo_reference']),
+                      'rating_google': row['rating'],
+                      'vibe_tag': row['category'],
+                      'latitude': row['latitude'],
+                      'longitude': row['longitude'],
+                      'address': row['address']
+                  };
+                  _processRow(mockRow, loaded, isLocal: false);
+              }
+          }
 
           // PRIORITIZE VIBES, then fallback to distance
           loaded.sort((a, b) {
