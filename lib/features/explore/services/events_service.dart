@@ -7,12 +7,55 @@ import 'package:planmapp/features/explore/services/places_service.dart';
 // CACHE PROVIDER: Evita recargas molestas al cambiar de tabs
 final feedEventsProvider = FutureProvider.family<List<Event>, String>((ref, cacheKey) async {
   final params = jsonDecode(cacheKey);
-  return EventsService().getPlaces(
-    city: params['city'] as String? ?? 'Bogotá',
-    category: params['category'] as String?,
-    userInterests: (params['userInterests'] as List<dynamic>?)?.map((e) => e.toString()).toList(),
-    budgetLevel: params['budgetLevel'] as String?,
+  
+  final city = params['city'] as String? ?? 'Bogotá';
+  final category = params['category'] as String?;
+  final userInterests = (params['userInterests'] as List<dynamic>?)?.map((e) => e.toString()).toList();
+  final budgetLevel = params['budgetLevel'] as String?;
+
+  final service = EventsService();
+  
+  if (category == 'preventas') {
+      return service.getPlaces(city: city, category: category);
+  }
+
+  final places = await service.getPlaces(
+    city: city, category: category, userInterests: userInterests, budgetLevel: budgetLevel
   );
+
+  final dailyPromos = await service.getDailyEvents(
+    city: city, userInterests: userInterests, budgetLevel: budgetLevel
+  );
+
+  var filteredPromos = dailyPromos;
+  if (category != null) {
+      filteredPromos = dailyPromos.where((p) {
+          final vibe = p.category?.toLowerCase() ?? '';
+          if (category == 'restaurant' && (vibe.contains('gastronomía') || vibe.contains('gastronomia') || vibe.contains('comida'))) return true;
+          if (category == 'bar' && (vibe.contains('vida nocturna') || vibe.contains('rumba') || vibe.contains('party'))) return true;
+          if (category == 'movie_theater' && (vibe.contains('cultura') || vibe.contains('arte') || vibe.contains('ocio'))) return true;
+          if (category == 'gym' && (vibe.contains('bienestar') || vibe.contains('deporte'))) return true;
+          if (category == 'park' && (vibe.contains('aventura') || vibe.contains('outdoor'))) return true;
+          return false;
+      }).toList();
+  }
+
+  final List<Event> mixed = [];
+  final maxLen = places.length > filteredPromos.length ? places.length : filteredPromos.length;
+  
+  for (int i = 0; i < maxLen; i++) {
+     if (i < filteredPromos.length) mixed.add(filteredPromos[i]);
+     if (i < places.length) mixed.add(places[i]);
+  }
+
+  // Preserve billboard positioning if injected by getPlaces
+  final billboardIndex = mixed.indexWhere((e) => e.id == 'cartelera_nacional');
+  if (billboardIndex != -1) {
+      final billboard = mixed.removeAt(billboardIndex);
+      mixed.insert(0, billboard);
+  }
+
+  return mixed;
 });
 
 class EventsService {
