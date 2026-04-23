@@ -28,6 +28,7 @@ import 'package:planmapp/features/expenses/presentation/screens/guest_split_scre
 import 'package:planmapp/features/landing/presentation/screens/plan_landing_screen.dart'; // NEW landing
 import 'package:planmapp/features/social/presentation/screens/friends_screen.dart';
 import 'package:planmapp/features/matchmaker/presentation/screens/ai_matchmaker_screen.dart';
+import 'package:planmapp/features/chat/presentation/screens/peer_chat_redirector.dart' as planmapp_imports;
 
 final rootNavigatorKey = GlobalKey<NavigatorState>(); // Key for root navigator
 
@@ -45,7 +46,11 @@ final appRouterProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) async {
       // 1. Anti-404 Query Parameter Interceptor (GitHub Pages Fix & Push Notifications)
       if (state.uri.queryParameters.containsKey('nav')) {
-          return '/${state.uri.queryParameters['nav']}';
+          final nav = state.uri.queryParameters['nav'];
+          if (nav == 'peer_chat' && state.uri.queryParameters.containsKey('peer_id')) {
+              return '/peer_chat/${state.uri.queryParameters['peer_id']}';
+          }
+          return '/$nav';
       }
       if (state.uri.queryParameters.containsKey('invite')) {
           return '/invite/${state.uri.queryParameters['invite']}';
@@ -250,6 +255,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/pago/:id',
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) => PlanLandingScreen(planId: state.pathParameters['id']!),
+      ),
+      GoRoute(
+        path: '/peer_chat/:peerId',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+            // Late import to avoid circular dependencies if needed, or import at top
+            return planmapp_imports.PeerChatRedirector(peerId: state.pathParameters['peerId']!);
+        },
       ),
       GoRoute(
         path: '/notifications',

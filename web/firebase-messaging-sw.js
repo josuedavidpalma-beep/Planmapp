@@ -24,6 +24,13 @@ messaging.onBackgroundMessage((payload) => {
     badge: '/icons/Icon-192.png',
     data: payload.data
   };
+  
+  if (payload.data?.action === 'debt_reminder') {
+    notificationOptions.actions = [
+      { action: 'pay_now', title: '📲 Pagar ahora' },
+      { action: 'chat_org', title: '💬 Hablar con Organizador' }
+    ];
+  }
 
   return self.registration.showNotification(notificationTitle, notificationOptions);
 });
@@ -31,10 +38,20 @@ messaging.onBackgroundMessage((payload) => {
 // Deep link handler for Push Notifications in PWA
 self.addEventListener('notificationclick', function(event) {
   event.notification.close();
-  const route = event.notification.data?.route || '/?invite=notifications'; // Use query param for GH pages router safe routing, or direct route if configured. Actually, '/#/' + route is safer for Flutter web hash router, but GoRouter without hash needs '/notifications'. We'll use '/?nav=notifications'.
-  // Actually, Planmapp uses GoRouter. Let's redirect to '/?nav=notifications' or just open the root URL and let Flutter handle getInitialMessage.
-  // The safest web approach for GoRouter without native deep-linking headers is appending a query arg or path
-  const targetUrl = self.registration.scope + '?nav=notifications';
+  
+  let targetUrl = self.registration.scope + '?nav=notifications';
+  
+  if (event.notification.data?.action === 'debt_reminder') {
+      if (event.action === 'chat_org') {
+          targetUrl = self.registration.scope + '?nav=peer_chat&peer_id=' + event.notification.data.org_id;
+      } else if (event.action === 'pay_now') {
+          targetUrl = self.registration.scope + '?nav=debts'; // Optional: pass expense_id
+      } else {
+          targetUrl = self.registration.scope + '?nav=debts'; // Default if they just tap the notification
+      }
+  } else if (event.notification.data?.route) {
+      targetUrl = self.registration.scope + '?nav=' + event.notification.data.route.replace('/', '');
+  }
   
   event.waitUntil(
     clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {

@@ -26,7 +26,8 @@ serve(async (req) => {
         plans!inner (
            id,
            reminder_frequency_days,
-           reminder_channel
+           reminder_channel,
+           creator_id
         )
       `)
       .eq('status', 'pending')
@@ -63,7 +64,7 @@ serve(async (req) => {
                  title: '💸 Recordatorio de Pago',
                  body: `Tienes un saldo pendiente por Pagar de $${amountMissing.toLocaleString()} en "${debtTitle}". Por favor, revisa tu Dashboard Financiero para quedar al día.`,
                  type: 'general',
-                 data: { action: 'debt_reminder', plan_id: plan.id }
+                 data: { action: 'debt_reminder', plan_id: plan.id, org_id: plan.creator_id, expense_id: debt.id }
              })
              
              updatedDebtIds.push(debt.id)
