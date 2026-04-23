@@ -133,19 +133,17 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
               content: Column(
                   mainAxisSize: MainAxisSize.min,
                   children: [
-                      Text(isReported 
-                          ? "¿Confirmas que has recibido el dinero de $nameStr?"
-                          : "¿Marcar la deuda de $nameStr como PAGADA manualmente?"
-                      ),
-                      if (receiptUrl != null) ...[
-                          const SizedBox(height: 16),
-                          const Text("Comprobante adjunto:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 12)),
-                          const SizedBox(height: 8),
-                          ClipRRect(
-                              borderRadius: BorderRadius.circular(8),
-                              child: Image.network(receiptUrl, height: 200, fit: BoxFit.cover),
-                          ),
-                      ]
+                        if (receiptUrl != null && receiptUrl.toString().isNotEmpty)
+                           Padding(
+                               padding: const EdgeInsets.symmetric(vertical: 8.0),
+                               child: ClipRRect(
+                                  borderRadius: BorderRadius.circular(12),
+                                  child: Image.network(receiptUrl, height: 250, width: double.infinity, fit: BoxFit.contain),
+                               )
+                           ),
+                        Text(isReported 
+                            ? "¿Confirmas que has recibido el dinero de $nameStr?"
+                            : "¿Deseas macar como pagada manualmente la deuda de $nameStr?"),
                   ],
               ),
               actions: [
@@ -185,8 +183,21 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
       }
   }
 
-  void _sendBulkReminder(List<Map<String, dynamic>> debts, String name, String? phone, double totalAmount) {
+  Future<void> _sendBulkReminder(List<Map<String, dynamic>> debts, String name, String? phone, double totalAmount, String? debtorId) async {
       final formattedTotal = _currencyFormat.format(totalAmount);
+      
+      if (debtorId != null) {
+          try {
+              await _supabase.from('notifications').insert({
+                  'user_id': debtorId,
+                  'title': 'Recordatorio de Cobro',
+                  'body': 'Hola $name, recuerda que me debes $formattedTotal en Planmapp. Usa la app para reportar el pago.',
+                  'type': 'debt_reminder',
+              });
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notificación de cobro enviada a la app.')));
+              return;
+          } catch(e) {}
+      }
       
       String message = "Hola *$name*! 👋\nTe recuerdo que me debes un total de *$formattedTotal* en Planmapp.\n\nDetalle:\n";
       for (var d in debts) {
@@ -257,6 +268,22 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
           }
 
           await _repository.reportPayment(debt['expense_id'], receiptUrl: uploadedUrl);
+          
+          try {
+              final creditorId = debt['profiles']?['id'];
+              if (creditorId != null) {
+                  await Supabase.instance.client.from('notifications').insert({
+                      'user_id': creditorId,
+                      'type': 'payment_reported',
+                      'title': 'Comprobante Subido 🧾',
+                      'content': 'Un usuario ha marcado su cuota como pagada. Entra a "Cuentas por Cobrar" para revisar y aprobar su comprobante.',
+                      'plan_id': debt['plan_id'] // can be null if not linked to plan
+                  });
+              }
+          } catch(e) {
+              print("Failed to notify creditor push: $e");
+          }
+
           await _loadData(); 
           if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Pago notificado al organizador!")));
           
@@ -392,9 +419,26 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
               subtitle: Text(_currencyFormat.format(totalAmount), style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBrand)),
               children: [
                   ...personDebts.map((debt) => ListTile(
-                      title: Text(debt['expenses']['title'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: _buildDebtItemsFuture(debt),
-                      trailing: Row(
+                      title: Text("${debt['expenses']['title']} (${debt['plan_title'] ?? 'Plan'})", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                              if (debt['created_at'] != null)
+                                  Text(DateFormat('MMM dd, yyyy').format(DateTime.parse(debt['created_at'].toString())), style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                              if (debt['status'] == 'reported')
+                                   Padding(
+                                       padding: const EdgeInsets.only(top: 12.0, bottom: 4.0),
+                                       child: ElevatedButton.icon(
+                                           onPressed: () => _markPaid(debt),
+                                           icon: const Icon(Icons.receipt_long),
+                                           label: const Text("Aprobar Comprobante", style: TextStyle(fontWeight: FontWeight.bold)),
+                                           style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.black, minimumSize: const Size(double.infinity, 40)),
+                                       )
+                                   )
+                          ]
+                      ),
+                      isThreeLine: true,
+                      trailing: (debt['status'] != 'reported') ? Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
                               Text(_currencyFormat.format(debt['amount_owed'] ?? 0)),
@@ -403,15 +447,15 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
                                   onPressed: () => _markPaid(debt),
                               )
                           ]
-                      )
+                      ) : Text(_currencyFormat.format(debt['amount_owed'] ?? 0)),
                   )).toList(),
                   Padding(
                       padding: const EdgeInsets.all(16),
                       child: ElevatedButton.icon(
-                          onPressed: () => _sendBulkReminder(personDebts, name, phone, totalAmount),
-                          icon: const Icon(Icons.share),
-                          label: const Text("Enviar Resumen de Cobro"),
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 40))
+                          onPressed: () => _sendBulkReminder(personDebts, name, phone, totalAmount, firstDebt['user_id']),
+                          icon: const Icon(Icons.notifications_active),
+                          label: const Text("Enviar Recordatorio de Cobro"),
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 40))
                       )
                   )
               ],
@@ -438,41 +482,79 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
               subtitle: Text(_currencyFormat.format(totalAmount), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent)),
               children: [
                   ...personDebts.map((debt) => ListTile(
-                      title: Text(debt['expenses']['title'], style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
-                      subtitle: _buildDebtItemsFuture(debt),
-                      trailing: Row(
-                          mainAxisSize: MainAxisSize.min,
+                      title: Text("${debt['expenses']['title']} (${debt['plan_title'] ?? 'Plan'})", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
+                      subtitle: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                              Text(_currencyFormat.format(debt['amount_owed'] ?? 0)),
-                              IconButton(
-                                  icon: const Icon(Icons.check_circle_outline, color: Colors.green),
-                                  onPressed: () => _notifyMyPayment(debt),
-                              )
+                              if (debt['created_at'] != null)
+                                  Text(DateFormat('MMM dd, yyyy').format(DateTime.parse(debt['created_at'].toString())), style: const TextStyle(fontSize: 12, color: Colors.grey)),
+                              if (debt['status'] == 'reported')
+                                   Padding(
+                                       padding: const EdgeInsets.only(top: 12.0),
+                                       child: SizedBox(
+                                          width: double.infinity,
+                                          child: Opacity(
+                                              opacity: 0.7,
+                                              child: ElevatedButton.icon(
+                                                  onPressed: () {},
+                                                  icon: const Icon(Icons.hourglass_bottom),
+                                                  label: const Text("En VerificaciA"n"),
+                                                  style: ElevatedButton.styleFrom(backgroundColor: Colors.orange.shade800, foregroundColor: Colors.white),
+                                              ),
+                                          ),
+                                       )
+                                   )
+                               else
+                                   Padding(
+                                       padding: const EdgeInsets.only(top: 12.0),
+                                       child: ElevatedButton.icon(
+                                           onPressed: () => _notifyMyPayment(debt),
+                                           icon: const Icon(Icons.upload_file),
+                                           label: const Text("Ya PaguAc (Subir Foto)", style: TextStyle(fontWeight: FontWeight.bold)),
+                                           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 40)),
+                                       )
+                                   )
                           ]
-                      )
+                      ),
+                      isThreeLine: true,
+                      trailing: Text(_currencyFormat.format(debt['amount_owed'] ?? 0)),
                   )).toList(),
                   if (paymentMethods.isNotEmpty)
                       Container(
                           padding: const EdgeInsets.all(16),
-                          decoration: BoxDecoration(color: Colors.grey.shade50),
+                          decoration: BoxDecoration(color: Colors.black12, borderRadius: BorderRadius.circular(12)), // Dark mode friendly
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
                                   const Text("Medios de Pago del Organizador:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
-                                  const SizedBox(height: 8),
-                                  ...paymentMethods.map((pm) => ListTile(
-                                      contentPadding: EdgeInsets.zero,
-                                      leading: const Icon(Icons.account_balance_wallet, color: AppTheme.primaryBrand),
-                                      title: Text(pm['type'] ?? 'Banco'),
-                                      subtitle: Text(pm['details'] ?? ''),
-                                      trailing: IconButton(
-                                          icon: const Icon(Icons.copy, color: Colors.blue),
-                                          onPressed: () {
-                                              Clipboard.setData(ClipboardData(text: pm['details'] ?? ''));
-                                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Copiado: ${pm['details']}")));
-                                          }
-                                      )
-                                  )).toList()
+                                  const SizedBox(height: 12),
+                                  Wrap(
+                                      spacing: 8,
+                                      runSpacing: 8,
+                                      children: paymentMethods.map((pm) {
+                                          final type = pm['type']?.toString().toLowerCase() ?? '';
+                                          return ActionChip(
+                                              backgroundColor: Colors.white10,
+                                              side: BorderSide.none,
+                                              labelStyle: const TextStyle(color: Colors.white),
+                                              avatar: const Icon(Icons.account_balance_wallet, size: 16, color: AppTheme.primaryBrand),
+                                              label: Text("${pm['type']}: ${pm['details']}"),
+                                              onPressed: () async {
+                                                  Clipboard.setData(ClipboardData(text: pm['details'] ?? ''));
+                                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Abre tu app bancaria. Copiado: ${pm['details']}")));
+                                                  
+                                                  // Deep linking
+                                                  if (type.contains('nequi')) {
+                                                      final uri = Uri.parse('nequi://');
+                                                      if (await canLaunchUrl(uri)) await launchUrl(uri);
+                                                  } else if (type.contains('daviplata')) {
+                                                      final uri = Uri.parse('daviplata://');
+                                                      if (await canLaunchUrl(uri)) await launchUrl(uri);
+                                                  }
+                                              },
+                                          );
+                                      }).toList(),
+                                  )
                               ]
                           )
                       )
