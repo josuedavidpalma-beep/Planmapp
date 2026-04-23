@@ -13,7 +13,7 @@ class PlacesService {
     required String city,
     required double lat,
     required double lng,
-    double radius = 5000.0,
+    double radius = 17000.0,
     String? category, // e.g. 'restaurant'
   }) async {
     try {
@@ -29,7 +29,7 @@ class PlacesService {
       
       final cacheResponse = await query
           .order('last_updated', ascending: false)
-          .limit(20);
+          .limit(100);
 
       // Check TTL (7 days)
       if (cacheResponse.isNotEmpty) {
@@ -125,9 +125,9 @@ class PlacesService {
             'last_updated': DateTime.now().toIso8601String(),
           };
 
-          // Filter out low quality places: We accept >= 3.5.
+          // Filter out low quality places: We accept >= 4.0.
           final double? rating = mapped['rating'] as double?;
-          if (rating != null && rating >= 3.5) {
+          if (rating != null && rating >= 4.0) {
               await _supabase.from('cached_places').upsert(mapped);
               results.add(mapped);
           }

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:planmapp/core/theme/app_theme.dart';
+import 'package:planmapp/core/utils/pwa_helpers.dart';
 import 'dart:async';
 
 class PwaGuideTooltip extends StatefulWidget {
@@ -48,6 +49,7 @@ class _PwaGuideTooltipState extends State<PwaGuideTooltip> with SingleTickerProv
     final isAndroid = platform == TargetPlatform.android;
 
     if (!isIOS && !isAndroid) return const SizedBox.shrink();
+    if (isPwaInstalled()) return const SizedBox.shrink();
 
     return Positioned(
       bottom: isIOS ? 20 : null,

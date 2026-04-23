@@ -218,7 +218,7 @@ class EventsService {
   Future<List<Event>> searchPlaces({required String query, required String city}) async {
     try {
       final results = await _placesService.searchPlacesByName(query, city);
-      return results.map((p) => Event(
+      final places = results.map((p) => Event(
         id: p['place_id'],
         title: p['name'],
         address: p['address'],
@@ -232,6 +232,25 @@ class EventsService {
         googlePlaceId: p['place_id'],
         priceLevel: p['price_level'],
       )).toList();
+
+      final dailyPromos = await getDailyEvents(city: city);
+
+      final List<Event> nestedPlaces = [];
+      for (var place in places) {
+          final matchingPromos = dailyPromos.where((promo) => 
+              (promo.googlePlaceId != null && promo.googlePlaceId == place.googlePlaceId) || 
+              (promo.location != null && promo.location!.toLowerCase() == place.title.toLowerCase())
+          ).toList();
+
+          if (matchingPromos.isNotEmpty) {
+              final List<String> promoTexts = matchingPromos.map((p) => p.promoHighlights ?? p.title).toList();
+              final combinedPromo = promoTexts.join(' • '); 
+              nestedPlaces.add(place.copyWith(promoHighlights: combinedPromo));
+          } else {
+              nestedPlaces.add(place);
+          }
+      }
+      return nestedPlaces;
     } catch (e) {
       print('❌ searchPlaces Error: $e');
       return [];
