@@ -427,7 +427,7 @@ class ExpenseRepository {
           
           var query = _supabase
               .from('payment_trackers')
-              .select('id, plan_id, bill_id, user_id, guest_name, amount_owe, amount_paid, status, description, created_at, plans!inner(creator_id, profiles:creator_id(full_name, avatar_url, phone, payment_methods))')
+              .select('id, plan_id, bill_id, user_id, guest_name, amount_owe, amount_paid, status, description, created_at, plans!inner(creator_id)')
               .eq('user_id', currentUid)
               .neq('status', 'paid')
               .gt('amount_owe', 0);
@@ -448,21 +448,23 @@ class ExpenseRepository {
               final bool isVaca = desc == 'Gastos Unificados' || desc == 'Gasto Unificado';
               
               bool isIOwed = true; 
-              dynamic creditorProfile = pt['plans']['profiles'];
+              dynamic creditorProfile = null;
               
               if (!isVaca && expenseMap.containsKey(desc)) {
                   final exp = expenseMap[desc]!;
                   if (exp['created_by'] == currentUid) isIOwed = false; // I don't owe myself
                   
-                  // In Vaca, creditor is the plan creator (from pt['plans']). In Bill, we need to fetch the creator's profile
-                  // We can temporarily assign the base uid and fetch full profile if needed, or if it's already cached.
-                  // For now, let's keep it robust and prevent null crashes.
-                  creditorProfile = null; // Will fetch later or rely on ID mapping
                   try {
                       creditorProfile = await _supabase.from('profiles').select('full_name, avatar_url, phone, payment_methods').eq('id', exp['created_by']).maybeSingle();
                   } catch (_) {}
               } else {
-                  if (pt['plans']['creator_id'] == currentUid) isIOwed = false;
+                  if (pt['plans']['creator_id'] == currentUid) {
+                      isIOwed = false;
+                  } else {
+                      try {
+                          creditorProfile = await _supabase.from('profiles').select('full_name, avatar_url, phone, payment_methods').eq('id', pt['plans']['creator_id']).maybeSingle();
+                      } catch (_) {}
+                  }
               }
               
               if (isIOwed) {
