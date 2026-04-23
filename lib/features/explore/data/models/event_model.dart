@@ -47,6 +47,54 @@ class Event {
     this.isOpen,
   });
 
+  Event copyWith({
+    String? id,
+    String? title,
+    String? description,
+    String? date,
+    String? location,
+    String? category,
+    String? imageUrl,
+    String? sourceUrl,
+    String? endDate,
+    String? address,
+    String? contactInfo,
+    String? city,
+    String? visualKeyword,
+    double? latitude,
+    double? longitude,
+    String? googlePlaceId,
+    double? ratingGoogle,
+    String? promoHighlights,
+    String? status,
+    String? priceLevel,
+    bool? isOpen,
+  }) {
+    return Event(
+      id: id ?? this.id,
+      title: title ?? this.title,
+      description: description ?? this.description,
+      date: date ?? this.date,
+      location: location ?? this.location,
+      category: category ?? this.category,
+      imageUrl: imageUrl ?? this.imageUrl,
+      sourceUrl: sourceUrl ?? this.sourceUrl,
+      endDate: endDate ?? this.endDate,
+      address: address ?? this.address,
+      contactInfo: contactInfo ?? this.contactInfo,
+      city: city ?? this.city,
+      visualKeyword: visualKeyword ?? this.visualKeyword,
+      latitude: latitude ?? this.latitude,
+      longitude: longitude ?? this.longitude,
+      googlePlaceId: googlePlaceId ?? this.googlePlaceId,
+      ratingGoogle: ratingGoogle ?? this.ratingGoogle,
+      promoHighlights: promoHighlights ?? this.promoHighlights,
+      status: status ?? this.status,
+      priceLevel: priceLevel ?? this.priceLevel,
+      isOpen: isOpen ?? this.isOpen,
+    );
+  }
+
 
   String get displayImageUrl {
     final searchSpace = "${visualKeyword ?? ''} ${title.toLowerCase()} ${description?.toLowerCase() ?? ''} ${category?.toLowerCase() ?? ''}";

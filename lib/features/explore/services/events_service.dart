@@ -27,35 +27,32 @@ final feedEventsProvider = FutureProvider.family<List<Event>, String>((ref, cach
     city: city, userInterests: userInterests, budgetLevel: budgetLevel
   );
 
-  var filteredPromos = dailyPromos;
-  if (category != null) {
-      filteredPromos = dailyPromos.where((p) {
-          final vibe = p.category?.toLowerCase() ?? '';
-          if (category == 'restaurant' && (vibe.contains('gastronomía') || vibe.contains('gastronomia') || vibe.contains('comida'))) return true;
-          if (category == 'bar' && (vibe.contains('vida nocturna') || vibe.contains('rumba') || vibe.contains('party'))) return true;
-          if (category == 'movie_theater' && (vibe.contains('cultura') || vibe.contains('arte') || vibe.contains('ocio'))) return true;
-          if (category == 'gym' && (vibe.contains('bienestar') || vibe.contains('deporte'))) return true;
-          if (category == 'park' && (vibe.contains('aventura') || vibe.contains('outdoor'))) return true;
-          return false;
-      }).toList();
-  }
+  // Nest Promos directly onto their respective Places by ID or name
+  final List<Event> nestedPlaces = [];
+  for (var place in places) {
+      final matchingPromos = dailyPromos.where((promo) => 
+          (promo.googlePlaceId != null && promo.googlePlaceId == place.googlePlaceId) || 
+          (promo.location != null && promo.location!.toLowerCase() == place.title.toLowerCase())
+      ).toList();
 
-  final List<Event> mixed = [];
-  final maxLen = places.length > filteredPromos.length ? places.length : filteredPromos.length;
-  
-  for (int i = 0; i < maxLen; i++) {
-     if (i < filteredPromos.length) mixed.add(filteredPromos[i]);
-     if (i < places.length) mixed.add(places[i]);
+      if (matchingPromos.isNotEmpty) {
+          // Flatten multiple promos into the badge string
+          final List<String> promoTexts = matchingPromos.map((p) => p.promoHighlights ?? p.title).toList();
+          final combinedPromo = promoTexts.join(' • '); // e.g. "2x1 Cocktails • Cover Free"
+          nestedPlaces.add(place.copyWith(promoHighlights: combinedPromo));
+      } else {
+          nestedPlaces.add(place); // Keep intact
+      }
   }
 
   // Preserve billboard positioning if injected by getPlaces
-  final billboardIndex = mixed.indexWhere((e) => e.id == 'cartelera_nacional');
+  final billboardIndex = nestedPlaces.indexWhere((e) => e.id == 'cartelera_nacional');
   if (billboardIndex != -1) {
-      final billboard = mixed.removeAt(billboardIndex);
-      mixed.insert(0, billboard);
+      final billboard = nestedPlaces.removeAt(billboardIndex);
+      nestedPlaces.insert(0, billboard);
   }
 
-  return mixed;
+  return nestedPlaces;
 });
 
 class EventsService {
@@ -273,6 +270,7 @@ class EventsService {
           latitude: e['latitude'],
           longitude: e['longitude'],
           city: e['city'],
+          googlePlaceId: e['place_id'],
           promoHighlights: e['promo_highlights'],
           priceLevel: e['price_level'],
         )).toList();
