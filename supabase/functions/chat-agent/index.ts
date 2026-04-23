@@ -33,6 +33,19 @@ serve(async (req) => {
 
         if (planError || !plan) throw new Error("Plan not found");
 
+        // 1.5 Fetch any active promos for this location
+        const { data: promos } = await supabase
+            .from('local_events')
+            .select('event_name, promo_highlights, date, end_date')
+            .ilike('venue_name', `%${plan.location_name || ''}%`)
+            .eq('status', 'active')
+            .limit(3);
+            
+        let promosContext = "No hay promos registradas para este lugar actualmente.";
+        if (promos && promos.length > 0) {
+            promosContext = promos.map((p: any) => `- "${p.event_name}": ${p.promo_highlights} (Válido: ${p.date} al ${p.end_date})`).join('\n');
+        }
+
         // 2. Prepare Prompt
         const prompt = `
             Eres "Plan Bot", el asistente y amigo organizador de Planmapp. Tu objetivo es ayudar a este grupo a concretar su plan de forma fluida.
@@ -43,13 +56,18 @@ serve(async (req) => {
             - Descripción: "${plan.description}"
             - Info de contacto/reserva disponible: "${plan.contact_info || 'No especificada'}" y "${plan.reservation_link || 'No especificado'}"
             
+            ⭐⭐ OFERTAS/PROMOS ACTIVAS DESCUBIERTAS POR IA EN ESTE LOCAL ⭐⭐:
+            ${promosContext}
+            (¡Usa esta info si alguien pregunta cuándo ir o recomienda usar la promo!)
+            
             Mensaje del usuario: "${content}"
             
             Instrucciones IMPORTANTES de Personalidad ("Plan Bot"):
             1. SIEMPRE asume un tono casual, cálido y de grupo. Usa expresiones amplias como "Hola amig@s", "Chicos", o "Equipo".
             2. Tu personalidad es útil pero relajada, no suenes robótico. Eres el amigo que organiza el plan.
             3. SI hay información de contacto o reserva (WhatsApp, link, teléfono), anímalos a usarla. Ejemplo: "Chicos, ya vi que tienen el contacto aquí, ¿lo usamos de una vez?"
-            4. Si el usuario pide sugerencias, dales ideas concretas cerca de "${plan.location_name}".
+            4. ¡ESENCIAL!: Si el sistema detectó Promos Acivas arriba, trata de sugerir ir el día de la promo para ahorrar dinero de forma súper natural.
+            5. Si el usuario pide sugerencias distintas de lugar, dales ideas concretas cerca de "${plan.location_name}".
             
             Formato de salida (JSON):
             {
