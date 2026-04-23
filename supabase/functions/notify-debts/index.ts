@@ -5,53 +5,87 @@ console.log("Notify-Debts CRON Trigger Active")
 
 serve(async (req) => {
   try {
-    // This function can be triggered via pg_cron or pg_net inside supabase or via an external trigger.
     const supabaseClient = createClient(
       Deno.env.get('SUPABASE_URL') ?? '',
       Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
     )
 
-    // Find all 'pending' debts from active plans
-    // Needs complex join to check if Plan's reminder setup is active
+    // 1. Fetch pending debts from the unifide ledger (payment_trackers)
+    // We join with `plans` to check the reminder configuration (frequency & channel)
+    // We also join with `expenses` to know the title if it belongs to a split bill
     const { data: debts, error } = await supabaseClient
-      .from('expense_participant_status')
+      .from('payment_trackers')
       .select(`
-        amount_owed, 
+        id,
+        amount_owe, 
+        amount_paid,
         user_id, 
-        expense_id,
-        expenses!inner (
-           title, 
-           plan_id,
-           plans ( reminderFrequencyDays )
+        description,
+        created_at,
+        last_notified_at,
+        plans!inner (
+           id,
+           reminder_frequency_days,
+           reminder_channel
         )
       `)
       .eq('status', 'pending')
-      .is('is_paid', false)
-      .not('user_id', 'is', null)
+      .not('user_id', 'is', null) // Only actual registered users receive push
+      .gt('amount_owe', 0) // Strictly debts with some amount
 
     if (error) throw error
     if (!debts || debts.length === 0) return new Response("No pending debts", { status: 200 })
 
-    // In a production scenario, we'd check 'last_reminded_at' against 'reminderFrequencyDays'.
-    // For this module, we simulate the grouping of push notifications.
     const notificationsToInsert = []
+    const updatedDebtIds = []
+
+    const now = new Date()
 
     for (const debt of debts) {
-         notificationsToInsert.push({
-             user_id: debt.user_id,
-             title: '⚠️ Recordatorio de Pago',
-             body: `Tienes un saldo pendiente por Pagar en "${debt.expenses.title}". Por favor, revisa tu Dashboard Financiero.`,
-             type: 'general',
-             data: { action: 'debt_reminder', expense_id: debt.expense_id }
-         })
+         const plan = debt.plans;
+         // Ensure plan has activated push notifications
+         if (plan.reminder_channel !== 'push' || !plan.reminder_frequency_days || plan.reminder_frequency_days <= 0) {
+             continue;
+         }
+
+         // Calculate days elapsed since last notification (or creation date)
+         const lastNotifiedDate = debt.last_notified_at ? new Date(debt.last_notified_at) : new Date(debt.created_at);
+         const diffTime = Math.abs(now.getTime() - lastNotifiedDate.getTime());
+         const diffDays = Math.floor(diffTime / (1000 * 60 * 60 * 24));
+
+         // If the required days have passed, queue the notification!
+         if (diffDays >= plan.reminder_frequency_days) {
+             const amountMissing = debt.amount_owe - (debt.amount_paid || 0);
+             const debtTitle = debt.description && debt.description.trim() !== '' ? debt.description : "Gasto Unificado";
+             
+             notificationsToInsert.push({
+                 user_id: debt.user_id,
+                 title: '💸 Recordatorio de Pago',
+                 body: `Tienes un saldo pendiente por Pagar de $${amountMissing.toLocaleString()} en "${debtTitle}". Por favor, revisa tu Dashboard Financiero para quedar al día.`,
+                 type: 'general',
+                 data: { action: 'debt_reminder', plan_id: plan.id }
+             })
+             
+             updatedDebtIds.push(debt.id)
+         }
     }
 
-    // Insert into notifications table (which the App will subscribe to or use as trigger for FCM)
+    // 2. Insert into notifications table (Trigger will auto-call FCM dispatcher)
     if (notificationsToInsert.length > 0) {
         const { error: insertErr } = await supabaseClient.from('notifications').insert(notificationsToInsert)
         if (insertErr) {
-            console.error(insertErr)
+            console.error("Insertion error:", insertErr)
             throw insertErr
+        }
+
+        // 3. Mark the payment_trackers with the current timestamp so we don't spam them tomorrow if they haven't paid but the frequency is weekly!
+        const { error: updateErr } = await supabaseClient
+            .from('payment_trackers')
+            .update({ last_notified_at: now.toISOString() })
+            .in('id', updatedDebtIds)
+            
+        if (updateErr) {
+            console.error("Failed to update last_notified_at:", updateErr)
         }
     }
 
