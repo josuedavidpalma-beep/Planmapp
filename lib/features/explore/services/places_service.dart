@@ -31,10 +31,10 @@ class PlacesService {
           .order('last_updated', ascending: false)
           .limit(100);
 
-      // Check TTL (7 days)
+      // Check TTL (30 days)
       if (cacheResponse.isNotEmpty) {
         final lastUpdate = DateTime.parse(cacheResponse[0]['last_updated']);
-        if (DateTime.now().difference(lastUpdate).inDays < 7) {
+        if (DateTime.now().difference(lastUpdate).inDays < 30) {
           print('✅ Serving from Supabase Cache');
           return List<Map<String, dynamic>>.from(cacheResponse);
         }

@@ -51,10 +51,9 @@ def get_known_events(city: str) -> list:
 def fetch_raw_text_about_place(place_name: str, city: str) -> str:
     """
     Realiza una busqueda superficial en internet para conseguir html de paginas oficiales.
-    Nota: En una v2 usaremos la API oficial de Google Custom Search o SerpAPI.
-    Aqui hacemos Request basico con un user-agent de navegador.
     """
-    query = quote_plus(f"{place_name} {city} promociones eventos colombia")
+    # Optimized query to catch Instagram/Facebook Deals
+    query = quote_plus(f"{place_name} {city} (promocion OR descuento OR 2x1 OR menu OR gratis) site:instagram.com OR site:facebook.com")
     search_url = f"https://html.duckduckgo.com/html/?q={query}"
     
     headers = {
