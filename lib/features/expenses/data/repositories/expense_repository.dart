@@ -356,9 +356,8 @@ class ExpenseRepository {
 
   // Fetch debts owed TO the current user (Receivables)
   Future<List<Map<String, dynamic>>> getReceivables(String? planId) async {
-      try {
-          final currentUid = _supabase.auth.currentUser?.id;
-          if (currentUid == null) return [];
+      final currentUid = _supabase.auth.currentUser?.id;
+      if (currentUid == null) return [];
           
           var query = _supabase
               .from('payment_trackers')
@@ -416,9 +415,8 @@ class ExpenseRepository {
 
   // Fetch debts the current user owes (Payables)
   Future<List<Map<String, dynamic>>> getPayables(String? planId) async {
-      try {
-          final currentUid = _supabase.auth.currentUser?.id;
-          if (currentUid == null) return [];
+      final currentUid = _supabase.auth.currentUser?.id;
+      if (currentUid == null) return [];
           
           var query = _supabase
               .from('payment_trackers')
