@@ -388,7 +388,12 @@ class ExpenseRepository {
                   isOwedToMe = pt['plans']['creator_id'] == currentUid;
               } else {
                   final expenseCreator = expenseMap[desc];
-                  isOwedToMe = expenseCreator == currentUid;
+                  if (expenseCreator != null) {
+                      isOwedToMe = expenseCreator == currentUid;
+                  } else {
+                      // Fallback: If no matching expense record is found, attribute to plan creator
+                      isOwedToMe = pt['plans']['creator_id'] == currentUid;
+                  }
               }
               
               if (isOwedToMe) {
