@@ -471,7 +471,14 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                                                                        gradient: const LinearGradient(colors: [Colors.purpleAccent, Colors.pinkAccent]),
                                                                        borderRadius: BorderRadius.circular(12),
                                                                    ),
-                                                                   child: const Row(children: [Icon(Icons.camera_alt_outlined, color: Colors.white, size: 14), SizedBox(width: 6), Text("Ignorar Google, IR REDES", style: TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold))]),
+                                                                   child: Row(children: [
+                                                                       Icon(place['vibe_tag'] == 'Preventa' || place['reservation_link'].toString().contains('tuboleta') || place['reservation_link'].toString().contains('taquilla') ? Icons.confirmation_number_outlined : Icons.language, color: Colors.white, size: 14), 
+                                                                       const SizedBox(width: 6), 
+                                                                       Text(
+                                                                           place['vibe_tag'] == 'Preventa' || place['reservation_link'].toString().contains('tuboleta') || place['reservation_link'].toString().contains('taquilla') ? "COMPRAR TICKETS" : "LINK OFICIAL", 
+                                                                           style: const TextStyle(color: Colors.white, fontSize: 10, fontWeight: FontWeight.bold)
+                                                                       )
+                                                                   ]),
                                                                )
                                                            ),
                                                         if (place['contact_phone'] != null && place['contact_phone'].toString().isNotEmpty)

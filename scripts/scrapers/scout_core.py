@@ -84,7 +84,7 @@ def process_with_gemini(raw_text: str, place: dict, known_events: list) -> list:
     Tus Misiones Principales:
     1. Extrae PROMOCIONES ACTIVAS O EVENTOS FUTUROS (ej. '2x1 los Jueves', 'Música en vivo este viernes', 'Descuento 20%').
     2. Extrae como máxima prioridad cualquier NÚMERO DE WHATSAPP / CELULAR visible.
-    3. Extrae como máxima prioridad cualquier ENLACE DE REDES O RESERVAS (Instagram, Linktree, Facebook).
+    3. Extrae como máxima prioridad el ENLACE DINÁMICO RELEVANTE (Si es concierto/evento: Link de TuBoleta/Taquilla. Si es restaurante/bar: Linktree, Menú o Instagram).
 
     Instrucción de Clasificación y Deduplicación para PlanMaps:
     - Lógica de Etiquetado Exclusivo (campo vibe_tag DEBE SER EXACTAMENTE UNA DE ESTAS ETIXQUETAS):
