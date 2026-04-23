@@ -280,7 +280,7 @@ class EventsService {
       final localResponse = await query.order('date', ascending: true);
 
       if (localResponse is List) {
-        List<Event> events = localResponse.map((e) => Event(
+        List<Event> events = localResponse.map<Event>((e) => Event(
           id: e['id'].toString(),
           title: e['event_name'],
           description: e['description'],
@@ -291,7 +291,8 @@ class EventsService {
           imageUrl: (e['image_url'] != null && e['image_url'].toString().isNotEmpty) ? e['image_url'] : null,
           category: e['vibe_tag']?.split('/')[0] ?? 'General',
           sourceUrl: e['reservation_link'] ?? e['primary_source'],
-          contactInfo: e['contact_phone'],
+          contactPhone: e['contact_phone'],
+          reservationLink: e['reservation_link'],
           latitude: e['latitude'],
           longitude: e['longitude'],
           city: e['city'],
