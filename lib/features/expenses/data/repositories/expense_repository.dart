@@ -361,7 +361,7 @@ class ExpenseRepository {
           
           var query = _supabase
               .from('payment_trackers')
-              .select('id, plan_id, bill_id, user_id, guest_name, amount_owe, amount_paid, status, description, created_at, profiles:user_id(full_name, avatar_url, phone), plans!inner(creator_id)')
+              .select('id, plan_id, bill_id, user_id, guest_name, amount_owe, amount_paid, status, description, created_at, plans!inner(creator_id)')
               .or('user_id.neq.$currentUid,user_id.is.null') // Definitively exclude my own debts
               .neq('status', 'paid')
               .gt('amount_owe', 0);
@@ -396,13 +396,20 @@ class ExpenseRepository {
               }
               
               if (isOwedToMe) {
+                  dynamic debtorProfile;
+                  if (pt['user_id'] != null) {
+                      try {
+                          debtorProfile = await _supabase.from('profiles').select('full_name, avatar_url, phone').eq('id', pt['user_id']).maybeSingle();
+                      } catch (_) {}
+                  }
+                  
                   receivables.add({
                       'expense_id': pt['id'], // use tracker id as mock expense_id for UI logic
                       'user_id': pt['user_id'],
                       'guest_name': pt['guest_name'],
                       'amount_owed': (pt['amount_owe'] as num).toDouble() - (pt['amount_paid'] as num).toDouble(),
                       'status': pt['status'],
-                      'profiles': pt['profiles'],
+                      'profiles': debtorProfile,
                       'expenses': {
                           'title': desc.isNotEmpty ? desc : 'Gasto',
                           'plan_id': pt['plan_id']
