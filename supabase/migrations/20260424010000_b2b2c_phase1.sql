@@ -30,8 +30,10 @@ CREATE TABLE public.survey_responses (
 
 -- Habilitar RLS en respuestas
 ALTER TABLE public.survey_responses ENABLE ROW LEVEL SECURITY;
+CREATE POLICY "Only admin can view survey responses" ON public.survey_responses FOR SELECT USING (
+    auth.jwt() ->> 'email' = 'Josuedavidpalma@gmail.com'
+);
 CREATE POLICY "Anyone can insert survey response" ON public.survey_responses FOR INSERT WITH CHECK (true);
--- Nota: La política SELECT depende del email maestro, que se ingresará manualmente en el Editor.
 
 
 -- 4. Sistema de Limpieza Automática (Garbage Collection via pg_cron)
