@@ -16,8 +16,9 @@ serve(async (req) => {
         const authHeader = req.headers.get('Authorization')
         if (!authHeader) throw new Error('Missing Authorization header')
 
-        const { image_base64 } = await req.json()
+        const { image_base64, mime_type } = await req.json()
         if (!image_base64) throw new Error('Missing image_base64')
+        const fileMimeType = mime_type || (image_base64.substring(0, 5) === 'JVBER' ? 'application/pdf' : 'image/jpeg');
 
         const apiKey = Deno.env.get('GEMINI_API_KEY')
         if (!apiKey) throw new Error('Server configuration error: GEMINI_API_KEY not set')
@@ -56,7 +57,7 @@ Responde ÚNICAMENTE con este JSON:
 
         const result = await model.generateContent([
             promptText,
-            { inlineData: { data: image_base64, mimeType: "image/jpeg" } }
+            { inlineData: { data: image_base64, mimeType: fileMimeType } }
         ])
 
         const responseText = result.response.text()

@@ -197,9 +197,9 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
                           decoration: BoxDecoration(color: Colors.amber.shade50, borderRadius: BorderRadius.circular(12), border: Border.all(color: Colors.amber.shade200)),
                           child: const Row(
                               children: [
-                                  Icon(Icons.warning_amber_rounded, color: Colors.orange, size: 20),
-                                  SizedBox(width: 8),
-                                  Expanded(child: Text("El proceso automático puede tardar unos segundos en leer la factura. Verifica que los montos sean correctos.", style: TextStyle(color: Colors.orange, fontSize: 12)))
+                                  Icon(Icons.lightbulb_outline, color: Colors.orange, size: 28),
+                                  SizedBox(width: 10),
+                                  Expanded(child: Text("Sugerencias:\n- Encuadra muy bien la factura.\n- Evita fotos borrosas (espera a que enfoque).\n- Cuida la iluminación.\n\nLa IA necesita valores claros.", style: TextStyle(color: Colors.orange, fontSize: 13, fontWeight: FontWeight.w500)))
                               ],
                           ),
                       )

@@ -29,8 +29,10 @@ final feedEventsProvider = FutureProvider.family<List<Event>, String>((ref, cach
 
   // Nest Promos directly onto their respective Places by ID or name
   final List<Event> nestedPlaces = [];
+  final List<Event> standalonePromos = List.from(dailyPromos);
+
   for (var place in places) {
-      final matchingPromos = dailyPromos.where((promo) => 
+      final matchingPromos = standalonePromos.where((promo) => 
           (promo.googlePlaceId != null && promo.googlePlaceId == place.googlePlaceId) || 
           (promo.location != null && promo.location!.toLowerCase() == place.title.toLowerCase())
       ).toList();
@@ -45,19 +47,26 @@ final feedEventsProvider = FutureProvider.family<List<Event>, String>((ref, cach
               contactPhone: phoneInfos.isNotEmpty ? phoneInfos.first.contactPhone : null,
               reservationLink: linkInfos.isNotEmpty ? linkInfos.first.reservationLink : null,
           ));
+          // Quitar promos emparejadas para que no queden duplicadas
+          for (var mp in matchingPromos) {
+              standalonePromos.remove(mp);
+          }
       } else {
           nestedPlaces.add(place); // Keep intact
       }
   }
 
+  // Juntar promos independientes (prioritarias) seguidas de lugares adaptados
+  final List<Event> finalSpontaneousFeed = [...standalonePromos, ...nestedPlaces];
+
   // Preserve billboard positioning if injected by getPlaces
-  final billboardIndex = nestedPlaces.indexWhere((e) => e.id == 'cartelera_nacional');
+  final billboardIndex = finalSpontaneousFeed.indexWhere((e) => e.id == 'cartelera_nacional');
   if (billboardIndex != -1) {
-      final billboard = nestedPlaces.removeAt(billboardIndex);
-      nestedPlaces.insert(0, billboard);
+      final billboard = finalSpontaneousFeed.removeAt(billboardIndex);
+      finalSpontaneousFeed.insert(0, billboard);
   }
 
-  return nestedPlaces;
+  return finalSpontaneousFeed;
 });
 
 class EventsService {

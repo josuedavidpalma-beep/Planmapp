@@ -11,6 +11,7 @@ import 'package:intl/intl.dart';
 import 'package:planmapp/core/utils/currency_formatter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
+import 'package:file_picker/file_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'package:planmapp/features/expenses/services/receipt_scanner_service.dart';
 import 'package:cross_file/cross_file.dart';
@@ -317,22 +318,93 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
   }
 
   Future<void> _scanDocument() async {
-      final picker = ImagePicker();
-      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
-      if (image == null) return;
+      // Mostrar BottomSheet con opciones y tips
+      final source = await showModalBottomSheet<String>(
+          context: context,
+          shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
+          builder: (c) => Padding(
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                      const Text("Escáner Inteligente", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 12),
+                      Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(10)),
+                          child: const Row(
+                              children: [
+                                  Icon(Icons.lightbulb_outline, color: Colors.blue, size: 30),
+                                  SizedBox(width: 10),
+                                  Expanded(child: Text("Cámara: Asegúrate de que la foto tenga buena iluminación, no esté borrosa y los valores sean legibles.", style: TextStyle(fontSize: 13, color: Colors.blueGrey))),
+                              ]
+                          )
+                      ),
+                      const SizedBox(height: 20),
+                      ListTile(
+                          leading: const Icon(Icons.camera_alt, color: AppTheme.primaryBrand),
+                          title: const Text("Tomar Foto"),
+                          onTap: () => Navigator.pop(c, 'camera'),
+                      ),
+                      ListTile(
+                          leading: const Icon(Icons.photo_library, color: AppTheme.primaryBrand),
+                          title: const Text("Seleccionar de Galería"),
+                          onTap: () => Navigator.pop(c, 'gallery'),
+                      ),
+                      ListTile(
+                          leading: const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
+                          title: const Text("Subir PDF (Cotización)"),
+                          onTap: () => Navigator.pop(c, 'pdf'),
+                      ),
+                  ]
+              )
+          )
+      );
+
+      if (source == null) return;
+
+      XFile? imageOrDocs;
+
+      if (source == 'pdf') {
+          FilePickerResult? result = await FilePicker.platform.pickFiles(
+              type: FileType.custom,
+              allowedExtensions: ['pdf'],
+          );
+          if (result != null && result.files.single.path != null) {
+              imageOrDocs = XFile(result.files.single.path!);
+          }
+      } else {
+          final picker = ImagePicker();
+          imageOrDocs = await picker.pickImage(
+              source: source == 'camera' ? ImageSource.camera : ImageSource.gallery,
+              imageQuality: 80,
+          );
+      }
+
+      if (imageOrDocs == null) return;
 
       setState(() => _isLoading = true);
       try {
           final scanner = ReceiptScannerService();
-          final scannedResult = await scanner.scanReceipt(image, isQuote: true);
+          final scannedResult = await scanner.scanReceipt(imageOrDocs, isQuote: true);
           
           if (scannedResult.items.isEmpty) {
-              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No se encontraron rubros claros en la imagen."), backgroundColor: Colors.orange));
+              if (mounted) {
+                  showDialog(
+                      context: context,
+                      builder: (c) => AlertDialog(
+                          title: const Text("Análisis Incompleto"),
+                          content: const Text("La IA no pudo extraer los valores correctamente.\n\nSugerencias:\n- Verifica que el documento tenga valores numéricos claros.\n- Si es foto, mejora el enfoque y la iluminación."),
+                          actions: [ TextButton(onPressed: () => Navigator.pop(c), child: const Text("Entendido")) ]
+                      )
+                  );
+              }
               setState(() => _isLoading = false);
               return;
           }
 
           // Convert parsed items to budget items
+          int addedCount = 0;
           for (var item in scannedResult.items) {
              final totalAmount = item.price * item.quantity;
              if (totalAmount > 0) {
@@ -342,11 +414,16 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
                     'description': '${item.quantity}x ${item.name}',
                     'estimated_amount': totalAmount,
                  });
+                 addedCount++;
              }
           }
           await _repository.recalculateQuotas(widget.planId);
           if (mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${scannedResult.items.length} items agregados exitosamente c/IA."), backgroundColor: Colors.green));
+              if (addedCount > 0) {
+                 ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$addedCount items agregados exitosamente c/IA."), backgroundColor: Colors.green));
+              } else {
+                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Se analizaron rubros pero sus montes eran $0 o ilegibles."), backgroundColor: Colors.orange));
+              }
           }
           _loadData();
       } catch (e) {

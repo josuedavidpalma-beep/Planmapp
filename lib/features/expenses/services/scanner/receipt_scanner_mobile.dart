@@ -33,12 +33,14 @@ class ReceiptScannerImplementation implements ReceiptScannerPlatform {
       print(">>> MOBILE SCANNER: Llamando a Supabase Edge Function");
       final imageBytes = await imageFile.readAsBytes();
       final base64Image = base64Encode(imageBytes);
+      final extension = imageFile.path.split('.').last.toLowerCase();
+      final mimeType = extension == 'pdf' ? 'application/pdf' : 'image/jpeg';
 
       try {
         final endpoint = isQuote ? 'analyze-quote' : 'analyze-receipt';
         final response = await Supabase.instance.client.functions.invoke(
           endpoint,
-          body: {'image_base64': base64Image},
+          body: {'image_base64': base64Image, 'mime_type': mimeType},
         );
 
         final data = response.data;
@@ -49,7 +51,7 @@ class ReceiptScannerImplementation implements ReceiptScannerPlatform {
             for (var i in data['section_A_items']) {
                 items.add(ParsedItem(
                     name: i['descripcion']?.toString() ?? 'Item', 
-                    price: double.tryParse(i['valor_unitario']?.toString() ?? '0') ?? 0.0, 
+                    price: _parsePrice(i['valor_unitario']?.toString() ?? '0'), 
                     quantity: double.tryParse(i['cantidad']?.toString() ?? '1')?.toInt() ?? 1
                 ));
             }
@@ -59,12 +61,12 @@ class ReceiptScannerImplementation implements ReceiptScannerPlatform {
         double tax = 0;
         if (data['section_B_additionals'] != null) {
             for (var b in data['section_B_additionals']) {
-                if (b['type'] == 'Tip') tip += double.tryParse(b['valor']?.toString() ?? '0') ?? 0;
-                if (b['type'] == 'Tax') tax += double.tryParse(b['valor']?.toString() ?? '0') ?? 0;
+                if (b['type'] == 'Tip') tip += _parsePrice(b['valor']?.toString() ?? '0');
+                if (b['type'] == 'Tax') tax += _parsePrice(b['valor']?.toString() ?? '0');
             }
         }
 
-        double total = double.tryParse(data['metadata']?['total_pagado']?.toString() ?? '0') ?? 0.0;
+        double total = _parsePrice(data['metadata']?['total_pagado']?.toString() ?? '0');
 
         return ParsedReceipt(
             items: items,
