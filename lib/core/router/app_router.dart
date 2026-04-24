@@ -27,6 +27,7 @@ import 'package:planmapp/features/expenses/presentation/screens/debts_dashboard_
 import 'package:planmapp/features/expenses/presentation/screens/guest_join_screen.dart';
 import 'package:planmapp/features/expenses/presentation/screens/guest_split_screen.dart';
 import 'package:planmapp/features/landing/presentation/screens/plan_landing_screen.dart'; // NEW landing
+import 'package:planmapp/features/landing/presentation/screens/guest_scan_landing_screen.dart'; // B2B2C landing
 import 'package:planmapp/features/social/presentation/screens/friends_screen.dart';
 import 'package:planmapp/features/matchmaker/presentation/screens/ai_matchmaker_screen.dart';
 import 'package:planmapp/features/chat/presentation/screens/peer_chat_redirector.dart' as planmapp_imports;
@@ -73,6 +74,8 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       
       final isLoggingIn = state.uri.path == '/login' || state.uri.path == '/register' || state.uri.path == '/forgot-password' || state.uri.path == '/onboarding';
     final isPublic = state.uri.path.startsWith('/join') || 
+                     state.uri.path.startsWith('/scan') || 
+                     state.uri.path.startsWith('/super-admin') || 
                      state.uri.path.startsWith('/invite') || 
                      state.uri.path.startsWith('/pago') || 
                      state.uri.path.startsWith('/vaca') || 
@@ -119,6 +122,13 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return null;
     },
     routes: [
+      GoRoute(
+        path: '/scan',
+        builder: (context, state) {
+          final restaurantId = state.uri.queryParameters['rid'];
+          return GuestScanLandingScreen(restaurantId: restaurantId);
+        },
+      ),
       GoRoute(
         path: '/onboarding',
         builder: (context, state) => const WelcomeScreen(),

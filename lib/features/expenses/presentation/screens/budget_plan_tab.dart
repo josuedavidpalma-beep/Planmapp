@@ -15,6 +15,7 @@ import 'package:file_picker/file_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'package:planmapp/features/expenses/services/receipt_scanner_service.dart';
 import 'package:cross_file/cross_file.dart';
+import 'package:planmapp/core/presentation/widgets/guest_barrier_modal.dart';
 
 class BudgetPlanTab extends StatefulWidget {
   final String planId;
@@ -770,6 +771,11 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
                                         padding: const EdgeInsets.symmetric(vertical: 14)
                                     ),
                                     onPressed: () {
+                                        bool isGuest = Supabase.instance.client.auth.currentUser?.isAnonymous ?? false;
+                                        if (isGuest) {
+                                            GuestBarrierModal.show(context);
+                                            return;
+                                        }
                                         // Navegar al modulo de deudas (Dashboard central)
                                         Navigator.pushNamed(context, '/debts', arguments: {'planId': widget.planId});
                                     }, 
