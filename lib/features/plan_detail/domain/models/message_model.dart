@@ -11,6 +11,7 @@ class Message {
   // Restored fields
   final bool isSystemMessage;
   final String? userDisplayName;
+  final List<String> readBy;
 
   Message({
     required this.id,
@@ -22,6 +23,7 @@ class Message {
     this.userDisplayName,
     this.type = 'text',
     this.metadata,
+    this.readBy = const [],
   });
 
   factory Message.fromJson(Map<String, dynamic> json) {
@@ -35,6 +37,7 @@ class Message {
       type: json['type'] ?? 'text',
       metadata: json['metadata'] != null ? Map<String, dynamic>.from(json['metadata']) : null,
       userDisplayName: json['metadata']?['sender_name'] ?? (json['profiles']?['full_name'] ?? 'Usuario'),
+      readBy: json['read_by'] != null ? List<String>.from(json['read_by']) : [],
     );
   }
 
@@ -45,6 +48,7 @@ class Message {
       'is_system_message': isSystemMessage,
       'type': type,
       'metadata': metadata,
+      'read_by': readBy,
     };
   }
 }

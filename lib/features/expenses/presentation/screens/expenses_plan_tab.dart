@@ -253,15 +253,6 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
                                            onPressed: () => Navigator.push(context, MaterialPageRoute(builder: (_) => DebtsDashboardScreen(planId: widget.planId))),
                                            tooltip: "Estado de Pagos",
                                        ),
-                                       TextButton.icon(
-                                           onPressed: () => context.push('/plan/${widget.planId}/balances'),
-                                           icon: const Icon(Icons.handshake_outlined, size: 20),
-                                           label: const Text("Saldar"),
-                                           style: TextButton.styleFrom(
-                                                foregroundColor: AppTheme.primaryBrand,
-                                                backgroundColor: AppTheme.primaryBrand.withOpacity(0.1),
-                                           )
-                                       )
                                    ],
                                  )
                              ],

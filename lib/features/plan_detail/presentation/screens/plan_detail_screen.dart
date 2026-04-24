@@ -77,6 +77,9 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
         _pollsStream = Stream.value([]);
     }
     
+    // Mark as read immediately when plan starts (Chat is default tab)
+    _chatService.markMessagesAsRead(widget.planId);
+    
     _tabController.addListener(() {
       if (!_tabController.indexIsChanging) setState(() {});
     });
@@ -192,6 +195,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
           );
           _tabController.addListener(() {
               if (!_tabController.indexIsChanging) setState((){});
+              if (_tabController.index == 0) _chatService.markMessagesAsRead(widget.planId);
           });
           if (mounted) setState(() {});
       }
@@ -238,7 +242,8 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
            }
       }
-  }  Future<void> _exportToCalendar() async {
+  }
+  Future<void> _exportToCalendar() async {
       if (_plan == null || _plan!.eventDate == null) return;
       
       final title = "Planmapp: ${_plan!.title}";
@@ -1204,7 +1209,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                             
                         // Use existing Deadline Logic
                         ListTile(
-                            title: Text(selectedDeadline == null ? "Definir Límite de Tiempo (Opcional)" : "Cierra: ${DateFormat('dd MMM HH:mm').format(selectedDeadline!)}"),
+                            title: Text(selectedDeadline == null ? "Definir Límite de Tiempo (Opcional)" : "Cierra: ${DateFormat('dd MMM hh:mm a').format(selectedDeadline!)}"),
                             leading: const Icon(Icons.timer_outlined),
                             trailing: selectedDeadline != null 
                                 ? IconButton(icon: const Icon(Icons.clear), onPressed: () => setDialogState(() => selectedDeadline = null)) 
@@ -1472,7 +1477,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                               Text(isItemsType ? "Lista de Ítems" : "Encuesta", style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.bold)),
                               if (poll.expiresAt != null)
                                 Text(
-                                    "Cierra: ${DateFormat('d MMM HH:mm').format(poll.expiresAt!)}",
+                                    "Cierra: ${DateFormat('d MMM hh:mm a').format(poll.expiresAt!)}",
                                     style: const TextStyle(fontSize: 10, color: Colors.redAccent, fontWeight: FontWeight.bold)
                                 )
                           ],
@@ -1976,12 +1981,26 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                        ],
 
                        const SizedBox(height: 4),
-                       Text(
-                         DateFormat('HH:mm').format(msg.createdAt.toLocal()),
-                         style: TextStyle(
-                           color: isSystem ? Colors.grey : (isMe ? Colors.white70 : Colors.white60),
-                           fontSize: 10,
-                         ),
+                       Row(
+                         mainAxisSize: MainAxisSize.min,
+                         mainAxisAlignment: MainAxisAlignment.end,
+                         children: [
+                           Text(
+                             DateFormat('hh:mm a').format(msg.createdAt.toLocal()),
+                             style: TextStyle(
+                               color: isSystem ? Colors.grey : (isMe ? Colors.white70 : Colors.white60),
+                               fontSize: 10,
+                             ),
+                           ),
+                           if (isMe && !isSystem) ...[
+                             const SizedBox(width: 4),
+                             Icon(
+                               Icons.done_all,
+                               size: 14,
+                               color: msg.readBy.isNotEmpty ? Colors.blue : Colors.white60,
+                             )
+                           ]
+                         ],
                        ),
                     ],
                   ),

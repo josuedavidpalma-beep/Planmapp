@@ -193,6 +193,7 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
                   'title': 'Recordatorio de Cobro',
                   'body': 'Hola $name, recuerda que me debes $formattedTotal en Planmapp. Usa la app para reportar el pago.',
                   'type': 'debt_reminder',
+                  'data': {'route': '/debts', 'action': 'debt_reminder'},
               });
               if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notificación de cobro enviada a la app.')));
               return;
@@ -276,8 +277,9 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
                       'user_id': creditorId,
                       'type': 'payment_reported',
                       'title': 'Comprobante Subido 🧾',
-                      'content': 'Un usuario ha marcado su cuota como pagada. Entra a "Cuentas por Cobrar" para revisar y aprobar su comprobante.',
-                      'plan_id': debt['plan_id'] // can be null if not linked to plan
+                      'content': 'Un usuario ha marcado su cuota como pagada. Entra a Cuentas por Cobrar para revisar y aprobar su comprobante.',
+                      'plan_id': debt['plan_id'], // can be null if not linked to plan
+                      'data': {'route': '/debts', 'action': 'payment_reported'}
                   });
               }
           } catch(e) {

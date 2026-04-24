@@ -55,4 +55,17 @@ class ChatService {
       rethrow; // Rethrow to let the UI snackbar catch it
     }
   }
+
+  Future<void> markMessagesAsRead(String planId) async {
+    final user = _supabase.auth.currentUser;
+    if (user == null) return;
+    try {
+      await _supabase.rpc('mark_messages_read', params: {
+        'p_plan_id': planId,
+        'p_user_id': user.id
+      });
+    } catch (e) {
+      print('Error marking read: $e');
+    }
+  }
 }

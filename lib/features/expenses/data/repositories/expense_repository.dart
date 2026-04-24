@@ -563,7 +563,7 @@ class ExpenseRepository {
                    'title': '❌ Pago No Recibido',
                    'body': 'El organizador no ha confirmado la recepción de tu pago para "${pt['description']}". Por favor revisa y ponte en contacto.',
                    'type': 'general',
-                   'data': {'action': 'payment_denied', 'expense_id': expenseId}
+                   'data': {'route': '/debts', 'action': 'payment_denied', 'expense_id': expenseId}
                });
            }
        } catch (e) {

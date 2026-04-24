@@ -255,7 +255,7 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
                              const SizedBox(height: 16),
                              
                              _buildInfoRow(Icons.calendar_today_rounded, 
-                                DateFormat('EEEE d, MMMM yyyy (HH:mm)', 'es_ES').format(_plan!.eventDate!)
+                                DateFormat('EEEE d, MMMM yyyy (hh:mm a)', 'es_ES').format(_plan!.eventDate!)
                              ),
                              const SizedBox(height: 12),
                              _buildInfoRow(Icons.location_on_rounded, _plan!.locationName),
