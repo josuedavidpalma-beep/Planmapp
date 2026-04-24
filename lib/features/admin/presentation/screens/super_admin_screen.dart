@@ -18,7 +18,7 @@ class _SuperAdminScreenState extends State<SuperAdminScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: AppTheme.backgroundDark,
+      backgroundColor: AppTheme.darkBackground,
       appBar: AppBar(
         title: const Text("Planmapp Super-Admin", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
         backgroundColor: Colors.black,
@@ -115,7 +115,7 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
         }
         final r = _restaurants[index - 1];
         return Card(
-          color: AppTheme.cardDark,
+          color: AppTheme.surfaceDark,
           child: ListTile(
             title: Text(r['name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             subtitle: Text("ID: ${r['id']}", style: const TextStyle(color: Colors.white54, fontSize: 11)),
@@ -174,9 +174,9 @@ class _AdminQRTabState extends State<_AdminQRTab> {
           const Text("Generador de QR por Local", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 16),
           DropdownButtonFormField<String>(
-            dropdownColor: AppTheme.cardDark,
+            dropdownColor: AppTheme.surfaceDark,
             style: const TextStyle(color: Colors.white),
-            decoration: const InputDecoration(labelText: "Selecciona Restaurante", filled: true, fillColor: AppTheme.cardDark),
+            decoration: const InputDecoration(labelText: "Selecciona Restaurante", filled: true, fillColor: AppTheme.surfaceDark),
             items: _restaurants.map<DropdownMenuItem<String>>((r) => DropdownMenuItem(value: r['id'], child: Text(r['name']))).toList(),
             onChanged: (v) => setState(() => _selectedResId = v),
           ),
@@ -237,7 +237,7 @@ class _AdminAnalyticsTabState extends State<_AdminAnalyticsTab> {
 
   Future<void> _loadMectrics() async {
     try {
-      final res = await _supabase.from('survey_responses').select('id', const FetchOptions(count: CountOption.exact));
+      final res = await _supabase.from('survey_responses').select('id');
       setState(() {
         _totalEncuestas = res.length;
         _isLoading = false;
@@ -258,7 +258,7 @@ class _AdminAnalyticsTabState extends State<_AdminAnalyticsTab> {
           const Text("Analíticas Globales", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
           const SizedBox(height: 20),
           Card(
-            color: AppTheme.cardDark,
+            color: AppTheme.surfaceDark,
             child: Padding(
               padding: const EdgeInsets.all(24.0),
               child: Column(

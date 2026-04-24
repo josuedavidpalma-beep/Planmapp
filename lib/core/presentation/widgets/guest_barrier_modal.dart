@@ -7,7 +7,7 @@ class GuestBarrierModal {
     showModalBottomSheet(
       context: context,
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      backgroundColor: AppTheme.cardDark,
+      backgroundColor: AppTheme.surfaceDark,
       builder: (c) => Padding(
         padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 30),
         child: Column(
