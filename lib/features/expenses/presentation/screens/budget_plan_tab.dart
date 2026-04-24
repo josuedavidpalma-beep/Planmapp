@@ -422,7 +422,7 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
               if (addedCount > 0) {
                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("$addedCount items agregados exitosamente c/IA."), backgroundColor: Colors.green));
               } else {
-                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Se analizaron rubros pero sus montes eran $0 o ilegibles."), backgroundColor: Colors.orange));
+                 ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Se analizaron rubros pero sus montes eran \$0 o ilegibles."), backgroundColor: Colors.orange));
               }
           }
           _loadData();
