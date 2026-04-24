@@ -28,6 +28,7 @@ import 'package:planmapp/features/expenses/presentation/screens/guest_join_scree
 import 'package:planmapp/features/expenses/presentation/screens/guest_split_screen.dart';
 import 'package:planmapp/features/landing/presentation/screens/plan_landing_screen.dart'; // NEW landing
 import 'package:planmapp/features/landing/presentation/screens/guest_scan_landing_screen.dart'; // B2B2C landing
+import 'package:planmapp/features/admin/presentation/screens/super_admin_screen.dart';
 import 'package:planmapp/features/social/presentation/screens/friends_screen.dart';
 import 'package:planmapp/features/matchmaker/presentation/screens/ai_matchmaker_screen.dart';
 import 'package:planmapp/features/chat/presentation/screens/peer_chat_redirector.dart' as planmapp_imports;
@@ -128,6 +129,18 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final restaurantId = state.uri.queryParameters['rid'];
           return GuestScanLandingScreen(restaurantId: restaurantId);
         },
+      ),
+      GoRoute(
+        path: '/super-admin',
+        builder: (context, state) => const SuperAdminScreen(),
+        redirect: (context, state) {
+           final session = Supabase.instance.client.auth.currentSession;
+           // Change this email to the actual master email as needed.
+           if (session?.user.email != 'tu_email@ejemplo.com') {
+               return '/';
+           }
+           return null;
+        }
       ),
       GoRoute(
         path: '/onboarding',
