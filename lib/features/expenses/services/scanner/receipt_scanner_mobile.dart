@@ -15,11 +15,11 @@ class ReceiptScannerImplementation implements ReceiptScannerPlatform {
   static const bool _useGemini = true; 
 
   @override
-  Future<ParsedReceipt> scanReceipt(XFile imageFile) async {
+  Future<ParsedReceipt> scanReceipt(XFile imageFile, {bool isQuote = false}) async {
     final file = File(imageFile.path);
     if (_useGemini) {
       try {
-        final result = await _scanWithGemini(file);
+        final result = await _scanWithGemini(file, isQuote: isQuote);
         if (result.items.isNotEmpty || (result.total ?? 0) > 0) return result;
       } catch (e) {
         print("Gemini Failed: $e. Falling back to ML Kit.");
@@ -29,14 +29,15 @@ class ReceiptScannerImplementation implements ReceiptScannerPlatform {
   }
 
   // --- Edge Function Implementation ---
-  Future<ParsedReceipt> _scanWithGemini(File imageFile) async {
-      print(">>> MOBILE SCANNER: Llamando a Supabase Edge Function (analyze-receipt)");
+  Future<ParsedReceipt> _scanWithGemini(File imageFile, {bool isQuote = false}) async {
+      print(">>> MOBILE SCANNER: Llamando a Supabase Edge Function");
       final imageBytes = await imageFile.readAsBytes();
       final base64Image = base64Encode(imageBytes);
 
       try {
+        final endpoint = isQuote ? 'analyze-quote' : 'analyze-receipt';
         final response = await Supabase.instance.client.functions.invoke(
-          'analyze-receipt',
+          endpoint,
           body: {'image_base64': base64Image},
         );
 

@@ -45,7 +45,9 @@ class CurrencyInputFormatter extends TextInputFormatter {
 
   // Static helper to format for display
   static String format(double value, {String locale = 'es_CO', String symbol = '\$'}) {
-      final formatter = NumberFormat.currency(locale: locale, symbol: symbol, decimalDigits: 0);
-      return formatter.format(value);
+      // Create formatter without the symbol inside the NumberFormat to prevent trailing position.
+      // We manually append the symbol at the front instead.
+      final formatter = NumberFormat.currency(locale: locale, symbol: '', decimalDigits: 0);
+      return '$symbol ${formatter.format(value).trim()}';
   }
 }

@@ -8,7 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:planmapp/core/theme/theme_provider.dart';
 import 'package:planmapp/features/notifications/services/notification_service.dart';
-import 'package:planmapp/core/services/push_notification_service.dart';
+import 'package:planmapp/features/notifications/services/push_notification_service.dart';
 import 'package:planmapp/features/explore/services/events_service.dart';
 import 'package:planmapp/features/explore/data/models/event_model.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -1013,6 +1013,40 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
                             widget.event.isOpen! ? Icons.fiber_manual_record : Icons.cancel, 
                             widget.event.isOpen! ? Colors.greenAccent.withOpacity(0.4) : Colors.redAccent.withOpacity(0.4)
                           ),
+                        const SizedBox(height: 8),
+                        if (widget.isRecommended)
+                          Container(
+                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
+                            decoration: BoxDecoration(
+                              gradient: LinearGradient(
+                                colors: [AppTheme.primaryBrand, AppTheme.primaryBrand.withOpacity(0.7)],
+                                begin: Alignment.topLeft,
+                                end: Alignment.bottomRight,
+                              ),
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                 BoxShadow(color: AppTheme.primaryBrand.withOpacity(0.5), blurRadius: 8)
+                              ],
+                            ),
+                            child: Row(
+                              children: [
+                                  const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
+                                  const SizedBox(width: 6),
+                                  Text(
+                                    "RECOMENDADO PARA TI",
+                                    style: TextStyle(
+                                      color: Colors.white, 
+                                      fontSize: 9, 
+                                      fontWeight: FontWeight.w900, 
+                                      letterSpacing: 0.5,
+                                      shadows: [Shadow(color: Colors.black.withOpacity(0.3), blurRadius: 2)]
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            ).animate(onPlay: (ctrl) => ctrl.repeat())
+                             .shimmer(duration: 2.seconds, delay: 15.seconds)
+                             .scale(duration: 400.ms, curve: Curves.elasticOut, delay: 15.seconds),
                       ],
                     ),
                   ),
@@ -1079,44 +1113,8 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
                     }
                   ),
                 
-                // NEW: Personalized "For You" Badge
-                if (widget.isRecommended)
-                  Positioned(
-                    top: 16,
-                    left: 16,
-                    child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 6),
-                      decoration: BoxDecoration(
-                        gradient: LinearGradient(
-                          colors: [AppTheme.primaryBrand, AppTheme.primaryBrand.withOpacity(0.7)],
-                          begin: Alignment.topLeft,
-                          end: Alignment.bottomRight,
-                        ),
-                        borderRadius: BorderRadius.circular(12),
-                        boxShadow: [
-                           BoxShadow(color: AppTheme.primaryBrand.withOpacity(0.5), blurRadius: 8)
-                        ],
-                      ),
-                      child: Row(
-                        children: [
-                            const Icon(Icons.auto_awesome, color: Colors.white, size: 14),
-                            const SizedBox(width: 6),
-                            Text(
-                              "RECOMENDADO PARA TI",
-                              style: TextStyle(
-                                color: Colors.white, 
-                                fontSize: 9, 
-                                fontWeight: FontWeight.w900, 
-                                letterSpacing: 0.5,
-                                shadows: [Shadow(color: Colors.black.withOpacity(0.3), blurRadius: 2)]
-                              ),
-                            ),
-                          ],
-                        ),
-                      ).animate(onPlay: (ctrl) => ctrl.repeat())
-                       .shimmer(duration: 2.seconds, delay: 15.seconds)
-                       .scale(duration: 400.ms, curve: Curves.elasticOut, delay: 15.seconds),
-                    ),
+                
+                // (Moved Recommended badge to top-left Column)
                ]
             ),
           ),

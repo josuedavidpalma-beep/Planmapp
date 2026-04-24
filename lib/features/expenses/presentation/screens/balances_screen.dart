@@ -12,6 +12,7 @@ import 'package:planmapp/features/expenses/data/models/payment_model.dart';
 import 'package:planmapp/features/plans/services/plan_members_service.dart';
 import 'package:intl/intl.dart';
 import 'package:planmapp/core/services/chat_service.dart';
+import 'package:planmapp/core/utils/currency_formatter.dart';
 
 // Provider to fetch member details (names, avatars) for the plan
 final planMembersProvider = FutureProvider.family<Map<String, PlanMember>, String>((ref, planId) async {
@@ -148,7 +149,7 @@ class BalancesScreen extends ConsumerWidget {
             const Text("Balance Personal", style: TextStyle(color: Colors.white70, fontSize: 14)),
             const SizedBox(height: 8),
             Text(
-              NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(net),
+              CurrencyInputFormatter.format(net),
               style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold),
             ),
             const SizedBox(height: 4),
@@ -242,7 +243,7 @@ class _DebtCard extends ConsumerWidget {
                crossAxisAlignment: CrossAxisAlignment.end,
                children: [
                   Text(
-                    NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(balance.amount),
+                    CurrencyInputFormatter.format(balance.amount),
                     style: TextStyle(
                       fontWeight: FontWeight.bold, 
                       fontSize: 16,
@@ -324,7 +325,7 @@ class _DebtCard extends ConsumerWidget {
                Text("Vas a registrar un pago a $creditorName por:", style: const TextStyle(fontSize: 14)),
                const SizedBox(height: 8),
                Text(
-                 NumberFormat.currency(symbol: '\$', decimalDigits: 0).format(balance.amount),
+                 CurrencyInputFormatter.format(balance.amount),
                  style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 24, color: AppTheme.primaryBrand),
                ),
                const Text("Transferir a:", style: TextStyle(fontWeight: FontWeight.bold)),

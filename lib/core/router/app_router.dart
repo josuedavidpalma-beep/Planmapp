@@ -260,7 +260,12 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/debts',
         parentNavigatorKey: rootNavigatorKey,
-        builder: (context, state) => const DebtsDashboardScreen(planId: null), // Global mode
+        builder: (context, state) {
+            final tabParam = state.uri.queryParameters['tab'];
+            int initTab = 0;
+            if (tabParam == 'payables') initTab = 1;
+            return DebtsDashboardScreen(planId: null, initialTab: initTab);
+        },
       ),
       GoRoute(
         path: '/pago/:id',

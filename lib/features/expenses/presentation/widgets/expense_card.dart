@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:planmapp/features/expenses/data/models/expense_model.dart';
+import 'package:planmapp/core/utils/currency_formatter.dart';
 
 class ExpenseCard extends StatelessWidget {
   final Expense expense;
@@ -13,7 +14,6 @@ class ExpenseCard extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final currencyFormat = NumberFormat.currency(locale: 'es_CO', symbol: '\$', decimalDigits: 0);
     
     return Card(
       elevation: 2,
@@ -60,7 +60,7 @@ class ExpenseCard extends StatelessWidget {
                 crossAxisAlignment: CrossAxisAlignment.end,
                 children: [
                    Text(
-                      currencyFormat.format(expense.totalAmount),
+                      CurrencyInputFormatter.format(expense.totalAmount),
                       style: Theme.of(context).textTheme.titleMedium?.copyWith(
                         fontWeight: FontWeight.w800,
                         color: AppTheme.primaryBrand,

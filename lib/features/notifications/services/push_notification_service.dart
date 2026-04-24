@@ -22,8 +22,12 @@ class PushNotificationService {
 
   PushNotificationService._internal();
 
+  bool _isInitialized = false;
+
   /// Returns true if permission was granted or provisional, false if denied.
   Future<bool> requestPermissionAndSaveToken() async {
+    if (_isInitialized) return true;
+    
     try {
       // 1. Request OS Permission
       NotificationSettings settings = await _fcm.requestPermission(
@@ -91,6 +95,7 @@ class PushNotificationService {
             }
         });
         
+        _isInitialized = true;
         return true;
 
       } else {

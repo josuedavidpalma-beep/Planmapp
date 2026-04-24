@@ -140,10 +140,8 @@ class NotificationsScreen extends StatelessWidget {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text("Notificaciones", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
-        backgroundColor: Colors.white,
+        title: const Text("Notificaciones", style: TextStyle(fontWeight: FontWeight.bold)),
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black),
         actions: [
           TextButton(
             onPressed: () async {
@@ -188,18 +186,27 @@ class NotificationsScreen extends StatelessWidget {
                    NotificationService().deleteNotification(item.id);
                 },
                 child: ListTile(
-                  tileColor: item.isRead ? Colors.white : AppTheme.primaryBrand.withOpacity(0.05),
+                  tileColor: item.isRead ? Colors.transparent : AppTheme.primaryBrand.withOpacity(0.15),
                   leading: CircleAvatar(
-                    backgroundColor: _getColor(item.type).withOpacity(0.1),
+                    backgroundColor: _getColor(item.type).withOpacity(0.15),
                     child: Icon(_getIcon(item.type), color: _getColor(item.type)),
                   ),
-                  title: Text(item.title, style: TextStyle(fontWeight: item.isRead ? FontWeight.normal : FontWeight.bold)),
+                  title: Text(item.title, style: TextStyle(
+                      fontWeight: item.isRead ? FontWeight.normal : FontWeight.bold,
+                      color: item.isRead ? Theme.of(context).textTheme.bodyLarge?.color : AppTheme.primaryBrand,
+                  )),
                   subtitle: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(item.body),
+                      Text(item.body, style: TextStyle(
+                          color: item.isRead ? Theme.of(context).textTheme.bodyMedium?.color?.withOpacity(0.7) : Theme.of(context).textTheme.bodyMedium?.color,
+                          fontWeight: item.isRead ? FontWeight.normal : FontWeight.w500,
+                      )),
                       const SizedBox(height: 4),
-                      Text(timeago.format(item.createdAt, locale: 'es'), style: TextStyle(fontSize: 12, color: Colors.grey[600])),
+                      Text(timeago.format(item.createdAt, locale: 'es'), style: TextStyle(
+                          fontSize: 12, 
+                          color: item.isRead ? Colors.grey : AppTheme.primaryBrand.withOpacity(0.7),
+                      )),
                     ],
                   ),
                   onTap: () => _handleTap(context, item),

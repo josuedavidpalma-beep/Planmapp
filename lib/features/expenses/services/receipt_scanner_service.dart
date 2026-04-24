@@ -6,14 +6,16 @@ import 'scanner/receipt_scanner_mobile.dart' if (dart.library.html) 'scanner/rec
 export 'scanner/receipt_scanner_interface.dart';
 
 class ReceiptScannerService {
-  final ReceiptScannerPlatform _delegate = ReceiptScannerImplementation();
+  final ReceiptScannerPlatform _scanner;
 
-  Future<ParsedReceipt> scanReceipt(XFile imageFile) async {
-    return _delegate.scanReceipt(imageFile);
+  ReceiptScannerService() : _scanner = ReceiptScannerImplementation();
+
+  Future<ParsedReceipt> scanReceipt(XFile imageFile, {bool isQuote = false}) async {
+    return await _scanner.scanReceipt(imageFile, isQuote: isQuote);
   }
 
   void dispose() {
-    _delegate.dispose();
+    _scanner.dispose();
   }
 }
 

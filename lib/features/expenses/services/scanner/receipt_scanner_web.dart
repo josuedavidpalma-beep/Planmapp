@@ -6,18 +6,19 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 
 class ReceiptScannerImplementation implements ReceiptScannerPlatform {
   @override
-  Future<ParsedReceipt> scanReceipt(XFile imageFile) async {
-    return await _scanWithGeminiDirect(imageFile);
+  Future<ParsedReceipt> scanReceipt(XFile imageFile, {bool isQuote = false}) async {
+    return await _scanWithGeminiDirect(imageFile, isQuote: isQuote);
   }
 
-  Future<ParsedReceipt> _scanWithGeminiDirect(XFile imageFile) async {
-      print(">>> WEB SCANNER: Llamando a Supabase Edge Function (analyze-receipt)");
+  Future<ParsedReceipt> _scanWithGeminiDirect(XFile imageFile, {bool isQuote = false}) async {
+      print(">>> WEB SCANNER: Llamando a Supabase Edge Function");
       final imageBytes = await imageFile.readAsBytes();
       final base64Image = base64Encode(imageBytes);
       
       try {
+        final endpoint = isQuote ? 'analyze-quote' : 'analyze-receipt';
         final response = await Supabase.instance.client.functions.invoke(
-          'analyze-receipt',
+          endpoint,
           body: {'image_base64': base64Image},
         );
 

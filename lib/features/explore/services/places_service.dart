@@ -74,8 +74,8 @@ class PlacesService {
         headers: {
           'Content-Type': 'application/json',
           'X-Goog-Api-Key': _apiKey!,
-          // Optimized Field Masking: Added priceLevel and regularOpeningHours
-          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.photos,places.location,places.types,places.priceLevel,places.regularOpeningHours',
+          // Optimized Field Masking: Added priceLevel, regularOpeningHours, phone, website
+          'X-Goog-FieldMask': 'places.id,places.displayName,places.formattedAddress,places.rating,places.photos,places.location,places.types,places.priceLevel,places.regularOpeningHours,places.internationalPhoneNumber,places.websiteUri',
         },
         body: jsonEncode({
           "includedTypes": validTypes,
@@ -122,6 +122,8 @@ class PlacesService {
             'category': category ?? 'restaurant',
             'price_level': _mapPriceLevel(p['priceLevel']),
             'open_now': p['regularOpeningHours']?['openNow'] ?? false,
+            'contact_phone': p['internationalPhoneNumber'],
+            'reservation_link': p['websiteUri'],
             'last_updated': DateTime.now().toIso8601String(),
           };
 

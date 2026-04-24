@@ -12,11 +12,13 @@ import 'package:url_launcher/url_launcher.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:io';
+import 'package:planmapp/core/utils/currency_formatter.dart';
 
 class DebtsDashboardScreen extends StatefulWidget {
   final String? planId;
+  final int initialTab;
 
-  const DebtsDashboardScreen({super.key, this.planId});
+  const DebtsDashboardScreen({super.key, this.planId, this.initialTab = 0});
 
   @override
   State<DebtsDashboardScreen> createState() => _DebtsDashboardScreenState();
@@ -33,12 +35,11 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
   
   int _reminderFrequency = 0;
   String _reminderChannel = 'whatsapp';
-  final _currencyFormat = NumberFormat.currency(locale: 'es_CO', symbol: '\$', decimalDigits: 0);
 
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(length: 2, vsync: this, initialIndex: widget.initialTab);
     _loadData();
     _setupRealtime();
   }
@@ -184,29 +185,29 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
   }
 
   Future<void> _sendBulkReminder(List<Map<String, dynamic>> debts, String name, String? phone, double totalAmount, String? debtorId) async {
-      final formattedTotal = _currencyFormat.format(totalAmount);
+      final formattedTotal = CurrencyInputFormatter.format(totalAmount);
       
       if (debtorId != null) {
           try {
               await Supabase.instance.client.from('notifications').insert({
                   'user_id': debtorId,
                   'title': 'Recordatorio de Cobro',
-                  'body': 'Hola $name, recuerda que me debes $formattedTotal en Planmapp. Usa la app para reportar el pago.',
+                  'body': 'Hola $name, Planmapp te recuerda reportar el pago de tu saldo pendiente por $formattedTotal. Entra para liquidarlo.',
                   'type': 'debt_reminder',
-                  'data': {'route': '/debts', 'action': 'debt_reminder'},
+                  'data': {'route': '/debts?tab=payables', 'action': 'debt_reminder'},
               });
               if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Notificación de cobro enviada a la app.')));
               return;
           } catch(e) {}
       }
       
-      String message = "Hola *$name*! 👋\nTe recuerdo que me debes un total de *$formattedTotal* en Planmapp.\n\nDetalle:\n";
+      String message = "Hola *$name*! 👋\nPlanmapp te recuerda que tienes un saldo pendiente por reportar de *$formattedTotal*.\n\nDetalle:\n";
       for (var d in debts) {
-          final amt = _currencyFormat.format(d['amount_owed'] ?? 0);
+          final amt = CurrencyInputFormatter.format(d['amount_owed'] ?? 0);
           final title = d['expenses']?['title'] ?? 'Gasto';
           message += "- $title: *$amt*\n";
       }
-      message += "\nPor favor usa la app para notificarme el pago o envíame el comprobante. ✅";
+      message += "\nPor favor usa la app para reportar tu pago o enviar el comprobante correspondiente. ¡Gracias!";
       
       if (phone != null && phone.isNotEmpty) {
           _launchWhatsApp(phone, message);
@@ -379,7 +380,7 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
                      child: Column(
                          children: [
                              Text(isReceivable ? "Gran Total Me Deben" : "Gran Total Yo Debo", style: const TextStyle(color: Colors.white70)),
-                             Text(_currencyFormat.format(grandTotal), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
+                             Text(CurrencyInputFormatter.format(grandTotal), style: const TextStyle(color: Colors.white, fontSize: 32, fontWeight: FontWeight.bold)),
                          ]
                      )
                  )
@@ -418,7 +419,7 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
           child: ExpansionTile(
               leading: _buildAvatar(avatarUrl, name),
               title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              subtitle: Text(_currencyFormat.format(totalAmount), style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBrand)),
+              subtitle: Text(CurrencyInputFormatter.format(totalAmount), style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBrand)),
               children: [
                   ...personDebts.map((debt) => ListTile(
                       title: Text("${debt['expenses']['title']} (${debt['plan_title'] ?? 'Plan'})", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
@@ -443,13 +444,13 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
                       trailing: (debt['status'] != 'reported') ? Row(
                           mainAxisSize: MainAxisSize.min,
                           children: [
-                              Text(_currencyFormat.format(debt['amount_owed'] ?? 0)),
+                              Text(CurrencyInputFormatter.format(debt['amount_owed'] ?? 0)),
                               IconButton(
                                   icon: const Icon(Icons.check, color: Colors.green),
                                   onPressed: () => _markPaid(debt),
                               )
                           ]
-                      ) : Text(_currencyFormat.format(debt['amount_owed'] ?? 0)),
+                      ) : Text(CurrencyInputFormatter.format(debt['amount_owed'] ?? 0)),
                   )).toList(),
                   Padding(
                       padding: const EdgeInsets.all(16),
@@ -470,7 +471,7 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
       final profileData = firstDebt['profiles'] as Map<String, dynamic>?;
       final name = profileData?['full_name'] ?? 'Organizador';
       final avatarUrl = profileData?['avatar_url'] as String?;
-      final paymentMethods = profileData?['payment_methods'] as List<dynamic>? ?? [];
+      final paymentMethods = profileData?['payment_links'] as List<dynamic>? ?? [];
       
       final totalAmount = personDebts.fold(0.0, (sum, debt) => sum + ((debt['amount_owed'] as num?)?.toDouble() ?? 0.0));
       
@@ -481,7 +482,7 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
           child: ExpansionTile(
               leading: _buildAvatar(avatarUrl, name),
               title: Text(name, style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-              subtitle: Text(_currencyFormat.format(totalAmount), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent)),
+              subtitle: Text(CurrencyInputFormatter.format(totalAmount), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.redAccent)),
               children: [
                   ...personDebts.map((debt) => ListTile(
                       title: Text("${debt['expenses']['title']} (${debt['plan_title'] ?? 'Plan'})", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 14)),
@@ -519,7 +520,7 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
                           ]
                       ),
                       isThreeLine: true,
-                      trailing: Text(_currencyFormat.format(debt['amount_owed'] ?? 0)),
+                      trailing: Text(CurrencyInputFormatter.format(debt['amount_owed'] ?? 0)),
                   )).toList(),
                   if (paymentMethods.isNotEmpty)
                       Container(

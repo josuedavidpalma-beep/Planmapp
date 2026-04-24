@@ -457,14 +457,14 @@ class ExpenseRepository {
                   if (exp['created_by'] == currentUid) isIOwed = false; // I don't owe myself
                   
                   try {
-                      creditorProfile = await _supabase.from('profiles').select('id, full_name, avatar_url, phone, payment_methods').eq('id', exp['created_by']).maybeSingle();
+                      creditorProfile = await _supabase.from('profiles').select('id, full_name, avatar_url, phone, payment_links').eq('id', exp['created_by']).maybeSingle();
                   } catch (_) {}
               } else {
                   if (pt['plans']['creator_id'] == currentUid) {
                       isIOwed = false;
                   } else {
                       try {
-                          creditorProfile = await _supabase.from('profiles').select('id, full_name, avatar_url, phone, payment_methods').eq('id', pt['plans']['creator_id']).maybeSingle();
+                          creditorProfile = await _supabase.from('profiles').select('id, full_name, avatar_url, phone, payment_links').eq('id', pt['plans']['creator_id']).maybeSingle();
                       } catch (_) {}
                   }
               }

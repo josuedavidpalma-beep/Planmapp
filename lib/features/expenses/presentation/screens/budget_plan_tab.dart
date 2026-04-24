@@ -12,6 +12,8 @@ import 'package:planmapp/core/utils/currency_formatter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
+import 'package:planmapp/features/expenses/services/receipt_scanner_service.dart';
+import 'package:cross_file/cross_file.dart';
 
 class BudgetPlanTab extends StatefulWidget {
   final String planId;
@@ -135,7 +137,7 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
       final names = pending.map((e) => e.displayName).join(", ");
       final quota = _quotaPerPerson;
       // Encode for URL
-      final message = "¡Hola equipo! 👋 Recordatorio de pago para '$_planTitle': ${CurrencyInputFormatter.format(quota)}. ${_deadline != null ? 'Límite: ${DateFormat('dd MMM').format(_deadline!)}' : ''}. ¡Gracias!";
+      final message = "¡Hola equipo! 👋 Planmapp les recuerda realizar el reporte de cuota para el fondo común de '$_planTitle': ${CurrencyInputFormatter.format(quota)} por persona. ${_deadline != null ? 'Límite: ${DateFormat('dd MMM').format(_deadline!)}' : ''}. ¡Gracias!";
       final url = "https://wa.me/?text=${Uri.encodeComponent(message)}";
       
       try {
@@ -287,7 +289,7 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Abriendo WhatsApp..."), duration: Duration(seconds: 1)));
        
        final quota = t.amountOwe > 0 ? t.amountOwe : _quotaPerPerson;
-       final message = "¡Hola ${t.displayName}! 👋 Recuerda realizar tu pago de ${CurrencyInputFormatter.format(quota)} para el plan '$_planTitle'. ${_deadline != null ? 'Fecha límite: ${DateFormat('dd MMM').format(_deadline!)}' : ''}. ¡Gracias!";
+       final message = "¡Hola ${t.displayName}! 👋 Planmapp te recuerda reportar tu pago de ${CurrencyInputFormatter.format(quota)} para el fondo de '$_planTitle'. ${_deadline != null ? 'Fecha límite: ${DateFormat('dd MMM').format(_deadline!)}' : ''}. ¡Gracias!";
        
        String url = "https://wa.me/?text=${Uri.encodeComponent(message)}"; // Default generic
 
@@ -312,6 +314,45 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
        } catch (e) {
          await Share.share(message);
        }
+  }
+
+  Future<void> _scanDocument() async {
+      final picker = ImagePicker();
+      final XFile? image = await picker.pickImage(source: ImageSource.gallery);
+      if (image == null) return;
+
+      setState(() => _isLoading = true);
+      try {
+          final scanner = ReceiptScannerService();
+          final scannedResult = await scanner.scanReceipt(image, isQuote: true);
+          
+          if (scannedResult.items.isEmpty) {
+              if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("No se encontraron rubros claros en la imagen."), backgroundColor: Colors.orange));
+              setState(() => _isLoading = false);
+              return;
+          }
+
+          // Convert parsed items to budget items
+          for (var item in scannedResult.items) {
+             final totalAmount = item.price * item.quantity;
+             if (totalAmount > 0) {
+                 await _repository.addBudgetItem({
+                    'plan_id': widget.planId,
+                    'category': 'Otros', // Default mapped
+                    'description': '${item.quantity}x ${item.name}',
+                    'estimated_amount': totalAmount,
+                 });
+             }
+          }
+          await _repository.recalculateQuotas(widget.planId);
+          if (mounted) {
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("${scannedResult.items.length} items agregados exitosamente c/IA."), backgroundColor: Colors.green));
+          }
+          _loadData();
+      } catch (e) {
+          setState(() => _isLoading = false);
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error analizando documento: $e"), backgroundColor: Colors.red));
+      }
   }
 
   Future<void> _addItem() async {
@@ -575,7 +616,22 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
                 // SECTION 1: BUDGET ITEMS
                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
                     const Text("Calculadora de Gastos", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    IconButton(onPressed: _addItem, icon: const Icon(Icons.add_circle, color: AppTheme.primaryBrand))
+                    Row(
+                        children: [
+                            OutlinedButton.icon(
+                                onPressed: _scanDocument, 
+                                icon: const Icon(Icons.document_scanner, size: 16), 
+                                label: const Text("IA"),
+                                style: OutlinedButton.styleFrom(
+                                    foregroundColor: AppTheme.primaryBrand,
+                                    side: const BorderSide(color: AppTheme.primaryBrand),
+                                    padding: const EdgeInsets.symmetric(horizontal: 12),
+                                )
+                            ),
+                            const SizedBox(width: 8),
+                            IconButton(onPressed: _addItem, icon: const Icon(Icons.add_circle, color: AppTheme.primaryBrand)),
+                        ],
+                    )
                 ]),
                 
                 if (_budgetItems.isEmpty) 
@@ -607,101 +663,46 @@ class _BudgetPlanTabState extends State<BudgetPlanTab> {
                 const SizedBox(height: 24),
 
                 // SECTION 2: PARTICIPANTS
-                 Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [
-                    const Text("Seguimiento de Pagos (Vaca)", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                    IconButton(onPressed: _addGuest, icon: const Icon(Icons.person_add, color: AppTheme.primaryBrand))
-                ]),
-                
-                ..._trackers.map((t) {
-                    final currentUid = Supabase.instance.client.auth.currentUser?.id;
-                    final isMe = t.userId != null && t.userId == currentUid;
-                    
-                    return Card(
-                    elevation: 1,
-                    margin: const EdgeInsets.only(bottom: 8),
-                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12), side: BorderSide(color: t.status == PaymentStatus.paid ? Colors.green.shade200 : Colors.transparent)),
-                    child: ListTile(
-                        dense: true,
-                        leading: CircleAvatar(
-                             backgroundColor: _getColorForStatus(t.status).withOpacity(0.1),
-                             child: Text(t.displayName[0].toUpperCase(), style: TextStyle(color: _getColorForStatus(t.status), fontWeight: FontWeight.bold)),
-                        ),
-                        title: Text(isMe ? "Tú (${t.displayName})" : t.displayName, style: const TextStyle(fontWeight: FontWeight.bold)),
-                        subtitle: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                                Text(
-                                    _getTextForStatus(t.status).toUpperCase(), 
-                                    style: TextStyle(fontSize: 10, color: _getColorForStatus(t.status), fontWeight: FontWeight.bold)
-                                ),
-                                Text(t.description ?? 'Fondo / Vaca', style: const TextStyle(fontSize: 11, color: Colors.grey)),
-                            ],
-                        ),
-                        trailing: Row(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                                // Show exact amount
-                                Padding(
-                                    padding: const EdgeInsets.symmetric(horizontal: 8.0),
-                                    child: Text(CurrencyInputFormatter.format(t.amountOwe > 0 ? t.amountOwe : _quotaPerPerson), style: const TextStyle(fontWeight: FontWeight.bold)),
-                                ),
-                                // Remind Button (Only if Pending)
-                                // MODIFIED FOR TESTING: Allow "me" to remind "myself" to test the button
-                                if (t.status == PaymentStatus.pending)
-                                    IconButton(
-                                        icon: const Icon(Icons.send_rounded, color: Colors.blue, size: 20), 
-                                        onPressed: () => _remindUser(t)
-                                    ),
-
-                                // Case 1: Paid (Green Check)
-                                if (t.status == PaymentStatus.paid)
-                                   IconButton(icon: const Icon(Icons.check_circle, color: Colors.green), onPressed: () async {
-                                        if (_isCurrentUserCreator) {
-                                            await _repository.updatePaymentStatus(t.id, PaymentStatus.pending); 
-                                            _loadData();
-                                        }
-                                   }),
-                                
-                                // Case 2: Verifying (Yellow) -> Creator approves
-                                if (t.status == PaymentStatus.reported)
-                                   ElevatedButton(
-                                       onPressed: () async {
-                                           if (_isCurrentUserCreator) {
-                                              await _verifyReceiptVaca(t);
-                                           } else if (isMe) {
-                                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Esperando aprobación del organizador.")));
-                                           }
-                                       },
-                                       style: ElevatedButton.styleFrom(backgroundColor: Colors.orange, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 8)),
-                                       child: const Text("Aprobar?", style: TextStyle(fontSize: 12)),
-                                   ),
-
-                                 // Case 3: Pending (Red) -> User pays
-                                if (t.status == PaymentStatus.pending)
-                                   isMe 
-                                     ? OutlinedButton(
-                                         style: OutlinedButton.styleFrom(side: const BorderSide(color: AppTheme.primaryBrand), foregroundColor: AppTheme.primaryBrand),
-                                         onPressed: () {
-                                              HapticFeedback.lightImpact();
-                                              _showPaymentAction(context, t.id, t.amountOwe > 0 ? t.amountOwe : _quotaPerPerson);
-                                         },
-                                         child: const Text("Pagar"),
-                                     )
-                                     : IconButton( // Organizer can force pay manually
-                                         icon: const Icon(Icons.more_vert, color: Colors.grey),
-                                         onPressed: () async {
-                                             if (_isCurrentUserCreator) { // Only creator context menu
-                                                  await _showStatusMenu(context, t.id);
-                                             } else {
-                                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Solo el creador puede editar esto.")));
-                                             }
-                                         }
-                                     )
-                            ],
-                        ),
+                 Container(
+                    margin: const EdgeInsets.only(top: 8),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                        color: Colors.white,
+                        borderRadius: BorderRadius.circular(16),
+                        border: Border.all(color: Colors.grey.shade200)
                     ),
-                );
-              }),
+                    child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                            const Row(
+                                children: [
+                                    Icon(Icons.account_balance_wallet, color: AppTheme.primaryBrand),
+                                    SizedBox(width: 8),
+                                    Expanded(child: Text("Gestor de Cobros & Recaudo", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold))),
+                                ]
+                            ),
+                            const SizedBox(height: 12),
+                            const Text("Todo el Presupuesto (Vaca) se divide equitativamente y se sincroniza con el Dashboard de Deudas del plan. Allí podrás añadir cobros a terceros por WhatsApp, recordar cuotas y registrar pagos.", style: TextStyle(color: Colors.grey, fontSize: 13)),
+                            const SizedBox(height: 16),
+                            SizedBox(
+                                width: double.infinity,
+                                child: ElevatedButton.icon(
+                                    style: ElevatedButton.styleFrom(
+                                        backgroundColor: AppTheme.primaryBrand,
+                                        foregroundColor: Colors.white,
+                                        padding: const EdgeInsets.symmetric(vertical: 14)
+                                    ),
+                                    onPressed: () {
+                                        // Navegar al modulo de deudas (Dashboard central)
+                                        Navigator.pushNamed(context, '/debts', arguments: {'planId': widget.planId});
+                                    }, 
+                                    icon: const Icon(Icons.insights),
+                                    label: const Text("Ir al Gestor de Cobros Central", style: TextStyle(fontWeight: FontWeight.bold))
+                                ),
+                            )
+                        ]
+                    )
+                ),
                 
                 // Bottom Padding
                 const SizedBox(height: 100),

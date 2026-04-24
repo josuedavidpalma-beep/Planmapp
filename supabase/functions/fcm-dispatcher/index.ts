@@ -80,7 +80,7 @@ serve(async (req) => {
 
         notificationPayload = {
           notification: { title: `${senderName} en ${planTitle}`, body: content },
-          data: { route: `/plan/${planId}`, type: 'chat_message' },
+          data: { route: `/plan/${planId}?tab=chat`, type: 'chat_message' },
           tokens: fcmTokensArray,
         };
 
