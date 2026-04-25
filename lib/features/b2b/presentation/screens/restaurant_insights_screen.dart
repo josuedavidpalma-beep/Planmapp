@@ -122,13 +122,17 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
               }
           }
           
-          if (s['receipt_items'] != null) {
+          double ticket = 0;
+          if (s['responses'] != null && s['responses']['ai_raw_total'] != null && double.tryParse(s['responses']['ai_raw_total'].toString()) != null && double.tryParse(s['responses']['ai_raw_total'].toString())! > 0) {
+              ticket = double.tryParse(s['responses']['ai_raw_total'].toString()) ?? 0;
+          } else if (s['receipt_items'] != null) {
               final items = List<Map<String, dynamic>>.from(s['receipt_items']);
-              double ticket = 0;
               for (var it in items) {
                   ticket += double.tryParse(it['price'].toString()) ?? 0;
               }
-              if (ticket > 0) {
+          }
+          
+          if (ticket > 0) {
                  totalSpend += ticket;
                  spendTxs++;
                  

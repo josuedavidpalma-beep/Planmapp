@@ -423,7 +423,9 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                           'plan_id': planId,
                                           'user_id': Supabase.instance.client.auth.currentUser?.id,
                                           'user_name': _getUserName(Supabase.instance.client.auth.currentUser?.id, widget.expenseData['guest_name']),
-                                          'responses': {}, // Required NOT NULL field
+                                          'responses': {
+                                              'ai_raw_total': widget.expenseData['ai_raw_total'] ?? widget.expenseData['total_amount'] ?? 0.0
+                                          },
                                           'rating_food': ratingFood > 0 ? ratingFood : null,
                                           'rating_service': ratingService > 0 ? ratingService : null,
                                           'rating_ambiance': ratingAmbiance > 0 ? ratingAmbiance : null,
@@ -659,6 +661,26 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                   children: [
                 Column(
                   children: [
+                      if (Supabase.instance.client.auth.currentUser?.isAnonymous == true)
+                          Container(
+                              width: double.infinity,
+                              color: Colors.deepPurple.shade900,
+                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                              child: Row(
+                                  children: [
+                                      const Icon(Icons.card_giftcard, color: Colors.orangeAccent, size: 20),
+                                      const SizedBox(width: 8),
+                                      const Expanded(child: Text("¡No pierdas premios!\nRegístrate para guardar tus recompensas.", style: TextStyle(color: Colors.white, fontSize: 12))),
+                                      TextButton(
+                                          onPressed: () {
+                                              if (mounted) Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil('/onboarding', (r) => false);
+                                          },
+                                          child: const Text("Registrarme", style: TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold))
+                                      )
+                                  ]
+                              )
+                          ),
                       if (_showShareBanner)
                           Container(
                               margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),

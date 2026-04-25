@@ -241,6 +241,7 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
             'tip_amount': _tip,
             'currency': 'COP',
             'payment_method': paymentMethodsJson,
+            'ai_raw_total': _receipt?.total ?? 0.0,
         };
         
         final itemsData = _items.map((e) => {
