@@ -33,6 +33,8 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
   final Map<String, List<AssignmentModel>> _assignments = {};
   final List<String> _tempGuests = [];
   late TabController _tabController;
+  final Map<String, String> _dynamicNames = {};
+  final Set<String> _fetchingKeys = {};
 
   @override
   void initState() {
@@ -136,6 +138,27 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
               }, child: const Text("Agregar"))
           ],
       ));
+  }
+
+  void _fetchDynamicName(String uId) async {
+      if (_fetchingKeys.contains(uId)) return;
+      _fetchingKeys.add(uId);
+      try {
+          final res = await Supabase.instance.client.from('profiles').select('nickname, full_name').eq('id', uId).maybeSingle();
+          if (res != null) {
+              if (mounted) setState(() => _dynamicNames[uId] = res['nickname'] ?? res['full_name'] ?? 'Usuario');
+          }
+      } catch (_) {}
+  }
+
+  String _getUserName(String? uId, String? gName) {
+      if (uId != null) {
+          if (uId == Supabase.instance.client.auth.currentUser?.id) return 'Tú';
+          final m = _members.cast<PlanMember?>().firstWhere((m) => m?.id == uId, orElse: () => null);
+          if (m != null) return m.name;
+          return _dynamicNames[uId] ?? '...';
+      }
+      return gName ?? "?";
   }
 
   void _splitEqually(String itemId) {
@@ -610,7 +633,11 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                     for (var raw in allRaw) {
                         final iid = raw['expense_item_id'] as String;
                         if (itemIds.contains(iid)) {
-                            _assignments[iid]!.add(AssignmentModel.fromJson(raw));
+                            final checkModel = AssignmentModel.fromJson(raw);
+                            _assignments[iid]!.add(checkModel);
+                            if (checkModel.userId != null && !_dynamicNames.containsKey(checkModel.userId) && !_members.any((m) => m.id == checkModel.userId)) {
+                                _fetchDynamicName(checkModel.userId!);
+                            }
                         }
                     }
                 }
@@ -739,9 +766,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                             spacing: 4,
                                             runSpacing: 4,
                                             children: (_assignments[item.id] ?? []).map((a) {
-                                                final name = a.userId != null 
-                                                    ? (_members.firstWhere((m) => m.id == a.userId, orElse: () => PlanMember(id: '', name: '?', isGuest: false)).name)
-                                                    : (a.guestName ?? "?");
+                                                final name = _getUserName(a.userId, a.guestName);
                                                 return Chip(
                                                     label: Text(
                                                         "$name: ${a.quantity < 1 ? '${(a.quantity*100).toInt()}%' : a.quantity.toStringAsFixed(1)}", // Show % if < 1 (fraction) or Qty if > 1
@@ -875,6 +900,8 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                          avatar = member.avatarUrl;
                      } else if (key.startsWith('guest_')) {
                          name = key.replaceFirst('guest_', '') + " (Inv)";
+                     } else {
+                         name = _getUserName(key, null);
                      }
                      
                      return ListTile(
