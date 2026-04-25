@@ -413,6 +413,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                       await supabase.from('survey_responses').insert({
                                           'restaurant_id': resId,
                                           'plan_id': planId,
+                                          'responses': {}, // Required NOT NULL field
                                           'rating_food': ratingFood > 0 ? ratingFood : null,
                                           'rating_service': ratingService > 0 ? ratingService : null,
                                           'rating_ambiance': ratingAmbiance > 0 ? ratingAmbiance : null,
@@ -427,6 +428,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                   } catch (e) {
                                       if (ctx.mounted) {
                                            Navigator.pop(ctx);
+                                           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error interno enviando encuesta: $e"), duration: const Duration(seconds: 4)));
                                            Navigator.pop(context, true); 
                                       }
                                   }
