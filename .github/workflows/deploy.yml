@@ -25,7 +25,7 @@ jobs:
         run: |
           flutter build web --release \
             --base-href "/" \
-            --dart-define=GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY }}" \
+            --dart-define=GEMINI_API_KEY="${{ secrets.GEMINI_API_KEY_DASHBOARD }}" \
             --dart-define=SUPABASE_URL="${{ secrets.SUPABASE_URL }}" \
             --dart-define=SUPABASE_ANON_KEY="${{ secrets.SUPABASE_ANON_KEY }}" \
             --dart-define=MAPS_API_KEY="${{ secrets.GOOGLE_PLACES_API_KEY }}"
