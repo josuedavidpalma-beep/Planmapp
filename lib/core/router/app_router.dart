@@ -136,7 +136,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         redirect: (context, state) {
            final session = Supabase.instance.client.auth.currentSession;
            // Change this email to the actual master email as needed.
-           if (session?.user.email != 'Josuedavidpalma@gmail.com') {
+           if (session?.user.email?.toLowerCase() != 'josuedavidpalma@gmail.com') {
                return '/';
            }
            return null;

@@ -31,7 +31,7 @@ CREATE TABLE public.survey_responses (
 -- Habilitar RLS en respuestas
 ALTER TABLE public.survey_responses ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Only admin can view survey responses" ON public.survey_responses FOR SELECT USING (
-    auth.jwt() ->> 'email' = 'Josuedavidpalma@gmail.com'
+    auth.jwt() ->> 'email' = 'josuedavidpalma@gmail.com'
 );
 CREATE POLICY "Anyone can insert survey response" ON public.survey_responses FOR INSERT WITH CHECK (true);
 
