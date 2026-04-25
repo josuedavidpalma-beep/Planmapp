@@ -58,11 +58,11 @@ class _GuestScanLandingScreenState extends State<GuestScanLandingScreen> {
       // 3. Crear Plan Temporal (Sobrescribiendo Planmapp nativo)
       final planRes = await _supabase.from('plans').insert({
         'title': 'Ticket en $restaurantName',
-        'theme': 'Gastronómico',
         'creator_id': uid,
-        'date': DateTime.now().toIso8601String(),
-        'time': '${DateTime.now().hour}:${DateTime.now().minute.toString().padLeft(2, '0')}',
-        'location': restaurantName,
+        'event_date': DateTime.now().toIso8601String(),
+        'location_name': restaurantName,
+        'status': 'active',
+        'payment_mode': 'individual',
         'is_temporal': true,
         'restaurant_id': widget.restaurantId
       }).select('id').single();
