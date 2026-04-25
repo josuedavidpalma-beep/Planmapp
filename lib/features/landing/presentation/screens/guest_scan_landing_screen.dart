@@ -33,7 +33,18 @@ class _GuestScanLandingScreenState extends State<GuestScanLandingScreen> {
       if (uid == null) throw Exception("Fallo en generación de ID anónimo");
 
       if (widget.restaurantId == null) {
-         context.go('/onboarding');
+         if (mounted) {
+             showDialog(
+                context: context, 
+                builder: (c) => AlertDialog(
+                  title: const Text("Error B2B2C"),
+                  content: const Text("El código QR no tiene un ID de restaurante válido (rid nulo)."),
+                  actions: [
+                    TextButton(onPressed: () => context.go('/onboarding'), child: const Text("OK"))
+                  ]
+                )
+             );
+         }
          return;
       }
 
@@ -66,7 +77,18 @@ class _GuestScanLandingScreenState extends State<GuestScanLandingScreen> {
 
     } catch (e) {
       debugPrint("Error en flujo de invitado: $e");
-      if (mounted) context.go('/onboarding');
+      if (mounted) {
+         showDialog(
+            context: context, 
+            builder: (c) => AlertDialog(
+              title: const Text("Error B2B2C"),
+              content: Text(e.toString()),
+              actions: [
+                TextButton(onPressed: () => context.go('/onboarding'), child: const Text("OK"))
+              ]
+            )
+         );
+      }
     }
   }
 
