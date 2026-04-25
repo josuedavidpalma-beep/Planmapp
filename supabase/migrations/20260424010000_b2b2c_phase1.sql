@@ -11,6 +11,9 @@ CREATE TABLE public.restaurants (
 -- Habilitar RLS en restaurantes
 ALTER TABLE public.restaurants ENABLE ROW LEVEL SECURITY;
 CREATE POLICY "Anyone can view restaurants" ON public.restaurants FOR SELECT USING (true);
+CREATE POLICY "Admin can insert restaurants" ON public.restaurants FOR INSERT WITH CHECK (auth.jwt() ->> 'email' = 'josuedavidpalma@gmail.com');
+CREATE POLICY "Admin can update restaurants" ON public.restaurants FOR UPDATE USING (auth.jwt() ->> 'email' = 'josuedavidpalma@gmail.com');
+CREATE POLICY "Admin can delete restaurants" ON public.restaurants FOR DELETE USING (auth.jwt() ->> 'email' = 'josuedavidpalma@gmail.com');
 
 
 -- 2. Modificar la Tabla de Planes
