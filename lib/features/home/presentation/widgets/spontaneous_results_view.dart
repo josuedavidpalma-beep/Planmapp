@@ -10,6 +10,7 @@ import 'package:planmapp/features/plan_detail/presentation/screens/plan_detail_s
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:planmapp/features/explore/data/models/event_model.dart';
 import 'package:planmapp/features/explore/services/places_service.dart';
+import 'package:planmapp/features/explore/services/events_service.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 class SpontaneousResultsView extends StatefulWidget {

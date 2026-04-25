@@ -423,7 +423,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                       subtitle: const Text("Avisará a todos los miembros registrados"),
                       onTap: () async {
                           Navigator.pop(c);
-                          await _notifyMembersInApp(title, expenseId);
+                          await _notifyMembersInApp(title, widget.expenseData['id']);
                       },
                   ),
                   ListTile(
