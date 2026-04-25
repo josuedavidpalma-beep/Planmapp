@@ -62,7 +62,7 @@ class _GuestScanLandingScreenState extends State<GuestScanLandingScreen> {
         'event_date': DateTime.now().toIso8601String(),
         'location_name': restaurantName,
         'status': 'active',
-        'payment_mode': 'individual',
+        'payment_mode': 'split',
         'is_temporal': true,
         'restaurant_id': widget.restaurantId
       }).select('id').single();

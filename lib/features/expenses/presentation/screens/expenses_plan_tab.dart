@@ -20,8 +20,9 @@ import 'package:intl/intl.dart';
 class ExpensesPlanTab extends StatefulWidget {
   final String planId;
   final String userRole;
+  final bool showTutorial;
 
-  const ExpensesPlanTab({super.key, required this.planId, this.userRole = 'member'});
+  const ExpensesPlanTab({super.key, required this.planId, this.userRole = 'member', this.showTutorial = false});
 
   @override
   State<ExpensesPlanTab> createState() => _ExpensesPlanTabState();
@@ -38,6 +39,28 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
     super.initState();
     _expenseRepository = ExpenseRepository(Supabase.instance.client);
     _loadData();
+    
+    if (widget.showTutorial) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _showB2B2CTutorial();
+      });
+    }
+  }
+
+  void _showB2B2CTutorial() {
+      showDialog(
+          context: context, 
+          builder: (c) => AlertDialog(
+              title: const Text("Toma foto a la cuenta"),
+              content: const Text("Toca el botón mágico del escáner abajo a la derecha para escanear tu factura y nosotros nos encargamos de dividir e identificar a quién le toca cada cosa automáticamente."),
+              actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(c), 
+                      child: const Text("¡Entendido!")
+                  )
+              ]
+          )
+      );
   }
 
   Future<void> _loadData() async {

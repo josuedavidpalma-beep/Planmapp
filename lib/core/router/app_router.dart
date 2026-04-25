@@ -217,7 +217,15 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
          path: '/plan/:id',
          parentNavigatorKey: rootNavigatorKey,
-         builder: (context, state) => PlanDetailScreen(planId: state.pathParameters['id']!),
+         builder: (context, state) {
+            final tabParam = state.uri.queryParameters['tab'];
+            final autoScanParam = state.uri.queryParameters['auto_scan'];
+            return PlanDetailScreen(
+               planId: state.pathParameters['id']!,
+               initialTab: tabParam != null ? int.tryParse(tabParam) : null,
+               autoScan: autoScanParam == 'true'
+            );
+         }
       ),
       GoRoute(
          path: '/plan/:id/balances',

@@ -34,8 +34,10 @@ import 'package:planmapp/core/presentation/widgets/social_embed_player.dart';
 
 class PlanDetailScreen extends StatefulWidget {
   final String planId;
+  final int? initialTab;
+  final bool autoScan;
 
-  const PlanDetailScreen({super.key, required this.planId});
+  const PlanDetailScreen({super.key, required this.planId, this.initialTab, this.autoScan = false});
 
   @override
   State<PlanDetailScreen> createState() => _PlanDetailScreenState();
@@ -187,11 +189,17 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
       
       if (_tabController.length != requiredLength) {
           final int oldIndex = _tabController.index;
+          int initialIndex = oldIndex < requiredLength ? oldIndex : 0;
+          
+          if (widget.initialTab != null && widget.initialTab! < requiredLength && oldIndex == 0) {
+              initialIndex = widget.initialTab!;
+          }
+
           _tabController.dispose();
           _tabController = TabController(
              length: requiredLength, 
              vsync: this, 
-             initialIndex: oldIndex < requiredLength ? oldIndex : 0
+             initialIndex: initialIndex
           );
           _tabController.addListener(() {
               if (!_tabController.indexIsChanging) setState((){});
