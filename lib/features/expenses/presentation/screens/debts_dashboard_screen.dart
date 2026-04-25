@@ -13,6 +13,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'dart:io';
 import 'package:planmapp/core/utils/currency_formatter.dart';
+import 'package:planmapp/core/widgets/auth_guard.dart';
 
 class DebtsDashboardScreen extends StatefulWidget {
   final String? planId;
@@ -185,6 +186,8 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
   }
 
   Future<void> _sendBulkReminder(List<Map<String, dynamic>> debts, String name, String? phone, double totalAmount, String? debtorId) async {
+      if (!await AuthGuard.ensureAuthenticated(context)) return;
+      
       final formattedTotal = CurrencyInputFormatter.format(totalAmount);
       
       if (debtorId != null) {

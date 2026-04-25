@@ -94,8 +94,6 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
   }
   
   Future<void> _createNewBill({String? initialTitle}) async {
-      if (!await AuthGuard.ensureAuthenticated(context)) return;
-      
       final ImagePicker picker = ImagePicker();
 
       final source = await showModalBottomSheet<ImageSource>(
