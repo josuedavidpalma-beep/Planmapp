@@ -88,8 +88,8 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
               totalAmbiance += a;
               countKpi++;
               
-              // Process dishes if it was a 5-star experience overall
-              if ((f+sr+a)/3 >= 4.5 && s['receipt_items'] != null) {
+              // Process dishes if it was a good experience overall (>= 4.0)
+              if ((f+sr+a)/3 >= 4.0 && s['receipt_items'] != null) {
                   final items = List<Map<String, dynamic>>.from(s['receipt_items']);
                   for (var it in items) {
                       final n = it['name'] as String;
@@ -161,7 +161,7 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
           final response = await model.generateContent([Content.text(prompt)]);
           setState(() => _aiRecommendation = response.text);
       } catch (e) {
-          setState(() => _aiRecommendation = "No pudimos generar la recomendación en este momento. Intenta más tarde.");
+          setState(() => _aiRecommendation = "Error de IA: $e\n\nAsegúrate de que estás ejecutando la app con el entorno correcto (ej: --dart-define=GEMINI_API_KEY=tu_llave)");
       } finally {
           setState(() => _isGeneratingAi = false);
       }
