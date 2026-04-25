@@ -162,8 +162,8 @@ class _AdminQRTabState extends State<_AdminQRTab> {
   Widget build(BuildContext context) {
     String qrData = '';
     if (_selectedResId != null) {
-      // Ajusta 'https://app.planmapp.com' a tu dominio real de producción web 
-      qrData = 'https://app.planmapp.com/scan?rid=$_selectedResId';
+      // Usamos planmapp.app/#/scan porque tu web utiliza Hash-Routing
+      qrData = 'https://planmapp.app/#/scan?rid=$_selectedResId';
     }
 
     return Padding(
