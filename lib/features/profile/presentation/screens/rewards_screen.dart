@@ -62,7 +62,7 @@ class _RewardsScreenState extends State<RewardsScreen> {
                        final r = _rewards[i];
                        final isRedeemed = r['is_redeemed'] == true;
                        final isExpired = DateTime.parse(r['expires_at']).isBefore(DateTime.now());
-                       final restName = r['restaurants']?['name'] ?? 'Restaurante';
+                       final restName = (r['restaurants'] as Map<String, dynamic>?)?['name'] ?? 'Restaurante';
                        
                        Color statusColor = Colors.green;
                        String statusText = "VÁLIDO";
