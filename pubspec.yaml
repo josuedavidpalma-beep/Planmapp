@@ -13,6 +13,7 @@ dependencies:
   # Architecture & State Management
   flutter_localizations:
     sdk: flutter
+  fl_chart: ^0.66.0
   flutter_riverpod: ^2.4.9
   go_router: ^13.0.0
   fpdart: ^1.1.0 # Functional programming helpers

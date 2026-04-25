@@ -28,6 +28,7 @@ import 'package:planmapp/features/expenses/presentation/screens/guest_join_scree
 import 'package:planmapp/features/landing/presentation/screens/plan_landing_screen.dart'; // NEW landing
 import 'package:planmapp/features/landing/presentation/screens/guest_scan_landing_screen.dart'; // B2B2C landing
 import 'package:planmapp/features/admin/presentation/screens/super_admin_screen.dart';
+import 'package:planmapp/features/b2b/presentation/screens/restaurant_insights_screen.dart';
 import 'package:planmapp/features/social/presentation/screens/friends_screen.dart';
 import 'package:planmapp/features/matchmaker/presentation/screens/ai_matchmaker_screen.dart';
 import 'package:planmapp/features/chat/presentation/screens/peer_chat_redirector.dart' as planmapp_imports;
@@ -78,6 +79,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                      state.uri.path.startsWith('/super-admin') || 
                      state.uri.path.startsWith('/invite') || 
                      state.uri.path.startsWith('/pago') || 
+                     state.uri.path.startsWith('/insights') || 
                      state.uri.path.startsWith('/vaca') || 
                      state.uri.queryParameters['guest'] == 'true' || 
                      state.uri.path == '/onboarding-setup';
@@ -198,6 +200,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       ),
 
       // Fullscreen Routes (Overlaying the Shell)
+      GoRoute(
+        path: '/insights',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+            final token = state.uri.queryParameters['token'] ?? '';
+            return RestaurantInsightsScreen(token: token);
+        },
+      ),
       GoRoute(
         path: '/create-plan',
         parentNavigatorKey: rootNavigatorKey, 

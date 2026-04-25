@@ -306,54 +306,72 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
           }
       } 
   }
-
   Future<void> _checkAndShowSurvey(String planId) async {
       final supabase = Supabase.instance.client;
       try {
-          // Check if plan has a restaurant
           final planRes = await supabase.from('plans').select('restaurant_id').eq('id', planId).maybeSingle();
           if (planRes == null || planRes['restaurant_id'] == null) {
               if (mounted) Navigator.pop(context, true);
               return;
           }
           final resId = planRes['restaurant_id'];
-          // Get survey settings from restaurant
-          final restRes = await supabase.from('restaurants').select('survey_settings, name').eq('id', resId).maybeSingle();
-          if (restRes == null || restRes['survey_settings'] == null) {
-              if (mounted) Navigator.pop(context, true);
-              return;
-          }
-          final questions = List<String>.from(restRes['survey_settings']['questions'] ?? []);
-          if (questions.isEmpty) {
+          final restRes = await supabase.from('restaurants').select('name').eq('id', resId).maybeSingle();
+          if (restRes == null) {
               if (mounted) Navigator.pop(context, true);
               return;
           }
 
           if (mounted) {
-              // Show survey dialog
-              final responses = <String, String>{};
-              for (var q in questions) { responses[q] = ''; } // init
+              int ratingFood = 0;
+              int ratingService = 0;
+              int ratingAmbiance = 0;
+              final feedbackCtrl = TextEditingController();
+
+              Widget buildStarRow(String title, int currentRating, Function(int) onUpdate) {
+                 return Column(
+                     crossAxisAlignment: CrossAxisAlignment.start,
+                     children: [
+                         Text(title, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                         Row(
+                             children: List.generate(5, (index) => IconButton(
+                                 onPressed: () => onUpdate(index + 1),
+                                 icon: Icon(index < currentRating ? Icons.star : Icons.star_border, color: Colors.orange)
+                             ))
+                         ),
+                         const SizedBox(height: 10),
+                     ]
+                 );
+              }
 
               await showDialog(
                   barrierDismissible: false,
                   context: context,
                   builder: (ctx) => AlertDialog(
-                      title: Text("Califica a ${restRes['name']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                      backgroundColor: AppTheme.darkBackground,
+                      title: Text("Califica a ${restRes['name']}", style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.white)),
                       content: SizedBox(
                           width: double.maxFinite,
                           child: StatefulBuilder(
-                              builder: (c, setStateModal) => ListView.builder(
-                                  shrinkWrap: true,
-                                  itemCount: questions.length,
-                                  itemBuilder: (c, i) => Padding(
-                                      padding: const EdgeInsets.only(bottom: 12),
-                                      child: TextField(
-                                          decoration: InputDecoration(
-                                              labelText: questions[i],
-                                              border: const OutlineInputBorder()
-                                          ),
-                                          onChanged: (v) => responses[questions[i]] = v,
-                                      ),
+                              builder: (c, setStateModal) => SingleChildScrollView(
+                                  child: Column(
+                                      mainAxisSize: MainAxisSize.min,
+                                      crossAxisAlignment: CrossAxisAlignment.start,
+                                      children: [
+                                          buildStarRow("Comida", ratingFood, (r) => setStateModal(() => ratingFood = r)),
+                                          buildStarRow("Servicio", ratingService, (r) => setStateModal(() => ratingService = r)),
+                                          buildStarRow("Ambiente", ratingAmbiance, (r) => setStateModal(() => ratingAmbiance = r)),
+                                          TextField(
+                                              controller: feedbackCtrl,
+                                              style: const TextStyle(color: Colors.white),
+                                              maxLines: 2,
+                                              decoration: const InputDecoration(
+                                                  labelText: "Tus comentarios",
+                                                  labelStyle: TextStyle(color: Colors.grey),
+                                                  enabledBorder: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey)),
+                                                  focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppTheme.primaryBrand)),
+                                              )
+                                          )
+                                      ]
                                   )
                               )
                           ),
@@ -361,35 +379,40 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                       actions: [
                           TextButton(onPressed: () { 
                              Navigator.pop(ctx); 
-                             Navigator.pop(context, true); // Pop the expense screen too
+                             Navigator.pop(context, true); 
                           }, child: const Text("Omitir", style: TextStyle(color: Colors.grey))),
                           ElevatedButton(
                               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand),
                               onPressed: () async {
                                   try {
+                                      final itemsJson = _items.map((i) => {"name": i.name, "price": i.price, "qty": i.quantity, "id": i.id}).toList();
                                       await supabase.from('survey_responses').insert({
                                           'restaurant_id': resId,
                                           'plan_id': planId,
-                                          'responses': responses
+                                          'rating_food': ratingFood > 0 ? ratingFood : null,
+                                          'rating_service': ratingService > 0 ? ratingService : null,
+                                          'rating_ambiance': ratingAmbiance > 0 ? ratingAmbiance : null,
+                                          'feedback_text': feedbackCtrl.text,
+                                          'receipt_items': itemsJson
                                       });
                                       if (ctx.mounted) {
                                           Navigator.pop(ctx);
                                           ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Gracias por tu opinión!")));
-                                          Navigator.pop(context, true); // Pop the expense screen too
+                                          Navigator.pop(context, true); 
                                       }
-                                  } catch (_) { // Ignore error gracefully
+                                  } catch (e) {
                                       if (ctx.mounted) {
                                            Navigator.pop(ctx);
                                            Navigator.pop(context, true); 
                                       }
                                   }
                               },
-                              child: const Text("Enviar")
+                              child: const Text("Enviar", style: TextStyle(color: Colors.white))
                           )
                       ]
                   )
               );
-          }
+          }   }
       } catch (e) {
           if (mounted) Navigator.pop(context, true);
       }
