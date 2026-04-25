@@ -2,8 +2,8 @@ name: Planmapp Smart Scout
 
 on:
   schedule:
-    # Corre cada 2 días en el minuto 0 de las 3 AM (Hora UTC -> 10 PM Hora Col)
-    - cron: '0 3 */2 * *' 
+    # Corre todos los días en el minuto 0 de las 3 AM (Hora UTC -> 10 PM Hora Col)
+    - cron: '0 3 * * *' 
   workflow_dispatch: # Permite ejecución manual desde GitHub
 
 jobs:

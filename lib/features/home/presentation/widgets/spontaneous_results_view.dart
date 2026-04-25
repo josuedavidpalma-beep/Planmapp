@@ -88,11 +88,46 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                   return cat.contains(queryVibe) || cat.contains(widget.category.toLowerCase());
               }).toList();
               
-              // If not enough results for the exact category, backfill with others to avoid empty states
-              if (filtered.length < 3) {
-                  final otherEvents = dailyEvents.where((e) => !filtered.contains(e)).toList();
-                  otherEvents.shuffle(random);
-                  filtered.addAll(otherEvents.take(10 - filtered.length));
+              // Si no hay suficientes planes nativos (menos de 5), rellenar con info nativa de Google Places para respetar la categoría estrictamente
+              if (filtered.length < 5) {
+                  String gCat = '';
+                  if (widget.category == 'Rumba') gCat = 'bar';
+                  else if (widget.category == 'Chill') gCat = 'cafe';
+                  else if (widget.category == 'Comida') gCat = 'restaurant';
+                  else if (widget.category == 'Aventura') gCat = 'park';
+                  else if (widget.category == 'Cultura') gCat = 'museum';
+                  else if (widget.category == 'Deportes 🏃') gCat = 'gym';
+
+                  if (gCat.isNotEmpty) {
+                      final fallbackPlaces = await PlacesService().getNearbyPlaces(
+                          city: widget.city.isNotEmpty ? widget.city : 'Bogotá',
+                          lat: widget.position.latitude,
+                          lng: widget.position.longitude,
+                          category: gCat,
+                      );
+                      
+                      final remaining = 10 - filtered.length;
+                      final validFallbacks = fallbackPlaces
+                          .where((p) => p['rating'] is num && (p['rating'] as num) >= 4.0)
+                          .take(remaining)
+                          .toList();
+
+                      for (var p in validFallbacks) {
+                          filtered.add(Event(
+                              id: p['place_id'],
+                              title: p['name'] ?? 'Plan Sorpresa',
+                              description: "Un excelente lugar sugerido para tu vibe de ${widget.category}.",
+                              imageUrl: PlacesService().getPhotoUrl(p['photo_reference']),
+                              ratingGoogle: p['rating'],
+                              latitude: p['latitude'],
+                              longitude: p['longitude'],
+                              category: widget.category,
+                              city: widget.city,
+                              googlePlaceId: p['place_id'],
+                              priceLevel: p['price_level']
+                          ));
+                      }
+                  }
               }
           }
 
@@ -126,6 +161,24 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                   'price_range': e.priceLevel,
                   'vibe_tag': e.category
                });
+          }
+
+          // PRIORITIY SORTING based on user explicitly declared interests
+          if (userVibes.isNotEmpty) {
+              loaded.sort((a, b) {
+                 bool aMatches = userVibes.any((v) => (a['desc'] as String).toLowerCase().contains(v.toLowerCase()) || (a['name'] as String).toLowerCase().contains(v.toLowerCase()));
+                 bool bMatches = userVibes.any((v) => (b['desc'] as String).toLowerCase().contains(v.toLowerCase()) || (b['name'] as String).toLowerCase().contains(v.toLowerCase()));
+                 if (aMatches && !bMatches) return -1;
+                 if (!aMatches && bMatches) return 1;
+                 
+                  // If tie, secondary sort is "has promo vs not" to incentivize rich data
+                  bool aPromo = a['promo_highlights'] != null;
+                  bool bPromo = b['promo_highlights'] != null;
+                  if (aPromo && !bPromo) return -1;
+                  if (!aPromo && bPromo) return 1;
+
+                 return (a['dist_val'] as double).compareTo(b['dist_val'] as double);
+              });
           }
 
           if (widget.category == 'Dados') {

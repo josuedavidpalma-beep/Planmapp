@@ -746,19 +746,21 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                             width: double.infinity,
                                             height: 50,
                                             child: ElevatedButton.icon(
-                                              onPressed: () async {
+                                              onPressed: event.sourceUrl!.contains('No publicado') ? null : () async {
                                                 final u = Uri.parse(event.sourceUrl!);
                                                 if (await canLaunchUrl(u)) {
                                                   await launchUrl(u, mode: LaunchMode.externalApplication);
                                                 }
                                               },
                                               icon: Icon(
-                                                event.sourceUrl!.contains('tuboleta') || event.sourceUrl!.contains('eticket') || event.sourceUrl!.contains('entradas') 
-                                                ? Icons.local_activity
-                                                : event.sourceUrl!.contains('wa.me') || event.sourceUrl!.contains('whatsapp')
-                                                  ? Icons.chat
-                                                  : Icons.open_in_browser,
-                                                color: AppTheme.primaryBrand
+                                                event.sourceUrl!.contains('No publicado') 
+                                                ? Icons.link_off
+                                                : event.sourceUrl!.contains('tuboleta') || event.sourceUrl!.contains('eticket') || event.sourceUrl!.contains('entradas') 
+                                                  ? Icons.local_activity
+                                                  : event.sourceUrl!.contains('wa.me') || event.sourceUrl!.contains('whatsapp')
+                                                    ? Icons.chat
+                                                    : Icons.open_in_browser,
+                                                color: event.sourceUrl!.contains('No publicado') ? Colors.grey : AppTheme.primaryBrand
                                               ),
                                               style: ElevatedButton.styleFrom(
                                                 backgroundColor: AppTheme.primaryBrand.withOpacity(0.1),
@@ -766,11 +768,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                                 elevation: 0,
                                               ),
                                               label: Text(
-                                                event.sourceUrl!.contains('tuboleta') || event.sourceUrl!.contains('eticket') || event.sourceUrl!.contains('entradas') 
-                                                ? "Comprar Entradas"
-                                                : event.sourceUrl!.contains('wa.me') || event.sourceUrl!.contains('whatsapp')
-                                                  ? "Reservar por WhatsApp"
-                                                  : "Ver sitio oficial",
+                                                event.sourceUrl!.contains('No publicado')
+                                                ? "Enlace no disponible"
+                                                : event.sourceUrl!.contains('tuboleta') || event.sourceUrl!.contains('eticket') || event.sourceUrl!.contains('entradas') 
+                                                  ? "Comprar Entradas"
+                                                  : event.sourceUrl!.contains('wa.me') || event.sourceUrl!.contains('whatsapp')
+                                                    ? "Reservar por WhatsApp"
+                                                    : "Ver sitio oficial",
                                                 style: const TextStyle(fontWeight: FontWeight.bold)
                                               )
                                             ),

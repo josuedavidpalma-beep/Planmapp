@@ -108,8 +108,8 @@ def process_with_gemini(raw_text: str, place: dict, known_events: list) -> list:
         "end_date": "YYYY-MM-DD",
         "price_range": "$$",
         "vibe_tag": "Gastronomía",
-        "contact_phone": "+573000000000 (Solo si está en el texto crudo, sino null)",
-        "reservation_link": "https://instagram.com/... (Solo si está en el texto crudo, sino null)"
+        "contact_phone": "+573000000000 (Solo si está en el texto crudo, sino pon 'No publicado')",
+        "reservation_link": "https://instagram.com/... (Solo si está en el texto crudo, sino pon 'No publicado')"
       }}
     ]
     Si no encuentras ofertas relevantes o claras, devuelve un arreglo vacío [].
