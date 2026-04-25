@@ -412,7 +412,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                       ]
                   )
               );
-          }   }
+          }
       } catch (e) {
           if (mounted) Navigator.pop(context, true);
       }
