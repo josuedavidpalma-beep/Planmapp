@@ -28,6 +28,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
   List<ExpenseItem> _items = [];
   bool _isLoading = true;
   bool _isSaving = false;
+  bool _showShareBanner = true;
 
   final Map<String, List<AssignmentModel>> _assignments = {};
   final List<String> _tempGuests = [];
@@ -68,9 +69,9 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
         if (!hasMe) {
             try {
                 final profile = await Supabase.instance.client.from('profiles').select('full_name').eq('id', currentUid).maybeSingle();
-                loaded.insert(0, PlanMember(id: currentUid, name: profile?['full_name'] ?? 'Yo', isGuest: false));
+                loaded.insert(0, PlanMember(id: currentUid, name: profile?['full_name'] ?? 'Tú', isGuest: false));
             } catch (_) {
-                loaded.insert(0, PlanMember(id: currentUid, name: 'Yo', isGuest: false));
+                loaded.insert(0, PlanMember(id: currentUid, name: 'Tú', isGuest: false));
             }
         }
     }
@@ -619,8 +620,9 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                   children: [
                 Column(
                   children: [
-                      Container(
-                          margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                      if (_showShareBanner)
+                          Container(
+                              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
                               color: Colors.green.withOpacity(0.1),
@@ -635,7 +637,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                   IconButton(
                                       icon: const Icon(Icons.close, color: Colors.green, size: 20),
                                       onPressed: () {
-                                          // Simple optimistic hide (requires state or redraw, but safe to ignore for MVP)
+                                          setState(() => _showShareBanner = false);
                                       }
                                   )
                               ]

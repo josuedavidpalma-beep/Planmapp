@@ -4,6 +4,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
+import '../../b2b/presentation/screens/restaurant_insights_screen.dart';
 
 class SuperAdminScreen extends StatefulWidget {
   const SuperAdminScreen({super.key});
@@ -153,12 +154,23 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
             ),
             title: Text(r['name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             subtitle: Text("ID: ${r['id']}", style: const TextStyle(color: Colors.white54, fontSize: 11)),
-            trailing: IconButton(
-              icon: const Icon(Icons.delete, color: Colors.redAccent),
-              onPressed: () async {
-                await _supabase.from('restaurants').delete().eq('id', r['id']);
-                _loadRestaurants();
-              },
+            trailing: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                IconButton(
+                  icon: const Icon(Icons.analytics, color: Colors.greenAccent),
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => RestaurantInsightsScreen(token: r['id'])));
+                  },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.delete, color: Colors.redAccent),
+                  onPressed: () async {
+                    await _supabase.from('restaurants').delete().eq('id', r['id']);
+                    _loadRestaurants();
+                  },
+                ),
+              ],
             ),
           ),
         );

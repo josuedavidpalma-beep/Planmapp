@@ -14,7 +14,7 @@ class GuestJoinScreen extends StatefulWidget {
 class _GuestJoinScreenState extends State<GuestJoinScreen> {
   final _nameController = TextEditingController();
   bool _isLoading = true;
-  String _planTitle = "este grupo";
+  String _planTitle = "la cuenta";
   
   @override
   void initState() {
@@ -26,7 +26,7 @@ class _GuestJoinScreenState extends State<GuestJoinScreen> {
       try {
           final res = await Supabase.instance.client.from('plans').select('title').eq('id', widget.planId).maybeSingle();
           if (res != null && mounted) {
-              setState(() => _planTitle = res['title'] ?? "este grupo");
+              setState(() => _planTitle = res['title'] ?? "la cuenta");
           }
           
           final user = Supabase.instance.client.auth.currentUser;
@@ -59,14 +59,23 @@ class _GuestJoinScreenState extends State<GuestJoinScreen> {
           final name = _nameController.text.trim();
           var user = Supabase.instance.client.auth.currentUser;
           
-          // Generate anonymous session if they aren't logged in at all!
+              // Generate anonymous session if they aren't logged in at all!
           if (user == null) {
               final res = await Supabase.instance.client.auth.signInAnonymously();
               user = res.user;
+              // Ensure profile is immediately upserted instead of waiting for DB trigger which might set 'Nuevo Usuario'
+              if (user != null) {
+                  await Supabase.instance.client.from('profiles').upsert({
+                      'id': user.id,
+                      'full_name': name,
+                      'nickname': name,
+                      'updated_at': DateTime.now().toIso8601String()
+                  });
+              }
           }
           
           if (user != null) {
-              // Update anonymous profile to contain their guest name
+              // Also update if they were already logged in but had no name
               await Supabase.instance.client.from('profiles').update({
                   'full_name': name,
                   'nickname': name

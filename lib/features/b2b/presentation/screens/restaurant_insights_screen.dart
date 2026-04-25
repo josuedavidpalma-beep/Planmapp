@@ -4,7 +4,7 @@ import 'package:fl_chart/fl_chart.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class RestaurantInsightsScreen extends StatefulWidget {
-  final String token;
+  final String token; // Can be a token hash or a restaurant_id
   const RestaurantInsightsScreen({Key? key, required this.token}) : super(key: key);
 
   @override
@@ -32,14 +32,21 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
   Future<void> _fetchData() async {
     try {
       final supabase = Supabase.instance.client;
-      // 1. Verify token
+      // 1. Verify token or ID
+      String? resId;
       final tokenRes = await supabase.from('restaurant_tokens').select('restaurant_id').eq('token_hash', widget.token).maybeSingle();
-      if (tokenRes == null) {
+      if (tokenRes != null) {
+          resId = tokenRes['restaurant_id'];
+      } else {
+          // Assume the token passed might be the restaurant UUID directly (Admin View)
+          final checkRes = await supabase.from('restaurants').select('id').eq('id', widget.token).maybeSingle();
+          if (checkRes != null) resId = checkRes['id'];
+      }
+      
+      if (resId == null) {
           setState(() { _errorMsg = "Enlace inválido o expirado."; _isLoading = false; });
           return;
       }
-      
-      final resId = tokenRes['restaurant_id'];
       
       // 2. Load restaurant info
       final restInfo = await supabase.from('restaurants').select('name').eq('id', resId).maybeSingle();
