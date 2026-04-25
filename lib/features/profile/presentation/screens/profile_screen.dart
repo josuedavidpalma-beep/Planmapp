@@ -6,6 +6,7 @@ import 'package:flutter/services.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:planmapp/features/profile/presentation/widgets/avatar_gallery_modal.dart';
 import 'package:planmapp/features/profile/presentation/screens/submit_ticket_screen.dart';
+import 'package:planmapp/features/profile/presentation/screens/rewards_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -510,6 +511,25 @@ class _ProfileScreenState extends State<ProfileScreen> {
                     subtitle: const Text("Gestionar amistades y solicitudes"),
                     trailing: const Icon(Icons.arrow_forward_ios, size: 16),
                     onTap: () => context.push('/friends'),
+                  ),
+                  const Divider(),
+                  
+                  // Rewards Section
+                  ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    leading: Container(
+                      padding: const EdgeInsets.all(8),
+                      decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8)),
+                      child: const Icon(Icons.card_giftcard, color: Colors.orange),
+                    ),
+                    title: const Text("Mis Recompensas", style: TextStyle(fontWeight: FontWeight.bold)),
+                    subtitle: const Text("Cupones y descuentos ganados"),
+                    trailing: const Icon(Icons.arrow_forward_ios, size: 16),
+                    onTap: () {
+                         Navigator.of(context, rootNavigator: true).push(
+                             MaterialPageRoute(builder: (ctx) => const RewardsScreen())
+                         );
+                    },
                   ),
                   const Divider(),
                   

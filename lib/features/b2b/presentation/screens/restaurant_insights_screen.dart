@@ -35,6 +35,9 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
   int _detractors = 0;
   
   List<Map<String, dynamic>> _topDishes = [];
+  List<Map<String, dynamic>> _whales = [];
+  final TextEditingController _validationCtrl = TextEditingController();
+  bool _isValidating = false;
   
   DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
   DateTime _endDate = DateTime.now();
@@ -88,6 +91,7 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
       int spendTxs = 0;
       
       Map<String, int> dishCounts = {};
+      List<Map<String, dynamic>> whales = [];
       
       _promoters = 0;
       _passives = 0;
@@ -127,6 +131,11 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
               if (ticket > 0) {
                  totalSpend += ticket;
                  spendTxs++;
+                 
+                 // Try to record a whale mapping
+                 if (s['user_id'] != null && s['user_id'].toString().isNotEmpty) {
+                     whales.add({'user_id': s['user_id'], 'user_name': s['user_name'] ?? 'Usuario invitado', 'ticket': ticket, 'date': s['created_at']});
+                 }
               }
           }
       }
@@ -145,9 +154,13 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
       var sortedDishes = dishCounts.entries.toList()..sort((a,b) => b.value.compareTo(a.value));
       _topDishes = sortedDishes.take(5).map((e) => {"name": e.key, "hits": e.value}).toList();
       
+      whales.sort((a,b) => b['ticket'].compareTo(a['ticket']));
+      _whales = whales.take(5).toList();
+      
       if (mounted) {
           setState(() {
               _restData = restInfo ?? {'name': 'Restaurante'};
+              if (resId != null) _restData['id'] = resId; // Ensure id is accessible for rewards
               _responses = rawResponses;
               _aiRecommendation = null; // Reset recommendation when data changes
               _isLoading = false;
@@ -158,6 +171,69 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
             setState(() { _errorMsg = e.toString(); _isLoading = false; });
         }
     }
+  }
+
+  Future<void> _rewardUser(Map<String, dynamic> whale) async {
+       final code = "GVP-${DateTime.now().millisecondsSinceEpoch.toString().substring(7)}";
+       try {
+           final sup = Supabase.instance.client;
+           String resId = _restData['id'] ?? widget.token; 
+           
+           await sup.from('restaurant_rewards').insert({
+              'restaurant_id': resId,
+              'user_id': whale['user_id'],
+              'promo_code': code,
+              'discount_percentage': 10,
+              'expires_at': DateTime.now().add(const Duration(days: 30)).toIso8601String()
+           });
+           if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Cupón 10% ($code) enviado a ${whale['user_name']}", style: const TextStyle(color: Colors.green))));
+       } catch(e) {
+           if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error enviando: $e", style: const TextStyle(color: Colors.red))));
+       }
+  }
+
+  Future<void> _validateCoupon() async {
+      final code = _validationCtrl.text.trim();
+      if (code.isEmpty) return;
+      setState(() => _isValidating = true);
+      try {
+           final sup = Supabase.instance.client;
+           final resId = _restData['id']; 
+           final res = await sup.from('restaurant_rewards').select().eq('promo_code', code).eq('restaurant_id', resId).maybeSingle();
+           
+           if (res == null) {
+               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cupón no encontrado o inválido.")));
+           } else if (res['is_redeemed'] == true) {
+               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Este cupón YA fue usado.", style: TextStyle(color: Colors.red))));
+           } else if (DateTime.parse(res['expires_at']).isBefore(DateTime.now())) {
+               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cupón expirado.", style: TextStyle(color: Colors.red))));
+           } else {
+               await sup.from('restaurant_rewards').update({'is_redeemed': true}).eq('id', res['id']);
+               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡CUPÓN VÁLIDO! 10% de descuento aplicado y quemado.", style: TextStyle(color: Colors.green))));
+           }
+      } catch(e) {
+           ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error validador: $e")));
+      } finally {
+           setState(() { _isValidating = false; _validationCtrl.clear(); });
+      }
+  }
+
+  Future<void> _exportActiveCoupons() async {
+       final buffer = StringBuffer();
+       buffer.writeln("Codigo_Cupon,Descuento,Estado,Fecha_Expiracion");
+       try {
+           final base = Supabase.instance.client;
+           final active = await base.from('restaurant_rewards').select().eq('restaurant_id', _restData['id'] ?? widget.token);
+           for (var c in List<Map<String,dynamic>>.from(active)) {
+               final state = c['is_redeemed'] == true ? "Usado" : (DateTime.parse(c['expires_at']).isBefore(DateTime.now()) ? "Expirado" : "Activo");
+               buffer.writeln("${c['promo_code']},${c['discount_percentage']}%,$state,${c['expires_at'].toString().split('T').first}");
+           }
+           final bytes = utf8.encode(buffer.toString());
+           final blob = Uri.dataFromBytes(bytes, mimeType: 'text/csv').toString();
+           await launchUrl(Uri.parse(blob), mode: LaunchMode.externalApplication);
+       } catch (e) {
+           if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error exportando cupones: $e")));
+       }
   }
 
   Future<void> _generateRecommendation() async {
@@ -349,6 +425,69 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
                ]
             );
 
+            final crmCol = Column(
+               crossAxisAlignment: CrossAxisAlignment.stretch,
+               children: [
+                   Row(
+                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                       children: [
+                           const Text("CRM & Recompensas", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                           TextButton.icon(
+                               onPressed: _exportActiveCoupons, 
+                               icon: const Icon(Icons.download, color: Colors.blueAccent), 
+                               label: const Text("Exportar Códigos", style: TextStyle(color: Colors.blueAccent))
+                           )
+                       ],
+                   ),
+                   const SizedBox(height: 16),
+                   Container(
+                       padding: const EdgeInsets.all(16),
+                       decoration: BoxDecoration(color: const Color(0xFF1E1E1E), borderRadius: BorderRadius.circular(15), border: Border.all(color: Colors.grey[800]!)),
+                       child: Column(
+                           crossAxisAlignment: CrossAxisAlignment.start,
+                           children: [
+                               const Text("Clientes VIP (Mayor consumo de este periodo)", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                               const SizedBox(height: 12),
+                               if (_whales.isEmpty) const Text("Nadie registrado con app en las encuestas.", style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+                               ..._whales.map((w) => ListTile(
+                                   contentPadding: EdgeInsets.zero,
+                                   leading: const CircleAvatar(backgroundColor: AppTheme.primaryBrand, child: Icon(Icons.star, color: Colors.black)),
+                                   title: Text(w['user_name'].toString(), style: const TextStyle(color: Colors.white)),
+                                   subtitle: Text("\$${(w['ticket']/1000).toStringAsFixed(1)}k - ${DateFormat('dd MMM').format(DateTime.parse(w['date']))}", style: const TextStyle(color: Colors.grey, fontSize: 12)),
+                                   trailing: ElevatedButton.icon(
+                                       style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.black, visualDensity: VisualDensity.compact),
+                                       icon: const Icon(Icons.card_giftcard, size: 16),
+                                       label: const Text("Premiar"),
+                                       onPressed: () => _rewardUser(w),
+                                   ),
+                               )).toList(),
+                               const Divider(color: Colors.grey, height: 32),
+                               const Text("Validar Código de Descuento en Caja", style: TextStyle(color: Colors.grey, fontSize: 14)),
+                               const SizedBox(height: 8),
+                               Row(
+                                   children: [
+                                       Expanded(child: TextField(
+                                           controller: _validationCtrl,
+                                           style: const TextStyle(color: Colors.white),
+                                           decoration: const InputDecoration(
+                                               hintText: "Ej. GVP-12345", hintStyle: TextStyle(color: Colors.grey),
+                                               isDense: true, border: OutlineInputBorder(borderSide: BorderSide(color: Colors.grey))
+                                           ),
+                                       )),
+                                       const SizedBox(width: 8),
+                                       ElevatedButton(
+                                           style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.black),
+                                           onPressed: _isValidating ? null : _validateCoupon,
+                                           child: _isValidating ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.black)) : const Text("Verificar")
+                                       )
+                                   ]
+                               )
+                           ]
+                       )
+                   )
+               ]
+            );
+
             if (isDesktop) {
                return SingleChildScrollView(
                    padding: const EdgeInsets.all(24),
@@ -374,7 +513,14 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
                                ]
                            ),
                            const SizedBox(height: 32),
-                           aiCol,
+                           Row(
+                               crossAxisAlignment: CrossAxisAlignment.start,
+                               children: [
+                                   Expanded(flex: 2, child: aiCol),
+                                   const SizedBox(width: 32),
+                                   Expanded(flex: 2, child: crmCol),
+                               ]
+                           )
                        ]
                    )
                );
@@ -397,6 +543,8 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
                         topDishesCol,
                         const SizedBox(height: 32),
                         aiCol,
+                        const SizedBox(height: 32),
+                        crmCol,
                     ]
                 )
             );

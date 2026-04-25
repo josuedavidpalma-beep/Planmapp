@@ -421,6 +421,8 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                       await supabase.from('survey_responses').insert({
                                           'restaurant_id': resId,
                                           'plan_id': planId,
+                                          'user_id': Supabase.instance.client.auth.currentUser?.id,
+                                          'user_name': _getUserName(Supabase.instance.client.auth.currentUser?.id, widget.expenseData['guest_name']),
                                           'responses': {}, // Required NOT NULL field
                                           'rating_food': ratingFood > 0 ? ratingFood : null,
                                           'rating_service': ratingService > 0 ? ratingService : null,
