@@ -159,6 +159,14 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                  if (!granted && kIsWeb && !isNotificationGranted) {
                      if (mounted) {
                          final isIos = defaultTargetPlatform == TargetPlatform.iOS;
+                         final titleInfo = !isPwaStandalone ? "Instala la App" : "Activa las Alertas";
+                         final iconInfo = !isPwaStandalone ? Icons.add_to_home_screen : Icons.notifications_off;
+                         final contentInfo = !isPwaStandalone
+                                ? (isIos 
+                                    ? "Para que tu iPhone suene y recibas notificaciones de chat o cobros, debes instalar Planmapp:\n\n1. Toca en 'Compartir' (el cuadrado con flecha abajo en Safari).\n2. Selecciona 'Agregar a inicio'.\n3. Abre Planmapp desde tu pantalla de inicio."
+                                    : "Para la mejor experiencia y notificaciones, instala Planmapp: Toca los 3 puntos del navegador y selecciona 'Instalar aplicación' o 'Agregar a la pantalla principal'.")
+                                : "Estás usando Planmapp app pero tienes las notificaciones bloqueadas. Para enterarte de respuestas de chat y cobros, es necesario habilitarlas en la configuración de la app de tu teléfono (Settings).";
+
                          showDialog(
                              context: context, 
                              builder: (c) => AlertDialog(
@@ -166,15 +174,13 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
                                  title: Row(
                                     children: [
-                                        Icon(isIos ? Icons.add_to_home_screen : Icons.notifications_off, color: Colors.orange),
+                                        Icon(iconInfo, color: Colors.orange),
                                         const SizedBox(width: 10),
-                                        Text(isIos ? "Instala la App" : "Activa las Alertas", style: const TextStyle(color: Colors.white, fontSize: 18))
+                                        Expanded(child: Text(titleInfo, style: const TextStyle(color: Colors.white, fontSize: 18)))
                                     ]
                                  ),
                                  content: Text(
-                                     isIos 
-                                     ? "Para que tu iPhone suene y recibas notificaciones de chat o cobros, debes instalar Planmapp:\n\n1. Toca en 'Compartir' (el cuadrado con flecha abajo en Safari).\n2. Selecciona 'Agregar a inicio'.\n3. Abre Planmapp desde tu pantalla de inicio."
-                                     : "Estás usando Planmapp app pero tienes las notificaciones bloqueadas. Para enterarte de respuestas de chat y cobros, es necesario habilitarlas en la configuración de Chrome o de la app de tu teléfono (Settings).",
+                                     contentInfo,
                                      style: const TextStyle(color: Colors.white70)
                                  ),
                                  actions: [

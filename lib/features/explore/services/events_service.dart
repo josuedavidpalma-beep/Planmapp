@@ -129,7 +129,14 @@ class EventsService {
 
       final places = await _placesService.getNearbyPlaces(city: city, lat: lat, lng: lng, category: category);
       
-      List<Event> events = places.map((p) => Event(
+      List<Event> events = places
+        .where((p) {
+            final rating = p['rating'];
+            if (rating == null) return false;
+            final numRating = rating is num ? rating : num.tryParse(rating.toString()) ?? 0.0;
+            return numRating >= 4.0;
+        })
+        .map((p) => Event(
         id: p['place_id'],
         title: p['name'],
         address: p['address'],
@@ -156,7 +163,7 @@ class EventsService {
               category: "Cine & Arte",
               city: city,
               sourceUrl: "https://www.cinecolombia.com", 
-              promoHighlights: "🍿 COMPRAR BOLETAS ONLINE",
+              promoHighlights: "🎟 COMPRAR BOLETAS ONLINE",
           ));
       }
 
@@ -169,52 +176,35 @@ class EventsService {
 
       // 2. STRICT INTEREST FILTERING & RANKING
       if (userInterests != null && userInterests.isNotEmpty) {
-          // Translate user vibes (Spanish) to Google Places tags (English)
-          final Set<String> validTags = {};
-          for (final raw in userInterests) {
-              final interest = raw.toLowerCase();
-              if (interest == 'gastronomy' || interest.contains('comida') || interest.contains('gastro')) { validTags.addAll(['restaurant', 'food', 'cafe', 'bakery']); }
-              if (interest == 'nightlife' || interest.contains('rumba') || interest.contains('party')) { validTags.addAll(['bar', 'night_club']); }
-              if (interest == 'outdoors' || interest.contains('aventura')) { validTags.addAll(['park', 'amusement_park', 'campground']); }
-              if (interest == 'culture' || interest == 'cinema' || interest.contains('cultura') || interest.contains('cine') || interest.contains('arte')) { validTags.addAll(['museum', 'tourist_attraction', 'movie_theater', 'art_gallery']); }
-              if (interest.contains('chill') || interest.contains('café')) { validTags.addAll(['cafe', 'spa', 'park']); }
-              if (interest == 'sports' || interest.contains('belleza') || interest.contains('deporte')) { validTags.addAll(['beauty_salon', 'spa', 'gym', 'sports_club']); }
-          }
-          
-          // Group events by category
-          final Map<String, List<Event>> categorizedEvents = {};
+          final List<Event> highlyMatched = [];
+          final List<Event> moderatelyMatched = [];
           final List<Event> otherEvents = [];
           
           for (var e in events) {
-             if (e.id == 'cartelera_nacional') continue; // Handled later
-             final cat = e.category?.toLowerCase() ?? '';
-             bool hasVibe = validTags.any((t) => cat.contains(t));
-             bool exactMatch = userInterests.any((int) => e.title.toLowerCase().contains(int.toLowerCase()));
+             if (e.id == 'cartelera_nacional') continue;
              
-             if (hasVibe || exactMatch) {
-                 categorizedEvents.putIfAbsent(cat, () => []).add(e);
+             final title = e.title.toLowerCase();
+             final desc = (e.description ?? '').toLowerCase();
+             
+             bool isHighMatch = userInterests.any((vibe) {
+                 final v = vibe.toLowerCase();
+                 return title.contains(v) || desc.contains(v);
+             });
+             
+             if (isHighMatch) {
+                 highlyMatched.add(e);
+             } else if (userInterests.any((v) => e.category?.toLowerCase().contains(v.toLowerCase()) ?? false)) {
+                 moderatelyMatched.add(e);
              } else {
                  otherEvents.add(e);
              }
           }
           
-          // Interleave (Round-Robin) to avoid long lists of identical place types
-          final List<Event> interleaved = [];
-          bool added = true;
-          while(added) {
-              added = false;
-              for (var key in categorizedEvents.keys) {
-                  if (categorizedEvents[key]!.isNotEmpty) {
-                      interleaved.add(categorizedEvents[key]!.removeAt(0));
-                      added = true;
-                  }
-              }
-          }
+          highlyMatched.shuffle();
+          moderatelyMatched.shuffle();
           
-          // Add remaining non-matched events at the bottom
-          interleaved.addAll(otherEvents);
+          final List<Event> interleaved = [...highlyMatched, ...moderatelyMatched, ...otherEvents];
           
-          // Inject billboard back at the top if it was present
           final billboardIndex = events.indexWhere((e) => e.id == 'cartelera_nacional');
           if (billboardIndex != -1) {
               interleaved.insert(0, events[billboardIndex]);
