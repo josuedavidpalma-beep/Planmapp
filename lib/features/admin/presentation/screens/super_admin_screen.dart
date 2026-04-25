@@ -3,8 +3,8 @@ import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
-import 'package:planmapp/core/theme/app_theme.dart';
-import '../../b2b/presentation/screens/restaurant_insights_screen.dart';
+import '../../../../core/theme/app_theme.dart';
+import '../../../b2b/presentation/screens/restaurant_insights_screen.dart';
 
 class SuperAdminScreen extends StatefulWidget {
   const SuperAdminScreen({super.key});
