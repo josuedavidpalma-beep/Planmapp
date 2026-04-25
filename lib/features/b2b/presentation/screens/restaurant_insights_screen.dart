@@ -166,7 +166,7 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
           const apiKey = String.fromEnvironment('GEMINI_API_KEY');
           if (apiKey.isEmpty) throw "Llave de API no configurada (GEMINI_API_KEY)";
 
-          final model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: apiKey);
+          final model = GenerativeModel(model: 'gemini-2.5-flash', apiKey: apiKey);
           
           final feedBacks = _responses.map((s) => s['feedback_text']).where((t) => t != null && t.toString().trim().isNotEmpty).join(' | ');
           
