@@ -156,7 +156,15 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
           if (uId == Supabase.instance.client.auth.currentUser?.id) return 'Tú';
           final m = _members.cast<PlanMember?>().firstWhere((m) => m?.id == uId, orElse: () => null);
           if (m != null) return m.name;
-          return _dynamicNames[uId] ?? '...';
+          
+          final dbName = _dynamicNames[uId];
+          final creatorId = widget.expenseData['created_by'];
+          
+          if (uId == creatorId && (dbName == null || dbName.toLowerCase().contains("nuevo usuario") || dbName.toLowerCase() == "usuario")) {
+              return "Organizador";
+          }
+          
+          return dbName ?? '...';
       }
       return gName ?? "?";
   }

@@ -958,7 +958,6 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
   }
 
   Future<void> _createNewBill() async {
-      if (!await AuthGuard.ensureAuthenticated(context)) return;
       
       final titleController = TextEditingController();
       final confirm = await showDialog<bool>(context: context, builder: (context) => AlertDialog(

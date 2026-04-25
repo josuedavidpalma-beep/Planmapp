@@ -1,6 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fl_chart/fl_chart.dart';
+import 'package:google_generative_ai/google_generative_ai.dart';
+import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class RestaurantInsightsScreen extends StatefulWidget {
@@ -22,6 +24,12 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
   double _avgTicket = 0.0;
   int _totalSurveys = 0;
   List<Map<String, dynamic>> _topDishes = [];
+  
+  DateTime _startDate = DateTime.now().subtract(const Duration(days: 30));
+  DateTime _endDate = DateTime.now();
+
+  String? _aiRecommendation;
+  bool _isGeneratingAi = false;
 
   @override
   void initState() {
@@ -51,9 +59,11 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
       // 2. Load restaurant info
       final restInfo = await supabase.from('restaurants').select('name').eq('id', resId).maybeSingle();
       
-      // 3. Load past 30 days surveys
-      final thirtyDaysAgo = DateTime.now().subtract(const Duration(days: 30)).toIso8601String();
-      final surveysRes = await supabase.from('survey_responses').select().eq('restaurant_id', resId).gte('created_at', thirtyDaysAgo);
+      // 3. Load past X days surveys based on filters
+      final surveysRes = await supabase.from('survey_responses').select()
+          .eq('restaurant_id', resId)
+          .gte('created_at', _startDate.toIso8601String())
+          .lte('created_at', _endDate.add(const Duration(days: 1)).toIso8601String()); // Include the whole end day
       final List<Map<String, dynamic>> rawResponses = List<Map<String, dynamic>>.from(surveysRes);
       
       _totalSurveys = rawResponses.length;
@@ -115,6 +125,7 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
           setState(() {
               _restData = restInfo ?? {'name': 'Restaurante'};
               _responses = rawResponses;
+              _aiRecommendation = null; // Reset recommendation when data changes
               _isLoading = false;
           });
       }
@@ -123,6 +134,65 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
             setState(() { _errorMsg = e.toString(); _isLoading = false; });
         }
     }
+  }
+
+  Future<void> _generateRecommendation() async {
+      setState(() => _isGeneratingAi = true);
+      try {
+          const apiKey = String.fromEnvironment('GEMINI_API_KEY');
+          if (apiKey.isEmpty) throw "Llave de API no configurada (GEMINI_API_KEY)";
+
+          final model = GenerativeModel(model: 'gemini-1.5-flash', apiKey: apiKey);
+          
+          final feedBacks = _responses.map((s) => s['feedback_text']).where((t) => t != null && t.toString().trim().isNotEmpty).join(' | ');
+          
+          final prompt = '''
+Eres un Analista de Inteligencia de Negocios (BI) experto en la industria gastronómica.
+Genera una conclusión profesional y recomendaciones accionables en español (máximo 150 palabras) usando esta data del restaurante "${_restData['name']}" (Últimos ${_endDate.difference(_startDate).inDays} días):
+- Calificación media: ${_avgGeneral.toStringAsFixed(1)} / 5.0
+- Valor del ticket promedio: \$${_avgTicket.toStringAsFixed(0)}
+- Cantidad de encuestas recibidas: $_totalSurveys
+- Platos más repetidos en experiencias 5 estrellas: ${_topDishes.map((d) => d['name']).join(', ')}
+- Reseñas de clientes leales: ${feedBacks.isEmpty ? 'Sin comentarios.' : feedBacks}
+
+Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con los "Insights" o conclusiones fuertes y luego una "Sugerencia Estratégica" clara y asertiva.
+          ''';
+          
+          final response = await model.generateContent([Content.text(prompt)]);
+          setState(() => _aiRecommendation = response.text);
+      } catch (e) {
+          setState(() => _aiRecommendation = "No pudimos generar la recomendación en este momento. Intenta más tarde.");
+      } finally {
+          setState(() => _isGeneratingAi = false);
+      }
+  }
+
+  Future<void> _pickDateRange() async {
+      final picked = await showDateRangePicker(
+          context: context,
+          firstDate: DateTime(2020),
+          lastDate: DateTime.now(),
+          initialDateRange: DateTimeRange(start: _startDate, end: _endDate),
+          builder: (context, child) => Theme(
+              data: Theme.of(context).copyWith(
+                  colorScheme: const ColorScheme.dark(
+                      primary: AppTheme.primaryBrand,
+                      onPrimary: Colors.black,
+                      surface: AppTheme.darkBackground,
+                      onSurface: Colors.white,
+                  ),
+              ),
+              child: child!,
+          ),
+      );
+      if (picked != null) {
+          setState(() {
+              _startDate = picked.start;
+              _endDate = picked.end;
+              _isLoading = true;
+          });
+          _fetchData();
+      }
   }
 
   @override
@@ -145,7 +215,20 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
             child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                    const Text("Métricas Clave (Últimos 30 dís)", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                            Text(
+                                "Métricas (${DateFormat('MMM d').format(_startDate)} - ${DateFormat('MMM d').format(_endDate)})", 
+                                style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)
+                            ),
+                            TextButton.icon(
+                                onPressed: _pickDateRange, 
+                                icon: const Icon(Icons.date_range, color: AppTheme.primaryBrand, size: 18), 
+                                label: const Text("Filtrar", style: TextStyle(color: AppTheme.primaryBrand))
+                            )
+                        ],
+                    ),
                     const SizedBox(height: 16),
                     Row(
                         children: [
@@ -178,11 +261,55 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
                             decoration: BoxDecoration(color: Colors.orange.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
                             child: Text("${d['hits']} veces", style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
                         ),
-                    )).toList()
+                    )).toList(),
+                    
+                    const SizedBox(height: 32),
+                    const Text("AI Business Insights ✨", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                    const SizedBox(height: 16),
+                    _buildAIPanel(),
                 ]
             )
         )
     );
+  }
+
+  Widget _buildAIPanel() {
+      return Container(
+          padding: const EdgeInsets.all(20),
+          decoration: BoxDecoration(
+              gradient: LinearGradient(colors: [Colors.indigo.shade900.withOpacity(0.5), Colors.purple.shade900.withOpacity(0.5)]),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: Colors.purpleAccent.withOpacity(0.3))
+          ),
+          child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                  Row(
+                      children: [
+                          const Icon(Icons.auto_awesome, color: Colors.purpleAccent),
+                          const SizedBox(width: 8),
+                          const Text("Recomendador Estratégico", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                          const Spacer(),
+                          if (_totalSurveys > 0 && _aiRecommendation == null && !_isGeneratingAi)
+                             ElevatedButton(
+                                 style: ElevatedButton.styleFrom(backgroundColor: Colors.purpleAccent, foregroundColor: Colors.white, visualDensity: VisualDensity.compact),
+                                 onPressed: _generateRecommendation, 
+                                 child: const Text("Analizar")
+                             )
+                      ],
+                  ),
+                  const SizedBox(height: 12),
+                  if (_totalSurveys == 0)
+                      const Text("Necesitas recolectar datos en este periodo para generar un análisis.", style: TextStyle(color: Colors.grey))
+                  else if (_isGeneratingAi)
+                      const Row(children: [SizedBox(width:20, height:20, child: CircularProgressIndicator(strokeWidth: 2, color: Colors.purpleAccent)), SizedBox(width: 12), Text("Gemini está analizando la data...", style: TextStyle(color: Colors.grey))])
+                  else if (_aiRecommendation != null)
+                      Text(_aiRecommendation!, style: const TextStyle(color: Colors.white, height: 1.5))
+                  else
+                      const Text("Presiona Analizar para que nuestra IA procese el ticket promedio, las preferencias de platos y los comentarios para sugerirte medidas concretas.", style: TextStyle(color: Colors.grey, fontSize: 13))
+              ],
+          ),
+      );
   }
 
   Widget _kpiCard(String title, String val, IconData icon, Color color) {
