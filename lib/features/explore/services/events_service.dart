@@ -56,8 +56,9 @@ final feedEventsProvider = FutureProvider.family<List<Event>, String>((ref, cach
       }
   }
 
-  // Juntar promos independientes (prioritarias) seguidas de lugares adaptados
-  final List<Event> finalSpontaneousFeed = [...standalonePromos, ...nestedPlaces];
+  // La seccion de Explorar debe SER SOLO PARA LOCALES (con descuentos o informaciones integradas).
+  // Los standalonePromos (Planes) ya no se muestran aqui.
+  final List<Event> finalSpontaneousFeed = [...nestedPlaces];
 
   // Preserve billboard positioning if injected by getPlaces
   final billboardIndex = finalSpontaneousFeed.indexWhere((e) => e.id == 'cartelera_nacional');

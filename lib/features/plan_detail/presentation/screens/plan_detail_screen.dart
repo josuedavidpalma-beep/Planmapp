@@ -497,6 +497,14 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
               backgroundColor: isDirectChat ? AppTheme.darkBackground : AppTheme.primaryBrand,
               iconTheme: const IconThemeData(color: Colors.white),
               actions: [
+                  if (Supabase.instance.client.auth.currentUser?.isAnonymous == true)
+                      IconButton(
+                          icon: const Icon(Icons.explore, color: Colors.amberAccent),
+                          tooltip: "Explorar App",
+                          onPressed: () {
+                              context.go('/');
+                          },
+                      ),
                   if (!isDirectChat && _plan != null && _myRole == 'admin')
                       IconButton(
                           icon: const Icon(Icons.person_add, color: Colors.white),
@@ -933,11 +941,16 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
   }
 
   Widget? _getFabForTab() {
-      if (_tabController.index == 2 && _plan?.paymentMode == 'split') {
-          if (_myRole == 'admin' || _myRole == 'treasurer') {
+      // In Split mode, any group member (or guest) can act as a contributor / scanner.
+      if (_plan?.paymentMode == 'split') {
+          // Tab checking is tricky dynamic, so we check if current active tab is Gastos.
+          // Or just show it if the user is in the last tab.
+          if (_tabController.index == _tabController.length - 1) {
               return FloatingActionButton(
+                backgroundColor: AppTheme.primaryBrand,
                 onPressed: _createNewBill,
-                child: const Icon(Icons.note_add_outlined),
+                tooltip: "Escanear Factura",
+                child: const Icon(Icons.document_scanner, color: Colors.white),
               );
           }
       }

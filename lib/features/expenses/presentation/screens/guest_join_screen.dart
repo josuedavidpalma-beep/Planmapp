@@ -4,8 +4,8 @@ import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 class GuestJoinScreen extends StatefulWidget {
-  final String expenseId;
-  const GuestJoinScreen({super.key, required this.expenseId});
+  final String planId;
+  const GuestJoinScreen({super.key, required this.planId});
 
   @override
   State<GuestJoinScreen> createState() => _GuestJoinScreenState();
@@ -14,7 +14,7 @@ class GuestJoinScreen extends StatefulWidget {
 class _GuestJoinScreenState extends State<GuestJoinScreen> {
   final _nameController = TextEditingController();
   bool _isLoading = true;
-  String _expenseTitle = "esta vaca";
+  String _planTitle = "este grupo";
   
   @override
   void initState() {
@@ -24,32 +24,72 @@ class _GuestJoinScreenState extends State<GuestJoinScreen> {
 
   Future<void> _checkAuthAndLoad() async {
       try {
-          final res = await Supabase.instance.client.from('expenses').select('title').eq('id', widget.expenseId).single();
-          if (mounted) setState(() => _expenseTitle = res['title']);
+          final res = await Supabase.instance.client.from('plans').select('title').eq('id', widget.planId).maybeSingle();
+          if (res != null && mounted) {
+              setState(() => _planTitle = res['title'] ?? "este grupo");
+          }
           
           final user = Supabase.instance.client.auth.currentUser;
+          // If the user already has a nickname/profile, just log them straight to the plan
           if (user != null) {
-              // Pre-fill or skip directly if authenticated
-              final profile = await Supabase.instance.client.from('profiles').select('full_name').eq('id', user.id).single();
-              final name = profile['full_name'] as String;
-              if (mounted) {
-                 context.go('/vaca/${widget.expenseId}/split?name=${Uri.encodeComponent(name)}&uid=${user.id}');
+              final profile = await Supabase.instance.client.from('profiles').select('full_name, nickname').eq('id', user.id).maybeSingle();
+              if (profile != null && (profile['nickname'] != null || profile['full_name'] != null)) {
+                  if (mounted) {
+                     context.go('/plan/${widget.planId}?tab=2');
+                     return;
+                  }
               }
-          } else {
-             if (mounted) setState(() => _isLoading = false);
           }
+          
+          if (mounted) setState(() => _isLoading = false);
       } catch (e) {
          if (mounted) {
             setState(() => _isLoading = false);
-            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error cargando la vaca: $e')));
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error cargando el grupo: $e')));
          }
       }
   }
 
-  void _join() {
+  Future<void> _join() async {
       if (_nameController.text.trim().isEmpty) return;
-      final guestName = "guest_${_nameController.text.trim()}"; 
-      context.go('/vaca/${widget.expenseId}/split?name=${Uri.encodeComponent(_nameController.text.trim())}&uid=$guestName');
+      
+      setState(() => _isLoading = true);
+      
+      try {
+          final name = _nameController.text.trim();
+          var user = Supabase.instance.client.auth.currentUser;
+          
+          // Generate anonymous session if they aren't logged in at all!
+          if (user == null) {
+              final res = await Supabase.instance.client.auth.signInAnonymously();
+              user = res.user;
+          }
+          
+          if (user != null) {
+              // Update anonymous profile to contain their guest name
+              await Supabase.instance.client.from('profiles').update({
+                  'full_name': name,
+                  'nickname': name
+              }).eq('id', user.id);
+              
+              // Register them formally as plan members so they can split!
+              await Supabase.instance.client.from('plan_members').upsert({
+                  'plan_id': widget.planId,
+                  'user_id': user.id,
+                  'status': 'accepted',
+                  'role': 'member'
+              }, onConflict: 'plan_id, user_id');
+              
+              if (mounted) {
+                 context.go('/plan/${widget.planId}?tab=2');
+              }
+          }
+      } catch (e) {
+          if (mounted) {
+              setState(() => _isLoading = false);
+              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error al ingresar: $e')));
+          }
+      }
   }
 
   @override
@@ -57,7 +97,7 @@ class _GuestJoinScreenState extends State<GuestJoinScreen> {
     if (_isLoading) return const Scaffold(body: Center(child: CircularProgressIndicator()));
     
     return Scaffold(
-        appBar: AppBar(title: const Text("Unirse a la Vaca", style: TextStyle(fontWeight: FontWeight.bold))),
+        appBar: AppBar(title: const Text("Unirse", style: TextStyle(fontWeight: FontWeight.bold))),
         body: Center(
             child: ConstrainedBox(
                 constraints: const BoxConstraints(maxWidth: 400),
@@ -68,9 +108,9 @@ class _GuestJoinScreenState extends State<GuestJoinScreen> {
                         children: [
                             const Icon(Icons.receipt_long, size: 80, color: AppTheme.primaryBrand),
                             const SizedBox(height: 24),
-                            Text("Te han invitado a dividir\n*$_expenseTitle*", textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                            Text("Te han invitado a dividir\n*$_planTitle*", textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
                             const SizedBox(height: 8),
-                            const Text("Ingresa tu nombre para comenzar y seleccionar qué consumiste.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                            const Text("Ingresa tu nombre para entrar y ver la cuenta.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
                             const SizedBox(height: 32),
                             TextField(
                                 controller: _nameController,
@@ -85,7 +125,7 @@ class _GuestJoinScreenState extends State<GuestJoinScreen> {
                             ElevatedButton(
                                 onPressed: _join,
                                 style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 50)),
-                                child: const Text("Entrar a la Vaca", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                child: const Text("Entrar a la Cuenta", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
                             )
                         ]
                     )

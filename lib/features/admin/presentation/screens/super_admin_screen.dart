@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
@@ -117,6 +118,39 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
         return Card(
           color: AppTheme.surfaceDark,
           child: ListTile(
+            leading: IconButton(
+                icon: const Icon(Icons.settings, color: Colors.blue),
+                onPressed: () async {
+                    String currentJson = "{}";
+                    try {
+                        currentJson = jsonEncode(r['survey_settings'] ?? {"questions": []});
+                    } catch(_) {}
+                    
+                    final ctrl = TextEditingController(text: currentJson);
+                    final save = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+                        title: const Text("Editar Encuesta"),
+                        content: TextField(
+                            controller: ctrl,
+                            maxLines: 5,
+                            decoration: const InputDecoration(hintText: '{"questions": ["Pregunta 1?"]}'),
+                        ),
+                        actions: [
+                           TextButton(onPressed: () => Navigator.pop(c), child: const Text("Cancelar")),
+                           ElevatedButton(onPressed: () => Navigator.pop(c, true), child: const Text("Guardar"))
+                        ]
+                    ));
+                    
+                    if (save == true) {
+                        try {
+                            final decoded = jsonDecode(ctrl.text);
+                            await _supabase.from('restaurants').update({'survey_settings': decoded}).eq('id', r['id']);
+                            _loadRestaurants();
+                        } catch (e) {
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("JSON Invalido: $e")));
+                        }
+                    }
+                }
+            ),
             title: Text(r['name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             subtitle: Text("ID: ${r['id']}", style: const TextStyle(color: Colors.white54, fontSize: 11)),
             trailing: IconButton(

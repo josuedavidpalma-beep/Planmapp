@@ -292,8 +292,12 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
           await _expenseRepository.calculateAndUpdateDebts(expenseId);
 
           if (mounted) {
-              Navigator.pop(context, true);
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cambios guardados exitosamente")));
+              if (widget.expenseData['plan_id'] != null) {
+                  await _checkAndShowSurvey(widget.expenseData['plan_id']);
+              } else {
+                  Navigator.pop(context, true);
+              }
           }
       } catch (e) {
           if (mounted) {
@@ -303,17 +307,105 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
       } 
   }
 
+  Future<void> _checkAndShowSurvey(String planId) async {
+      final supabase = Supabase.instance.client;
+      try {
+          // Check if plan has a restaurant
+          final planRes = await supabase.from('plans').select('restaurant_id').eq('id', planId).maybeSingle();
+          if (planRes == null || planRes['restaurant_id'] == null) {
+              if (mounted) Navigator.pop(context, true);
+              return;
+          }
+          final resId = planRes['restaurant_id'];
+          // Get survey settings from restaurant
+          final restRes = await supabase.from('restaurants').select('survey_settings, name').eq('id', resId).maybeSingle();
+          if (restRes == null || restRes['survey_settings'] == null) {
+              if (mounted) Navigator.pop(context, true);
+              return;
+          }
+          final questions = List<String>.from(restRes['survey_settings']['questions'] ?? []);
+          if (questions.isEmpty) {
+              if (mounted) Navigator.pop(context, true);
+              return;
+          }
+
+          if (mounted) {
+              // Show survey dialog
+              final responses = <String, String>{};
+              for (var q in questions) { responses[q] = ''; } // init
+
+              await showDialog(
+                  barrierDismissible: false,
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                      title: Text("Califica a ${restRes['name']}", style: const TextStyle(fontWeight: FontWeight.bold)),
+                      content: SizedBox(
+                          width: double.maxFinite,
+                          child: StatefulBuilder(
+                              builder: (c, setStateModal) => ListView.builder(
+                                  shrinkWrap: true,
+                                  itemCount: questions.length,
+                                  itemBuilder: (c, i) => Padding(
+                                      padding: const EdgeInsets.only(bottom: 12),
+                                      child: TextField(
+                                          decoration: InputDecoration(
+                                              labelText: questions[i],
+                                              border: const OutlineInputBorder()
+                                          ),
+                                          onChanged: (v) => responses[questions[i]] = v,
+                                      ),
+                                  )
+                              )
+                          ),
+                      ),
+                      actions: [
+                          TextButton(onPressed: () { 
+                             Navigator.pop(ctx); 
+                             Navigator.pop(context, true); // Pop the expense screen too
+                          }, child: const Text("Omitir", style: TextStyle(color: Colors.grey))),
+                          ElevatedButton(
+                              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand),
+                              onPressed: () async {
+                                  try {
+                                      await supabase.from('survey_responses').insert({
+                                          'restaurant_id': resId,
+                                          'plan_id': planId,
+                                          'responses': responses
+                                      });
+                                      if (ctx.mounted) {
+                                          Navigator.pop(ctx);
+                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Gracias por tu opinión!")));
+                                          Navigator.pop(context, true); // Pop the expense screen too
+                                      }
+                                  } catch (_) { // Ignore error gracefully
+                                      if (ctx.mounted) {
+                                           Navigator.pop(ctx);
+                                           Navigator.pop(context, true); 
+                                      }
+                                  }
+                              },
+                              child: const Text("Enviar")
+                          )
+                      ]
+                  )
+              );
+          }
+      } catch (e) {
+          if (mounted) Navigator.pop(context, true);
+      }
+  }
+
   Future<void> _shareVacaLink() async {
-      final expenseId = widget.expenseData['id'];
-      if (expenseId == null) {
-          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error: No se encontró el ID de la Vaca')));
+      final planId = widget.expenseData['plan_id'];
+      if (planId == null) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Error: No se encontró el ID del Plan')));
           return;
       }
       
       final title = widget.expenseData['title'] ?? 'La Vaca';
       final base = kIsWeb ? Uri.base.origin : "https://planmapp.app";
-      final link = "$base/#/vaca/$expenseId"; 
-      final msg = "¡Hey! Ya está lista la Vaca para *$title* 🐮.\n\nEscoge qué consumiste en este link para saber cuánto te toca pagar:\n$link";
+      final link = "$base/#/vaca/$planId"; 
+      final msg = "¡Hey! Ya está lista la Vaca para *$title* 💸.\n\nEscoge qué consumiste en este link para saber cuánto te toca pagar:\n$link";
       
       await showModalBottomSheet(
           context: context,
@@ -504,6 +596,28 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                   children: [
                 Column(
                   children: [
+                      Container(
+                          margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                              color: Colors.green.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(12),
+                              border: Border.all(color: Colors.green.withOpacity(0.3))
+                          ),
+                          child: Row(
+                              children: [
+                                  const Icon(Icons.share, color: Colors.green),
+                                  const SizedBox(width: 12),
+                                  const Expanded(child: Text("¡Invita a tus amigos por WhatsApp dándole al botón de arriba (🔗) para que ellos mismos seleccionen lo que consumieron!", style: TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.bold))),
+                                  IconButton(
+                                      icon: const Icon(Icons.close, color: Colors.green, size: 20),
+                                      onPressed: () {
+                                          // Simple optimistic hide (requires state or redraw, but safe to ignore for MVP)
+                                      }
+                                  )
+                              ]
+                          )
+                      ),
                       Expanded(
                           child: ListView.builder(
                         padding: const EdgeInsets.all(16),
@@ -545,10 +659,20 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                                                         "${item.quantity} x ${CurrencyInputFormatter.format(item.price / (item.quantity == 0 ? 1 : item.quantity))} = ${CurrencyInputFormatter.format(item.price)}",
                                                                         style: const TextStyle(fontSize: 13, color: Colors.grey)
                                                                     ),
-                                                                    Text(
-                                                                        isComplete ? 'Asignado' : 'Faltan: ${missing.toStringAsFixed(1)}',
-                                                                        style: TextStyle(color: isComplete ? Colors.green : Colors.orange, fontSize: 12, fontWeight: FontWeight.bold)
-                                                                    ),
+                                                                    Builder(builder: (_) {
+                                                                        String txt = '¡Cuenta Completa!';
+                                                                        Color clr = Colors.green;
+                                                                        if (!isComplete) {
+                                                                            if (missing < 0) {
+                                                                                txt = 'Sobra: ${missing.abs().toStringAsFixed(1)}';
+                                                                                clr = Colors.red;
+                                                                            } else {
+                                                                                txt = 'Falta: ${missing.toStringAsFixed(1)}';
+                                                                                clr = Colors.orange;
+                                                                            }
+                                                                        }
+                                                                        return Text(txt, style: TextStyle(color: clr, fontSize: 12, fontWeight: FontWeight.bold));
+                                                                    }),
                                                                 ]
                                                             )
                                                         ),
@@ -569,16 +693,14 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                                                 child: const Text("Mío", style: TextStyle(fontWeight: FontWeight.bold)),
                                                             )
                                                         ),
-                                                        if (isCreator) ...[
-                                                            const SizedBox(width: 8),
-                                                            Expanded(
-                                                                child: ElevatedButton(
-                                                                    onPressed: () => _markAsShared(item),
-                                                                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, elevation: 0),
-                                                                    child: const Text("Compartido"),
-                                                                )
-                                                            ),
-                                                        ]
+                                                        const SizedBox(width: 8),
+                                                        Expanded(
+                                                            child: ElevatedButton(
+                                                                onPressed: () => _markAsShared(item),
+                                                                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, elevation: 0),
+                                                                child: const Text("Compartido"),
+                                                            )
+                                                        ),
                                                     ]
                                                 )
                                             ]

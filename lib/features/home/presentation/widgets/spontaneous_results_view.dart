@@ -40,23 +40,9 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
       try {
           if (mounted) setState(() => _isLoading = true);
           
-          List<String> targetVibes = [];
-          if (widget.category == 'Dados') {
-              final allVibes = ["Rumba/Party", "Chill/Café", "Comida/Gastro", "Aventura/Outdoor", "Cine/Cultura"];
-              targetVibes = [allVibes[random.nextInt(allVibes.length)], allVibes[random.nextInt(allVibes.length)]];
-          } else {
-              targetVibes = [widget.category]; // For legacy, mapping happens below
-          }
-
-          // Combined Results
-          List<Map<String, dynamic>> loaded = [];
-
-          // 1. Fetch from 'local_events' (The new AI discoveries)
-          // 1. Fetch from 'local_events' (Plan Ya / Real-time Discoveries)
-          // PREFERENCES FILTERING
-          int? userAge;
-          String? budgetLevel;
           List<String> userVibes = [];
+          String? budgetLevel;
+          int? userAge;
           final user = Supabase.instance.client.auth.currentUser;
           if (user != null) {
               final profile = await Supabase.instance.client.from('profiles').select('budget_level, birth_date, birthday, interests').eq('id', user.id).maybeSingle();
@@ -73,111 +59,82 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
               }
           }
 
-          final today = DateTime.now().toIso8601String().split('T')[0];
-          var localQuery = Supabase.instance.client
-              .from('local_events')
-              .select('*')
-              .eq('status', 'active')
-              .or('date.gte.$today,date.is.null');
-              
-          // SOFT CITY FILTER: Only apply if a valid city string is available
-          if (widget.city.trim().isNotEmpty && widget.city.toLowerCase() != 'desconocida') {
-              localQuery = localQuery.ilike('city', '%${widget.city.trim()}%');
-          }
-              
-          if (widget.category != 'Dados') {
-              // Map UI labels to DB vibe_tags
-              String vibeMapping = widget.category;
-              if (widget.category == 'Rumba') vibeMapping = 'Rumba/Party';
-              else if (widget.category == 'Chill') vibeMapping = 'Chill/Café';
-              else if (widget.category == 'Comida') vibeMapping = 'Comida/Gastro';
-              else if (widget.category == 'Aventura') vibeMapping = 'Aventura/Outdoor';
-              else if (widget.category == 'Cultura') vibeMapping = 'Cine/Cultura';
-              else if (widget.category == 'Deportes 🏃') vibeMapping = 'Deportes/Running';
-              localQuery = localQuery.ilike('vibe_tag', '%$vibeMapping%');
-          }
+          // Fetch only EXACT PLANS from Daily Events! 
+          final List<Event> dailyEvents = await EventsService().getDailyEvents(
+             city: widget.city.isNotEmpty ? widget.city : 'Bogotá',
+             userInterests: userVibes.isEmpty ? null : userVibes,
+             budgetLevel: budgetLevel,
+             userAge: userAge,
+          );
           
-          final localRes = await localQuery.order('date', ascending: true).limit(30); // Need more pool for dice randomization
-          for (var row in localRes) {
-              // Age Filter Constraint
-              if (userAge != null && userAge < 18) {
-                  final tag = (row['vibe_tag'] ?? '').toString().toLowerCase();
-                  if (tag.contains('rumba') || tag.contains('party') || tag.contains('bar') || tag.contains('nightlife')) continue;
-              }
-              // Budget Filter Constraint
-              if (budgetLevel == 'economico' && (row['price_level']?.length ?? 0) > 1) continue;
-              if (budgetLevel == 'bacano' && (row['price_level']?.length ?? 0) > 3) continue;
-
-              _processRow(row, loaded, isLocal: true);
-          }
-
-          // 2. BACKUP: Fetch from cached_places (Google Data) if AI scout has poor coverage
-          if (loaded.length < 15) {
-              var googleQuery = Supabase.instance.client.from('cached_places').select('*');
-              if (widget.city.trim().isNotEmpty && widget.city.toLowerCase() != 'desconocida') {
-                  googleQuery = googleQuery.ilike('city', '%${widget.city.trim()}%');
-              }
-              if (widget.category != 'Dados') {
-                  String gCat = '';
-                  if (widget.category == 'Rumba') gCat = 'bar';
-                  else if (widget.category == 'Chill') gCat = 'cafe';
-                  else if (widget.category == 'Comida') gCat = 'restaurant';
-                  else if (widget.category == 'Aventura') gCat = 'park';
-                  else if (widget.category == 'Cultura') gCat = 'museum';
-                  else if (widget.category == 'Deportes 🏃') gCat = 'gym';
-                  
-                  if (gCat.isNotEmpty) {
-                      googleQuery = googleQuery.ilike('category', '%$gCat%');
-                  }
-              }
-              
-              final googleRes = await googleQuery.limit(30);
-              for (var row in googleRes) {
-                  // Skip duplicates by name
-                  if (loaded.any((L) => L['name'] == row['name'])) continue;
-                  
-                  // Filters
-                  if (userAge != null && userAge < 18) {
-                      final tag = (row['category'] ?? '').toString().toLowerCase();
-                      if (tag.contains('bar') || tag.contains('night_club')) continue;
-                  }
-                  if (budgetLevel == 'economico' && (row['price_level']?.length ?? 0) > 1) continue;
-                  if (budgetLevel == 'bacano' && (row['price_level']?.length ?? 0) > 3) continue;
-
-                  // Transform Google Place Row to Event Row structure
-                  final mockRow = {
-                      'id': row['place_id'],
-                      'event_name': row['name'],
-                      'description': row['address'],
-                      'image_url': PlacesService().getPhotoUrl(row['photo_reference']),
-                      'rating_google': row['rating'],
-                      'vibe_tag': row['category'],
-                      'latitude': row['latitude'],
-                      'longitude': row['longitude'],
-                      'address': row['address']
-                  };
-                  _processRow(mockRow, loaded, isLocal: false);
-              }
-          }
-
-          // PRIORITIZE VIBES, then fallback to distance
-          loaded.sort((a, b) {
-             bool aMatches = userVibes.any((v) => (a['desc'] as String).toLowerCase().contains(v.toLowerCase()) || (a['name'] as String).toLowerCase().contains(v.toLowerCase()));
-             bool bMatches = userVibes.any((v) => (b['desc'] as String).toLowerCase().contains(v.toLowerCase()) || (b['name'] as String).toLowerCase().contains(v.toLowerCase()));
-             if (aMatches && !bMatches) return -1;
-             if (!aMatches && bMatches) return 1;
-             return (a['dist_val'] as double).compareTo(b['dist_val'] as double);
-          });
-          
+          // Filter by the vibe selected in the dice/FAB
+          List<Event> filtered = [];
           if (widget.category == 'Dados') {
-             loaded.shuffle(); // Real dice Randomness
-             _places = loaded.isNotEmpty ? [loaded.first] : []; // Only show ONE event at a time!
-         } else {
-             _places = loaded.length > 8 ? loaded.sublist(0, 8) : loaded;
+              filtered = dailyEvents; // Any vibe goes
+              filtered.shuffle(random);
+          } else {
+              String queryVibe = widget.category.toLowerCase();
+              if (queryVibe.contains('rumba')) queryVibe = 'rumba';
+              else if (queryVibe.contains('chill')) queryVibe = 'chill';
+              else if (queryVibe.contains('comida')) queryVibe = 'gastronomia';
+              else if (queryVibe.contains('aventura')) queryVibe = 'aventura';
+              else if (queryVibe.contains('cultura')) queryVibe = 'cultura';
+              else if (queryVibe.contains('deporte')) queryVibe = 'deporte';
+              else queryVibe = queryVibe.replaceAll(' ', '');
+
+              filtered = dailyEvents.where((e) {
+                  final cat = (e.category ?? '').toLowerCase();
+                  return cat.contains(queryVibe) || cat.contains(widget.category.toLowerCase());
+              }).toList();
+              
+              // If not enough results for the exact category, backfill with others to avoid empty states
+              if (filtered.length < 3) {
+                  final otherEvents = dailyEvents.where((e) => !filtered.contains(e)).toList();
+                  otherEvents.shuffle(random);
+                  filtered.addAll(otherEvents.take(10 - filtered.length));
+              }
+          }
+
+          List<Map<String, dynamic>> loaded = [];
+          for (var e in filtered) {
+               double distMeters = 0;
+               if (e.latitude != null && e.longitude != null) {
+                   distMeters = Geolocator.distanceBetween(
+                       widget.position.latitude, widget.position.longitude,
+                       e.latitude!, e.longitude!
+                   );
+               }
+               String distStr = distMeters > 1000 
+                   ? "${(distMeters/1000).toStringAsFixed(1)} km" 
+                   : "${distMeters.round()} m";
+               if (distMeters == 0) distStr = "En la ciudad";
+
+               loaded.add({
+                  'name': e.title,
+                  'rating': e.ratingGoogle?.toString() ?? (random.nextDouble() * 1.0 + 4.0).toStringAsFixed(1),
+                  'dist': distStr,
+                  'dist_val': distMeters,
+                  'tag': e.category?.toUpperCase() ?? 'PLANAZO ✨',
+                  'desc': e.description ?? e.promoHighlights ?? e.title,
+                  'image': e.imageUrl ?? e.displayImageUrl,
+                  'reservation_link': e.reservationLink ?? e.sourceUrl,
+                  'date': e.date,
+                  'address': e.address ?? e.location,
+                  'contact_phone': e.contactPhone,
+                  'promo_highlights': e.promoHighlights,
+                  'price_range': e.priceLevel,
+                  'vibe_tag': e.category
+               });
+          }
+
+          if (widget.category == 'Dados') {
+             _places = loaded.isNotEmpty ? [loaded.first] : []; 
+          } else {
+             _places = loaded.length > 10 ? loaded.sublist(0, 10) : loaded;
           }
 
       } catch (e) {
-          debugPrint("Error fetching spontaneous places: $e");
+          debugPrint("Error fetching spontaneous plans: $e");
           _places = [];
       }
 

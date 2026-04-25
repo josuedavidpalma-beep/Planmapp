@@ -192,12 +192,12 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
       // Use localhost port for dev or real domain for prod. 
       // For now, assume a base URL.
       const baseUrl = "https://planmapp.app"; // Or use window.location in web
-      final url = "$baseUrl/pago/${widget.planId}";
+      final url = "$baseUrl/#/vaca/${widget.planId}";
       
-      Share.share("Hola! Entra aquí para ver cuánto debes del plan: $url");
+      Share.share("¡Hola! Entra aquí para ayudarnos a dividir la cuenta: $url");
       // Also Copy to clipboard for easy testing
       Clipboard.setData(ClipboardData(text: url));
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Link de cobro copiado!")));
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Link de invitación a la cuenta copiado!")));
   }
 
   @override
@@ -290,11 +290,11 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
                  SliverFillRemaining(
                      hasScrollBody: false,
                      child: DancingEmptyState(
-                        icon: Icons.receipt_long_rounded,
-                        title: "¡Aún no hay cuentas!",
-                        message: "Crea una cuenta para empezar a dividir gastos con tus amigos.",
+                        icon: Icons.document_scanner_outlined,
+                        title: "¡Escanea tu primera factura!",
+                        message: "Toca el botón mágico flotante abajo a la derecha, tómale foto a la cuenta y nosotros nos encargamos del resto.",
                         onButtonPressed: _createNewBill,
-                        buttonLabel: "Crear Cuenta",
+                        buttonLabel: "Crear Manualmente",
                      ),
                  )
               else 
