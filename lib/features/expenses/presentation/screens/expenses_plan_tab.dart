@@ -96,7 +96,7 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
   Future<void> _createNewBill({String? initialTitle}) async {
       final ImagePicker picker = ImagePicker();
 
-      final source = await showModalBottomSheet<ImageSource>(
+      final source = await showModalBottomSheet<String>(
           context: context,
           builder: (ctx) => SafeArea(
               child: Column(
@@ -106,17 +106,17 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
                       ListTile(
                           leading: const Icon(Icons.camera_alt),
                           title: const Text("Tomar foto a la factura"),
-                          onTap: () => Navigator.pop(ctx, ImageSource.camera),
+                          onTap: () => Navigator.pop(ctx, 'camera'),
                       ),
                       ListTile(
                           leading: const Icon(Icons.photo_library),
                           title: const Text("Subir foto de la galería"),
-                          onTap: () => Navigator.pop(ctx, ImageSource.gallery),
+                          onTap: () => Navigator.pop(ctx, 'gallery'),
                       ),
                       ListTile(
                           leading: const Icon(Icons.edit),
                           title: const Text("Ingresar datos manualmente"),
-                          onTap: () => Navigator.pop(ctx, null), // null means manual
+                          onTap: () => Navigator.pop(ctx, 'manual'),
                       ),
                   ]
               )
@@ -124,11 +124,12 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
       );
       
       // If user tapped outside
-      if (source == null && !mounted) return;
+      if (source == null) return;
 
       // Escáner (Camera / Gallery)
-      if (source != null) {
-          final XFile? image = await picker.pickImage(source: source);
+      if (source != 'manual') {
+          final ImageSource imgSource = source == 'camera' ? ImageSource.camera : ImageSource.gallery;
+          final XFile? image = await picker.pickImage(source: imgSource, maxWidth: 1080, imageQuality: 50);
           if (image == null) return;
           
           if (mounted) {

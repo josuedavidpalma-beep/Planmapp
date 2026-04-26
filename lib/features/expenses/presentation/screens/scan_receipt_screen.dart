@@ -241,7 +241,6 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
             'tip_amount': _tip,
             'currency': 'COP',
             'payment_method': paymentMethodsJson,
-            'ai_raw_total': _receipt?.total ?? 0.0,
         };
         
         final itemsData = _items.map((e) => {
@@ -253,9 +252,12 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
         final savedExpense = await repo.createDraftExpense(expenseData: expenseData, itemsData: itemsData);
 
         if (mounted) {
+            final fullData = savedExpense.toJson();
+            fullData['ai_raw_total'] = _receipt?.total ?? _total;
+            
             Navigator.pushReplacement(context, MaterialPageRoute(
                 builder: (context) => ExpenseSplitScreen(
-                    expenseData: savedExpense.toJson(),
+                    expenseData: fullData,
                     initialItems: savedExpense.items ?? [],
                 )
             ));
