@@ -129,7 +129,7 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
       // Escáner (Camera / Gallery)
       if (source != 'manual') {
           final ImageSource imgSource = source == 'camera' ? ImageSource.camera : ImageSource.gallery;
-          final XFile? image = await picker.pickImage(source: imgSource, maxWidth: 1080, imageQuality: 50);
+          final XFile? image = await picker.pickImage(source: imgSource, maxWidth: 1080, imageQuality: 80);
           if (image == null) return;
           
           if (mounted) {
