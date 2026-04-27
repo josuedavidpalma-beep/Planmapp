@@ -757,33 +757,15 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                                 final color = isMe ? Colors.green.withOpacity(0.15) : Colors.blue.withOpacity(0.15);
                                                 final textColor = isMe ? Colors.green.shade800 : Colors.blue.shade800;
                                                 
-                                                String? avatarUrl;
-                                                if (a.userId != null) {
-                                                    final m = _members.cast<PlanMember?>().firstWhere((m) => m?.id == a.userId, orElse: () => null);
-                                                    avatarUrl = m?.avatarUrl;
-                                                }
-                                                
                                                 return Container(
-                                                    padding: const EdgeInsets.only(right: 8),
+                                                    padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
                                                     decoration: BoxDecoration(
                                                         color: color,
                                                         borderRadius: BorderRadius.circular(20),
                                                     ),
-                                                    child: Row(
-                                                        mainAxisSize: MainAxisSize.min,
-                                                        children: [
-                                                            CircleAvatar(
-                                                                radius: 12,
-                                                                backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
-                                                                backgroundColor: textColor.withOpacity(0.3),
-                                                                child: avatarUrl == null ? Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(fontSize: 10, color: textColor)) : null,
-                                                            ),
-                                                            const SizedBox(width: 6),
-                                                            Text(
-                                                                "$name: ${a.quantity < 1 ? '${(a.quantity*100).toInt()}%' : a.quantity.toStringAsFixed(1)}",
-                                                                style: TextStyle(fontSize: 12, color: textColor, fontWeight: FontWeight.bold)
-                                                            ),
-                                                        ],
+                                                    child: Text(
+                                                        "$name: ${a.quantity < 1 ? '${(a.quantity*100).toInt()}%' : a.quantity.toStringAsFixed(1)}",
+                                                        style: TextStyle(fontSize: 12, color: textColor, fontWeight: FontWeight.bold)
                                                     ),
                                                 );
                                             }).toList(),
@@ -1067,7 +1049,7 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
                           
                           if (_tabController.index == 0) {
                               final selectedCount = _tempValues.values.where((v) => v > 0).length;
-                              if (selectedCount > 0) totalAssigned = widget.item.quantity; 
+                              if (selectedCount > 0) totalAssigned = widget.item.quantity.toDouble(); 
                           } else if (_tabController.index == 1) {
                               totalAssigned = _tempValues.values.fold(0.0, (s,v) => s + v);
                           } else if (_tabController.index == 2) {
