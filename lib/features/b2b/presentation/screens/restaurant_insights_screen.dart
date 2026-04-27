@@ -35,6 +35,7 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
   int _detractors = 0;
   
   List<Map<String, dynamic>> _topDishes = [];
+  List<Map<String, dynamic>> _menuMatrix = []; // Quadrants Data
   List<Map<String, dynamic>> _whales = [];
   final TextEditingController _validationCtrl = TextEditingController();
   bool _isValidating = false;
@@ -71,7 +72,7 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
       }
       
       // 2. Load restaurant info
-      final restInfo = await supabase.from('restaurants').select('name, tier').eq('id', resId).maybeSingle();
+      final restInfo = await supabase.from('restaurants').select('name, tier, features').eq('id', resId).maybeSingle();
       
       // 3. Load past X days surveys based on filters
       final surveysRes = await supabase.from('survey_responses').select()
@@ -91,6 +92,7 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
       int spendTxs = 0;
       
       Map<String, int> dishCounts = {};
+      Map<String, double> dishTotalRatings = {};
       List<Map<String, dynamic>> whales = [];
       
       _promoters = 0;
@@ -112,14 +114,16 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
               else if (localAvg >= 4.0) { _passives++; } 
               else { _detractors++; }
               
-              // Process dishes if it was a good experience overall (>= 4.0)
-              if ((f+sr+a)/3 >= 4.0 && s['receipt_items'] != null) {
+              // Process ALL dishes for Menu Engineering Matrix
+              if (s['receipt_items'] != null) {
                   final items = List<Map<String, dynamic>>.from(s['receipt_items']);
                   for (var it in items) {
                       final n = it['name'] as String;
                       dishCounts[n] = (dishCounts[n] ?? 0) + 1;
+                      dishTotalRatings[n] = (dishTotalRatings[n] ?? 0.0) + (f);
                   }
               }
+              
           double ticket = 0;
           if (s['responses'] != null && s['responses']['ai_raw_total'] != null) {
               double? aiTotal = double.tryParse(s['responses']['ai_raw_total'].toString());
@@ -161,6 +165,31 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
       var sortedDishes = dishCounts.entries.toList()..sort((a,b) => b.value.compareTo(a.value));
       _topDishes = sortedDishes.take(5).map((e) => {"name": e.key, "hits": e.value}).toList();
       
+      // Calculate Menu Engineering Matrix
+      if (dishCounts.isNotEmpty) {
+          final sortedHits = dishCounts.values.toList()..sort();
+          final medianHits = sortedHits[sortedHits.length ~/ 2];
+          
+          List<double> avgRatings = dishCounts.keys.map((k) => dishTotalRatings[k]! / dishCounts[k]!).toList()..sort();
+          final medianRating = avgRatings[avgRatings.length ~/ 2];
+          
+          _menuMatrix = dishCounts.keys.map((k) {
+              final hits = dishCounts[k]!;
+              final avgR = dishTotalRatings[k]! / hits;
+              
+              String type;
+              if (hits >= medianHits && avgR >= medianRating) type = "Estrella";
+              else if (hits >= medianHits && avgR < medianRating) type = "Caballito";
+              else if (hits < medianHits && avgR >= medianRating) type = "Rompecabezas";
+              else type = "Perro";
+              
+              return { "name": k, "hits": hits, "rating": avgR, "type": type };
+          }).toList();
+          _menuMatrix.sort((a,b) => b['hits'].compareTo(a['hits']));
+      } else {
+          _menuMatrix = [];
+      }
+      
       whales.sort((a,b) => b['ticket'].compareTo(a['ticket']));
       _whales = whales.take(5).toList();
       
@@ -178,6 +207,34 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
             setState(() { _errorMsg = e.toString(); _isLoading = false; });
         }
     }
+    }
+  }
+
+  Future<void> _toggleFeature(String featureKey) async {
+      try {
+          final features = Map<String, dynamic>.from(_restData['features'] ?? {
+              'google_maps_reviews': false,
+              'menu_engineering': false,
+              'ai_insights': false,
+              'advanced_nps': false,
+              'date_filters': false
+          });
+          
+          features[featureKey] = !(features[featureKey] == true);
+          
+          // Optimistic UI update
+          setState(() {
+              _restData['features'] = features;
+          });
+          
+          final resId = _restData['id'];
+          if (resId != null) {
+              await Supabase.instance.client.from('restaurants').update({'features': features}).eq('id', resId);
+          }
+      } catch (e) {
+          if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error al cambiar módulo: $e")));
+          _fetchData(); // rollback UI on fail
+      }
   }
 
   Future<void> _rewardUser(Map<String, dynamic> whale) async {
@@ -360,20 +417,50 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
             final isDesktop = constraints.maxWidth > 900;
             
             final String tier = _restData['tier']?.toString().toLowerCase() ?? 'basic';
-            final bool isBasic = tier == 'basic';
-            final bool isPremium = tier == 'premium';
-            final bool isGold = tier == 'gold';
+            final Map<String, dynamic> featuresMap = _restData['features'] ?? {};
+            final bool isSuperAdmin = Supabase.instance.client.auth.currentUser?.email == 'josuedavidpalma@gmail.com';
+
+            bool hasFeature(String key, bool defPrem, bool defGold) {
+                if (tier == 'gold') return true;
+                if (tier == 'premium') return defPrem;
+                if (tier == 'basic') return false;
+                return featuresMap[key] == true;
+            }
+
+            bool hasDateFilters = hasFeature('date_filters', true, true);
+            bool hasAdvNps = hasFeature('advanced_nps', true, true);
+            bool hasMenuEng = hasFeature('menu_engineering', false, true);
+            bool hasAi = hasFeature('ai_insights', false, true);
+
+            Widget titleWithLock(String title, String featureKey, bool isEnabled) {
+               if (!isSuperAdmin || tier != 'custom') {
+                   return Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold));
+               }
+               return Row(
+                   mainAxisSize: MainAxisSize.min,
+                   children: [
+                       Text(title, style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                       const SizedBox(width: 8),
+                       IconButton(
+                           padding: EdgeInsets.zero, constraints: const BoxConstraints(),
+                           icon: Icon(isEnabled ? Icons.lock_open : Icons.lock, color: isEnabled ? Colors.greenAccent : Colors.redAccent, size: 20),
+                           onPressed: () => _toggleFeature(featureKey),
+                       )
+                   ]
+               );
+            }
 
             final metricsHeader = Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                    Text(
-                        isBasic ? "Métricas (Histórico Acumulado)" : "Métricas (${DateFormat('MMM d').format(_startDate)} - ${DateFormat('MMM d').format(_endDate)})", 
-                        style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)
+                    titleWithLock(
+                        !hasDateFilters ? "Métricas Acumuladas" : "Métricas (${DateFormat('MMM d').format(_startDate)} - ${DateFormat('MMM d').format(_endDate)})", 
+                        'date_filters', 
+                        hasDateFilters
                     ),
-                    if (isBasic)
+                    if (!hasDateFilters)
                         TextButton.icon(
-                            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mejora a Premium para filtrar por fechas.", style: TextStyle(color: Colors.orange)))), 
+                            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Módulo inactivo para este Comercio.", style: TextStyle(color: Colors.orange)))), 
                             icon: const Icon(Icons.lock, color: Colors.orange, size: 18), 
                             label: const Text("Filtrar", style: TextStyle(color: Colors.orange))
                         )
@@ -390,8 +477,8 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
             
             final topCardsRow1 = Row(
                 children: [
-                    Expanded(child: isBasic 
-                        ? _kpiCard("NPS (Premium)", "🔒", Icons.lock, Colors.grey) 
+                    Expanded(child: !hasAdvNps 
+                        ? _kpiCard("NPS Completo", "🔒", Icons.lock, Colors.grey) 
                         : _kpiCard("NPS Score", "$_npsScore", Icons.speed, npsColor)),
                     const SizedBox(width: 10),
                     Expanded(child: _kpiCard("Satisfacción", "${_avgGeneral.toStringAsFixed(1)}/5", Icons.star, Colors.orange)),
@@ -400,8 +487,8 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
             
             final topCardsRow2 = Row(
                 children: [
-                    Expanded(child: isBasic
-                        ? _kpiCard("Ticket (Premium)", "🔒", Icons.lock, Colors.grey)
+                    Expanded(child: !hasAdvNps
+                        ? _kpiCard("Ticket Análisis", "🔒", Icons.lock, Colors.grey)
                         : _kpiCard("Ticket Promedio", "\$${(_avgTicket/1000).toStringAsFixed(1)}k", Icons.receipt, Colors.green)),
                     const SizedBox(width: 10),
                     Expanded(child: _kpiCard("Encuestas", "$_totalSurveys", Icons.analytics, Colors.blue)),
@@ -423,28 +510,58 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
             final topDishesCol = Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                    const Text("Estrellas de la casa", style: TextStyle(color: Colors.white, fontSize: 16, fontWeight: FontWeight.bold)),
+                    titleWithLock("Ingeniería de Menú", 'menu_engineering', hasMenuEng),
                     const SizedBox(height: 16),
-                    if (_topDishes.isEmpty) const Text("Sin platos top aún", style: TextStyle(color: Colors.grey)),
-                    ..._topDishes.map((d) => ListTile(
-                        contentPadding: EdgeInsets.zero,
-                        leading: const Icon(Icons.restaurant_menu, color: AppTheme.primaryBrand),
-                        title: Text(d['name'], style: const TextStyle(color: Colors.white)),
-                        trailing: Container(
-                            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
-                            decoration: BoxDecoration(color: Colors.orange.withOpacity(0.2), borderRadius: BorderRadius.circular(10)),
-                            child: Text("${d['hits']}x", style: const TextStyle(color: Colors.orange, fontWeight: FontWeight.bold)),
-                        ),
-                    )).toList()
+                    if (!hasMenuEng)
+                       Container(
+                            padding: const EdgeInsets.all(24),
+                            decoration: BoxDecoration(color: Colors.grey[900], borderRadius: BorderRadius.circular(16)),
+                            child: const Column(
+                                children: [
+                                    Icon(Icons.lock, color: Colors.grey, size: 40),
+                                    SizedBox(height: 12),
+                                    Text("Módulo Reservado", style: TextStyle(color: Colors.grey, fontWeight: FontWeight.bold)),
+                                ]
+                            )
+                       )
+                    else if (_menuMatrix.isEmpty)
+                       const Text("Sin datos suficientes", style: TextStyle(color: Colors.grey))
+                    else
+                       GridView.builder(
+                           shrinkWrap: true,
+                           physics: const NeverScrollableScrollPhysics(),
+                           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                               crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.5
+                           ),
+                           itemCount: _menuMatrix.length,
+                           itemBuilder: (ctx, i) {
+                               final d = _menuMatrix[i];
+                               Color c = d['type'] == 'Estrella' ? Colors.green : (d['type'] == 'Caballito' ? Colors.blue : (d['type'] == 'Rompecabezas' ? Colors.orange : Colors.red));
+                               String icon = d['type'] == 'Estrella' ? '✨' : (d['type'] == 'Caballito' ? '🐴' : (d['type'] == 'Rompecabezas' ? '🧩' : '🐕'));
+                               return Container(
+                                   padding: const EdgeInsets.all(8),
+                                   decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: c.withOpacity(0.3))),
+                                   child: Column(
+                                       mainAxisAlignment: MainAxisAlignment.center,
+                                       children: [
+                                           Text("$icon ${d['name']}", textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: c, fontWeight: FontWeight.bold, fontSize: 13)),
+                                           const SizedBox(height: 4),
+                                           Text("${d['hits']}x pedidos", style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                                           Text("⭐ ${d['rating'].toStringAsFixed(1)}", style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                                       ]
+                                   )
+                               );
+                           }
+                       )
                 ]
             );
             
             final aiCol = Column(
                crossAxisAlignment: CrossAxisAlignment.stretch,
                children: [
-                  const Text("AI Business Insights ✨", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                  titleWithLock("AI Business Insights ✨", 'ai_insights', hasAi),
                   const SizedBox(height: 16),
-                  isGold 
+                  hasAi 
                       ? _buildAIPanel()
                       : Container(
                           padding: const EdgeInsets.all(24),

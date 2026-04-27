@@ -97,6 +97,7 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                       DropdownMenuItem(value: 'basic', child: Text("Básico")),
                       DropdownMenuItem(value: 'premium', child: Text("Premium")),
                       DropdownMenuItem(value: 'gold', child: Text("Gold")),
+                      DropdownMenuItem(value: 'custom', child: Text("Personalizado")),
                   ],
                   onChanged: (v) => setSt(() => tier = v!),
               )
@@ -142,35 +143,45 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                 onPressed: () async {
                     String currentJson = "{}";
                     String currentTier = r['tier'] ?? 'basic';
+                    String mapsUrl = r['maps_url'] ?? '';
                     
                     try {
                         currentJson = jsonEncode(r['survey_settings'] ?? {"questions": []});
                     } catch(_) {}
                     
                     final ctrl = TextEditingController(text: currentJson);
+                    final mapsCtrl = TextEditingController(text: mapsUrl);
                     
                     final save = await showDialog<bool>(context: context, builder: (c) => StatefulBuilder(builder: (ctx, setSt) => AlertDialog(
                         title: const Text("Ajustes del Comercio"),
-                        content: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            children: [
-                                DropdownButtonFormField<String>(
-                                    value: currentTier,
-                                    decoration: const InputDecoration(labelText: "Suscripción B2B (Tier)"),
-                                    items: const [
-                                        DropdownMenuItem(value: 'basic', child: Text("Básico - Historico NPS")),
-                                        DropdownMenuItem(value: 'premium', child: Text("Premium - Fechas + Transacciones")),
-                                        DropdownMenuItem(value: 'gold', child: Text("Gold - Fechas + AI Bi")),
-                                    ],
-                                    onChanged: (v) => setSt(() => currentTier = v!),
-                                ),
-                                const SizedBox(height: 16),
-                                TextField(
-                                    controller: ctrl,
-                                    maxLines: 5,
-                                    decoration: const InputDecoration(labelText: "JSON Encuesta (Fase 2)"),
-                                ),
-                            ]
+                        content: SingleChildScrollView(
+                            child: Column(
+                                mainAxisSize: MainAxisSize.min,
+                                children: [
+                                    DropdownButtonFormField<String>(
+                                        value: currentTier,
+                                        decoration: const InputDecoration(labelText: "Suscripción B2B (Tier)"),
+                                        items: const [
+                                            DropdownMenuItem(value: 'basic', child: Text("Básico")),
+                                            DropdownMenuItem(value: 'premium', child: Text("Premium")),
+                                            DropdownMenuItem(value: 'gold', child: Text("Gold")),
+                                            DropdownMenuItem(value: 'custom', child: Text("A la Carta (Personalizado)")),
+                                        ],
+                                        onChanged: (v) => setSt(() => currentTier = v!),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    TextField(
+                                        controller: mapsCtrl,
+                                        decoration: const InputDecoration(labelText: "Google Maps URL", hintText: "https://g.page/..."),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    TextField(
+                                        controller: ctrl,
+                                        maxLines: 4,
+                                        decoration: const InputDecoration(labelText: "JSON Encuesta (Fase 2)"),
+                                    ),
+                                ]
+                            )
                         ),
                         actions: [
                            TextButton(onPressed: () => Navigator.pop(c), child: const Text("Cancelar")),
@@ -183,6 +194,7 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                             final decoded = jsonDecode(ctrl.text);
                             await _supabase.from('restaurants').update({
                                 'survey_settings': decoded,
+                                'maps_url': mapsCtrl.text,
                                 'tier': currentTier
                             }).eq('id', r['id']);
                             _loadRestaurants();

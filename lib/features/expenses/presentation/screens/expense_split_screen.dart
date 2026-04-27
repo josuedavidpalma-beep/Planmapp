@@ -347,7 +347,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
               return;
           }
           final resId = planRes['restaurant_id'];
-          final restRes = await supabase.from('restaurants').select('name').eq('id', resId).maybeSingle();
+          final restRes = await supabase.from('restaurants').select('name, maps_url, features').eq('id', resId).maybeSingle();
           if (restRes == null) {
               if (mounted) Navigator.pop(context, true);
               return;
@@ -434,7 +434,36 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                       });
                                       if (ctx.mounted) {
                                           Navigator.pop(ctx);
-                                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Gracias por tu opinión!")));
+                                          
+                                          // GOOGLE MAPS HARVESTER (Protegemos NPS < 4.5)
+                                          final double avgRating = (ratingFood + ratingService + ratingAmbiance) / 3.0;
+                                          final features = restRes['features'] as Map<String, dynamic>? ?? {};
+                                          final bool mapsEnabled = features['google_maps_reviews'] == true;
+                                          final String mapsUrl = restRes['maps_url'] ?? '';
+
+                                          if (mapsEnabled && mapsUrl.isNotEmpty && avgRating >= 4.5) {
+                                              await showDialog(context: context, builder: (mc) => AlertDialog(
+                                                  backgroundColor: AppTheme.darkBackground,
+                                                  title: const Text("¡Gracias por las estrellas! ⭐", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                                                  content: const Text("Nos alegra inmensamente que te haya encantado. ¿Nos ayudarías pegando esta misma reseña en Google Maps para ayudarnos a crecer?", style: TextStyle(color: Colors.white70)),
+                                                  actions: [
+                                                      TextButton(onPressed: () => Navigator.pop(mc), child: const Text("Ahora no", style: TextStyle(color: Colors.grey))),
+                                                      ElevatedButton.icon(
+                                                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.black),
+                                                          onPressed: () async {
+                                                              Navigator.pop(mc);
+                                                              final uri = Uri.parse(mapsUrl);
+                                                              if (await canLaunchUrl(uri)) await launchUrl(uri);
+                                                          },
+                                                          icon: const Icon(Icons.map),
+                                                          label: const Text("Ir a Google Maps")
+                                                      )
+                                                  ],
+                                              ));
+                                          } else {
+                                              ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Gracias por tu opinión!")));
+                                          }
+                                          
                                           Navigator.pop(context, true); 
                                       }
                                   } catch (e) {
