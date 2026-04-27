@@ -15,6 +15,8 @@ class GuestScanLandingScreen extends StatefulWidget {
 class _GuestScanLandingScreenState extends State<GuestScanLandingScreen> {
   final SupabaseClient _supabase = Supabase.instance.client;
   String _statusMessage = 'Alistando tu mesa...';
+  bool _hasError = false;
+  String? _errorMessage;
 
   @override
   void initState() {
@@ -23,8 +25,9 @@ class _GuestScanLandingScreenState extends State<GuestScanLandingScreen> {
   }
 
   Future<void> _processGuestFlow() async {
+    if (mounted) setState(() { _hasError = false; _errorMessage = null; _statusMessage = 'Alistando tu mesa...'; });
     try {
-      // 1. Auth AnAcónima Orgánica (Silenciosa)
+      // 1. Auth Anónima Orgánica (Silenciosa)
       if (_supabase.auth.currentSession == null) {
         await _supabase.auth.signInAnonymously();
       }
@@ -34,16 +37,10 @@ class _GuestScanLandingScreenState extends State<GuestScanLandingScreen> {
 
       if (widget.restaurantId == null) {
          if (mounted) {
-             showDialog(
-                context: context, 
-                builder: (c) => AlertDialog(
-                  title: const Text("Error B2B2C"),
-                  content: const Text("El código QR no tiene un ID de restaurante válido (rid nulo)."),
-                  actions: [
-                    TextButton(onPressed: () => context.go('/onboarding'), child: const Text("OK"))
-                  ]
-                )
-             );
+             setState(() {
+                 _hasError = true;
+                 _errorMessage = "El código QR no es válido o está incompleto.";
+             });
          }
          return;
       }
@@ -78,16 +75,14 @@ class _GuestScanLandingScreenState extends State<GuestScanLandingScreen> {
     } catch (e) {
       debugPrint("Error en flujo de invitado: $e");
       if (mounted) {
-         showDialog(
-            context: context, 
-            builder: (c) => AlertDialog(
-              title: const Text("Error B2B2C"),
-              content: Text(e.toString()),
-              actions: [
-                TextButton(onPressed: () => context.go('/onboarding'), child: const Text("OK"))
-              ]
-            )
-         );
+          setState(() {
+              _hasError = true;
+              if (e.toString().contains('Fetch') || e.toString().contains('ClientException')) {
+                  _errorMessage = "Tu conexión a internet parece inestable. Por favor, asegúrate de tener buena señal y vuelve a intentarlo.";
+              } else {
+                  _errorMessage = "Hubo un problema procesando tu código QR. Por favor, intenta de nuevo.";
+              }
+          });
       }
     }
   }
@@ -97,14 +92,45 @@ class _GuestScanLandingScreenState extends State<GuestScanLandingScreen> {
     return Scaffold(
       backgroundColor: Colors.black,
       body: Center(
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-             const CircularProgressIndicator(color: Colors.greenAccent),
-             const SizedBox(height: 24),
-             Text(_statusMessage, style: const TextStyle(color: Colors.white, fontSize: 18))
-                 .animate(onPlay: (c) => c.repeat(reverse: true)).fade(duration: 800.ms),
-          ],
+        child: Padding(
+            padding: const EdgeInsets.symmetric(horizontal: 24.0),
+            child: _hasError 
+                ? Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                        const Icon(Icons.wifi_off_rounded, color: Colors.orangeAccent, size: 64),
+                        const SizedBox(height: 24),
+                        const Text("Ups, algo falló", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                        const SizedBox(height: 12),
+                        Text(_errorMessage ?? "Error desconocido.", textAlign: TextAlign.center, style: const TextStyle(color: Colors.white70, fontSize: 16)),
+                        const SizedBox(height: 32),
+                        ElevatedButton.icon(
+                            onPressed: _processGuestFlow,
+                            icon: const Icon(Icons.refresh),
+                            label: const Text("Reintentar"),
+                            style: ElevatedButton.styleFrom(
+                                backgroundColor: Colors.greenAccent,
+                                foregroundColor: Colors.black,
+                                minimumSize: const Size(double.infinity, 54),
+                                shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16))
+                            ),
+                        ),
+                        const SizedBox(height: 16),
+                        TextButton(
+                            onPressed: () => context.go('/onboarding'),
+                            child: const Text("Volver al Inicio", style: TextStyle(color: Colors.white54))
+                        )
+                    ],
+                )
+                : Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                       const CircularProgressIndicator(color: Colors.greenAccent),
+                       const SizedBox(height: 24),
+                       Text(_statusMessage, style: const TextStyle(color: Colors.white, fontSize: 18))
+                           .animate(onPlay: (c) => c.repeat(reverse: true)).fade(duration: 800.ms),
+                    ],
+                )
         ),
       ),
     );
