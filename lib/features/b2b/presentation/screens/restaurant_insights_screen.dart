@@ -71,7 +71,7 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
       }
       
       // 2. Load restaurant info
-      final restInfo = await supabase.from('restaurants').select('name').eq('id', resId).maybeSingle();
+      final restInfo = await supabase.from('restaurants').select('name, tier').eq('id', resId).maybeSingle();
       
       // 3. Load past X days surveys based on filters
       final surveysRes = await supabase.from('survey_responses').select()
@@ -359,18 +359,30 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
         body: LayoutBuilder(builder: (context, constraints) {
             final isDesktop = constraints.maxWidth > 900;
             
+            final String tier = _restData['tier']?.toString().toLowerCase() ?? 'basic';
+            final bool isBasic = tier == 'basic';
+            final bool isPremium = tier == 'premium';
+            final bool isGold = tier == 'gold';
+
             final metricsHeader = Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                     Text(
-                        "Métricas (${DateFormat('MMM d').format(_startDate)} - ${DateFormat('MMM d').format(_endDate)})", 
+                        isBasic ? "Métricas (Histórico Acumulado)" : "Métricas (${DateFormat('MMM d').format(_startDate)} - ${DateFormat('MMM d').format(_endDate)})", 
                         style: const TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)
                     ),
-                    TextButton.icon(
-                        onPressed: _pickDateRange, 
-                        icon: const Icon(Icons.date_range, color: AppTheme.primaryBrand, size: 18), 
-                        label: const Text("Filtrar", style: TextStyle(color: AppTheme.primaryBrand))
-                    )
+                    if (isBasic)
+                        TextButton.icon(
+                            onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Mejora a Premium para filtrar por fechas.", style: TextStyle(color: Colors.orange)))), 
+                            icon: const Icon(Icons.lock, color: Colors.orange, size: 18), 
+                            label: const Text("Filtrar", style: TextStyle(color: Colors.orange))
+                        )
+                    else
+                        TextButton.icon(
+                            onPressed: _pickDateRange, 
+                            icon: const Icon(Icons.date_range, color: AppTheme.primaryBrand, size: 18), 
+                            label: const Text("Filtrar", style: TextStyle(color: AppTheme.primaryBrand))
+                        )
                 ],
             );
             
@@ -378,7 +390,9 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
             
             final topCardsRow1 = Row(
                 children: [
-                    Expanded(child: _kpiCard("NPS Score", "$_npsScore", Icons.speed, npsColor)),
+                    Expanded(child: isBasic 
+                        ? _kpiCard("NPS (Premium)", "🔒", Icons.lock, Colors.grey) 
+                        : _kpiCard("NPS Score", "$_npsScore", Icons.speed, npsColor)),
                     const SizedBox(width: 10),
                     Expanded(child: _kpiCard("Satisfacción", "${_avgGeneral.toStringAsFixed(1)}/5", Icons.star, Colors.orange)),
                 ]
@@ -386,7 +400,9 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
             
             final topCardsRow2 = Row(
                 children: [
-                    Expanded(child: _kpiCard("Ticket Promedio", "\$${(_avgTicket/1000).toStringAsFixed(1)}k", Icons.receipt, Colors.green)),
+                    Expanded(child: isBasic
+                        ? _kpiCard("Ticket (Premium)", "🔒", Icons.lock, Colors.grey)
+                        : _kpiCard("Ticket Promedio", "\$${(_avgTicket/1000).toStringAsFixed(1)}k", Icons.receipt, Colors.green)),
                     const SizedBox(width: 10),
                     Expanded(child: _kpiCard("Encuestas", "$_totalSurveys", Icons.analytics, Colors.blue)),
                 ]
@@ -428,7 +444,31 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
                children: [
                   const Text("AI Business Insights ✨", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
                   const SizedBox(height: 16),
-                  _buildAIPanel(),
+                  isGold 
+                      ? _buildAIPanel()
+                      : Container(
+                          padding: const EdgeInsets.all(24),
+                          decoration: BoxDecoration(
+                              color: Colors.amber.withOpacity(0.1),
+                              borderRadius: BorderRadius.circular(16),
+                              border: Border.all(color: Colors.amber.withOpacity(0.3))
+                          ),
+                          child: Column(
+                              children: [
+                                  const Icon(Icons.auto_awesome, color: Colors.amber, size: 40),
+                                  const SizedBox(height: 12),
+                                  const Text("Desbloquea el Asesor IA", style: TextStyle(color: Colors.amber, fontWeight: FontWeight.bold, fontSize: 16)),
+                                  const SizedBox(height: 8),
+                                  const Text("La inteligencia artificial analizará todos los sentimientos, detectará focos de pérdida y sugerirá planes de acción quirúrgicos.", textAlign: TextAlign.center, style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                  const SizedBox(height: 16),
+                                  ElevatedButton(
+                                      onPressed: () => ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Contacta a tu asesor para subir a Gold."))),
+                                      style: ElevatedButton.styleFrom(backgroundColor: Colors.amber, foregroundColor: Colors.black),
+                                      child: const Text("Mejorar a Plan Gold 👑", style: TextStyle(fontWeight: FontWeight.bold)),
+                                  )
+                              ]
+                          )
+                      )
                ]
             );
 

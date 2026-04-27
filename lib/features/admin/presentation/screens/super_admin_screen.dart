@@ -81,20 +81,38 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
 
   void _addRestaurant() async {
     String name = '';
-    await showDialog(context: context, builder: (c) => AlertDialog(
+    String tier = 'basic';
+    
+    await showDialog(context: context, builder: (c) => StatefulBuilder(builder: (ctx, setSt) => AlertDialog(
       title: const Text("Nuevo Restaurante"),
-      content: TextField(onChanged: (v) => name = v, decoration: const InputDecoration(hintText: "Nombre")),
+      content: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+              TextField(onChanged: (v) => name = v, decoration: const InputDecoration(hintText: "Nombre")),
+              const SizedBox(height: 16),
+              DropdownButtonFormField<String>(
+                  value: tier,
+                  decoration: const InputDecoration(labelText: "Nivel de Suscripción"),
+                  items: const [
+                      DropdownMenuItem(value: 'basic', child: Text("Básico")),
+                      DropdownMenuItem(value: 'premium', child: Text("Premium")),
+                      DropdownMenuItem(value: 'gold', child: Text("Gold")),
+                  ],
+                  onChanged: (v) => setSt(() => tier = v!),
+              )
+          ],
+      ),
       actions: [
         TextButton(onPressed: () => Navigator.pop(c), child: const Text("Cancelar")),
         ElevatedButton(onPressed: () async {
           if (name.isNotEmpty) {
-            await _supabase.from('restaurants').insert({'name': name});
+            await _supabase.from('restaurants').insert({'name': name, 'tier': tier});
             Navigator.pop(c);
             _loadRestaurants();
           }
         }, child: const Text("Crear"))
       ],
-    ));
+    )));
   }
 
   @override
@@ -123,28 +141,50 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                 icon: const Icon(Icons.settings, color: Colors.blue),
                 onPressed: () async {
                     String currentJson = "{}";
+                    String currentTier = r['tier'] ?? 'basic';
+                    
                     try {
                         currentJson = jsonEncode(r['survey_settings'] ?? {"questions": []});
                     } catch(_) {}
                     
                     final ctrl = TextEditingController(text: currentJson);
-                    final save = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
-                        title: const Text("Editar Encuesta"),
-                        content: TextField(
-                            controller: ctrl,
-                            maxLines: 5,
-                            decoration: const InputDecoration(hintText: '{"questions": ["Pregunta 1?"]}'),
+                    
+                    final save = await showDialog<bool>(context: context, builder: (c) => StatefulBuilder(builder: (ctx, setSt) => AlertDialog(
+                        title: const Text("Ajustes del Comercio"),
+                        content: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                                DropdownButtonFormField<String>(
+                                    value: currentTier,
+                                    decoration: const InputDecoration(labelText: "Suscripción B2B (Tier)"),
+                                    items: const [
+                                        DropdownMenuItem(value: 'basic', child: Text("Básico - Historico NPS")),
+                                        DropdownMenuItem(value: 'premium', child: Text("Premium - Fechas + Transacciones")),
+                                        DropdownMenuItem(value: 'gold', child: Text("Gold - Fechas + AI Bi")),
+                                    ],
+                                    onChanged: (v) => setSt(() => currentTier = v!),
+                                ),
+                                const SizedBox(height: 16),
+                                TextField(
+                                    controller: ctrl,
+                                    maxLines: 5,
+                                    decoration: const InputDecoration(labelText: "JSON Encuesta (Fase 2)"),
+                                ),
+                            ]
                         ),
                         actions: [
                            TextButton(onPressed: () => Navigator.pop(c), child: const Text("Cancelar")),
                            ElevatedButton(onPressed: () => Navigator.pop(c, true), child: const Text("Guardar"))
                         ]
-                    ));
+                    )));
                     
                     if (save == true) {
                         try {
                             final decoded = jsonDecode(ctrl.text);
-                            await _supabase.from('restaurants').update({'survey_settings': decoded}).eq('id', r['id']);
+                            await _supabase.from('restaurants').update({
+                                'survey_settings': decoded,
+                                'tier': currentTier
+                            }).eq('id', r['id']);
                             _loadRestaurants();
                         } catch (e) {
                             if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("JSON Invalido: $e")));
@@ -153,7 +193,7 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                 }
             ),
             title: Text(r['name'], style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-            subtitle: Text("ID: ${r['id']}", style: const TextStyle(color: Colors.white54, fontSize: 11)),
+            subtitle: Text("Tier: ${r['tier']?.toString().toUpperCase() ?? 'BASIC'} | ID: ${r['id']}", style: const TextStyle(color: Colors.white54, fontSize: 11)),
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
