@@ -190,17 +190,21 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
       final currentUid = Supabase.instance.client.auth.currentUser?.id;
       if (currentUid == null) return;
       
-      final currentList = _assignments[itemId] ?? <AssignmentModel>[];
-      final exists = currentList.any((a) => a.userId == currentUid);
+      final currentList = List<AssignmentModel>.from(_assignments[itemId] ?? []);
+      final myIndex = currentList.indexWhere((a) => a.userId == currentUid);
       
       setState(() {
-          if (exists) {
-              // Unassign
-              currentList.removeWhere((a) => a.userId == currentUid);
+          if (myIndex >= 0) {
+              currentList.removeAt(myIndex);
           } else {
-              // Assign full amount to self, override others
-              currentList.clear();
-              currentList.add(AssignmentModel(userId: currentUid, quantity: itemQuantity.toDouble()));
+              final totalAssigned = currentList.fold(0.0, (sum, a) => sum + a.quantity);
+              final missing = itemQuantity.toDouble() - totalAssigned;
+              
+              double assignQty = 1.0;
+              if (itemQuantity < 1.0) assignQty = itemQuantity.toDouble();
+              else if (missing > 0 && missing < 1.0) assignQty = missing;
+              
+              currentList.add(AssignmentModel(userId: currentUid, quantity: assignQty));
           }
           _assignments[itemId] = currentList;
       });
@@ -215,8 +219,9 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
   }
 
   void _markAsShared(ExpenseItem item) {
-      final selectedUsers = <String>{};
-      final selectedGuests = <String>{};
+      final currentList = _assignments[item.id] ?? [];
+      final selectedUsers = currentList.where((a) => a.userId != null).map((a) => a.userId!).toSet();
+      final selectedGuests = currentList.where((a) => a.guestName != null).map((a) => a.guestName!).toSet();
       
       showDialog(context: context, builder: (ctx) {
          return StatefulBuilder(builder: (ctx, setDialogState) {
@@ -1118,11 +1123,7 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
                           indicatorColor: AppTheme.primaryBrand,
                           isScrollable: true, // Allow more tabs
                           onTap: (index) {
-                              setState(() {
-                                  final newValues = <String, double>{};
-                                  _tempValues.clear();
-                                  _tempValues.addAll(newValues);
-                              });
+                              setState(() {});
                           },
                           tabs: const [
                               Tab(text: "Selección"),
