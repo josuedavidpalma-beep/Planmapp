@@ -167,6 +167,15 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                     String currentJson = "{}";
                     String currentTier = r['tier'] ?? 'basic';
                     String mapsUrl = r['maps_url'] ?? '';
+                    String currentPin = '';
+                    
+                    try {
+                        var tokenRes = await _supabase.from('restaurant_tokens').select('access_pin').eq('restaurant_id', r['id']).maybeSingle();
+                        if (tokenRes == null) {
+                             tokenRes = await _supabase.from('restaurant_tokens').insert({'restaurant_id': r['id']}).select('access_pin').single();
+                        }
+                        currentPin = tokenRes['access_pin'] ?? '';
+                    } catch(_) {}
                     
                     try {
                         currentJson = jsonEncode(r['survey_settings'] ?? {"questions": []});
@@ -174,6 +183,7 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                     
                     final ctrl = TextEditingController(text: currentJson);
                     final mapsCtrl = TextEditingController(text: mapsUrl);
+                    final pinCtrl = TextEditingController(text: currentPin);
                     
                     final save = await showDialog<bool>(context: context, builder: (c) => StatefulBuilder(builder: (ctx, setSt) => AlertDialog(
                         title: const Text("Ajustes del Comercio"),
@@ -199,6 +209,11 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                                     ),
                                     const SizedBox(height: 16),
                                     TextField(
+                                        controller: pinCtrl,
+                                        decoration: const InputDecoration(labelText: "PIN de Acceso (B2B Dashboard)", hintText: "Ej: 1234"),
+                                    ),
+                                    const SizedBox(height: 16),
+                                    TextField(
                                         controller: ctrl,
                                         maxLines: 4,
                                         decoration: const InputDecoration(labelText: "JSON Encuesta (Fase 2)"),
@@ -220,6 +235,13 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                                 'maps_url': mapsCtrl.text,
                                 'tier': currentTier
                             }).eq('id', r['id']);
+                            
+                            if (pinCtrl.text != currentPin) {
+                                await _supabase.from('restaurant_tokens')
+                                  .update({'access_pin': pinCtrl.text.isEmpty ? null : pinCtrl.text})
+                                  .eq('restaurant_id', r['id']);
+                            }
+                            
                             _loadRestaurants();
                         } catch (e) {
                             if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("JSON Invalido: $e")));

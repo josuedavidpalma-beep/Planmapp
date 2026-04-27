@@ -45,6 +45,11 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
 
   String? _aiRecommendation;
   bool _isGeneratingAi = false;
+  
+  bool _isAuthenticated = false;
+  String? _expectedPin;
+  final TextEditingController _pinCtrl = TextEditingController();
+  bool _isPinError = false;
 
   @override
   void initState() {
@@ -57,18 +62,29 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
       final supabase = Supabase.instance.client;
       // 1. Verify token or ID
       String? resId;
-      final tokenRes = await supabase.from('restaurant_tokens').select('restaurant_id').eq('token_hash', widget.token).maybeSingle();
+      final tokenRes = await supabase.from('restaurant_tokens').select('restaurant_id, access_pin').eq('token_hash', widget.token).maybeSingle();
       if (tokenRes != null) {
           resId = tokenRes['restaurant_id'];
+          _expectedPin = tokenRes['access_pin'];
       } else {
           // Assume the token passed might be the restaurant UUID directly (Admin View)
           final checkRes = await supabase.from('restaurants').select('id').eq('id', widget.token).maybeSingle();
-          if (checkRes != null) resId = checkRes['id'];
+          if (checkRes != null) {
+              resId = checkRes['id'];
+              _isAuthenticated = true; // Admin bypass
+          }
       }
       
       if (resId == null) {
           setState(() { _errorMsg = "Enlace inválido o expirado."; _isLoading = false; });
           return;
+      }
+      
+      if (!_isAuthenticated && _expectedPin != null && _expectedPin!.isNotEmpty) {
+          setState(() { _isLoading = false; });
+          return;
+      } else {
+          _isAuthenticated = true;
       }
       
       // 2. Load restaurant info
@@ -392,6 +408,65 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
     }
     if (_errorMsg != null) {
        return Scaffold(backgroundColor: AppTheme.darkBackground, body: Center(child: Text(_errorMsg!, style: const TextStyle(color: Colors.red))));
+    }
+
+    if (!_isAuthenticated) {
+        return Scaffold(
+            backgroundColor: AppTheme.darkBackground,
+            body: Center(
+                child: Padding(
+                    padding: const EdgeInsets.all(24.0),
+                    child: ConstrainedBox(
+                        constraints: const BoxConstraints(maxWidth: 400),
+                        child: Column(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                                const Icon(Icons.lock_outline, size: 64, color: AppTheme.primaryBrand),
+                                const SizedBox(height: 24),
+                                const Text("Acceso Protegido", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 8),
+                                const Text("Ingresa el PIN provisto por el administrador para acceder a las métricas del restaurante.", textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
+                                const SizedBox(height: 32),
+                                TextField(
+                                    controller: _pinCtrl,
+                                    obscureText: true,
+                                    keyboardType: TextInputType.number,
+                                    style: const TextStyle(color: Colors.white, fontSize: 24, letterSpacing: 8, fontWeight: FontWeight.bold),
+                                    textAlign: TextAlign.center,
+                                    decoration: InputDecoration(
+                                        hintText: "••••",
+                                        hintStyle: const TextStyle(color: Colors.white24, letterSpacing: 8),
+                                        filled: true,
+                                        fillColor: AppTheme.surfaceDark,
+                                        border: OutlineInputBorder(borderRadius: BorderRadius.circular(16), borderSide: BorderSide.none),
+                                        errorText: _isPinError ? "PIN incorrecto" : null
+                                    ),
+                                    onChanged: (v) {
+                                        if (v.length >= 4 && _expectedPin != null && v == _expectedPin) {
+                                            setState(() { _isAuthenticated = true; _isLoading = true; });
+                                            _fetchData();
+                                        } else if (v.length >= 4) {
+                                            setState(() => _isPinError = true);
+                                        } else {
+                                            if (_isPinError) setState(() => _isPinError = false);
+                                        }
+                                    },
+                                    onSubmitted: (v) {
+                                        if (v == _expectedPin) {
+                                            setState(() { _isAuthenticated = true; _isLoading = true; });
+                                            _fetchData();
+                                        } else {
+                                            setState(() => _isPinError = true);
+                                        }
+                                    },
+                                ),
+                                const SizedBox(height: 48),
+                            ],
+                        )
+                    )
+                )
+            )
+        );
     }
 
     AppBar buildAppBar() {
