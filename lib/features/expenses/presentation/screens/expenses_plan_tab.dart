@@ -218,8 +218,8 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
             heroTag: 'expense_fab',
             backgroundColor: AppTheme.primaryBrand,
             onPressed: () => _createNewBill(manualOnly: false),
-            tooltip: "Escanear Factura",
-            child: const Icon(Icons.document_scanner, color: Colors.white),
+            tooltip: "Registrar Gasto",
+            child: const Icon(Icons.add, color: Colors.white, size: 30),
         ),
         body: CustomScrollView(
             slivers: [
@@ -261,8 +261,8 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
                                                          height: 32,
                                                          child: ElevatedButton(
                                                              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16)),
-                                                             onPressed: () => _createNewBill(initialTitle: "Primer Gasto", manualOnly: true),
-                                                             child: const Text("Registrar Manualmente"),
+                                                             onPressed: () => _createNewBill(initialTitle: "Primer Gasto", manualOnly: false),
+                                                             child: const Text("Registrar Gasto"),
                                                          ),
                                                      )
                                                  ],
@@ -306,11 +306,11 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
                  SliverFillRemaining(
                      hasScrollBody: false,
                      child: DancingEmptyState(
-                        icon: Icons.document_scanner_outlined,
-                        title: "¡Escanea tu primera factura!",
-                        message: "Toca el botón mágico flotante abajo a la derecha, tómale foto a la cuenta y nosotros nos encargamos del resto.",
+                        icon: Icons.receipt_long,
+                        title: "¡Registra tu primer gasto!",
+                        message: "Presiona el botón para escanear una factura usando IA o ingresar los datos manualmente.",
                         onButtonPressed: _createNewBill,
-                        buttonLabel: "Crear Manualmente",
+                        buttonLabel: "Registrar Gasto",
                      ),
                  )
               else 
