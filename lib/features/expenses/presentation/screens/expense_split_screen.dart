@@ -197,14 +197,8 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
           if (myIndex >= 0) {
               currentList.removeAt(myIndex);
           } else {
-              final totalAssigned = currentList.fold(0.0, (sum, a) => sum + a.quantity);
-              final missing = itemQuantity.toDouble() - totalAssigned;
-              
-              double assignQty = 1.0;
-              if (itemQuantity < 1.0) assignQty = itemQuantity.toDouble();
-              else if (missing > 0 && missing < 1.0) assignQty = missing;
-              
-              currentList.add(AssignmentModel(userId: currentUid, quantity: assignQty));
+              currentList.clear();
+              currentList.add(AssignmentModel(userId: currentUid, quantity: itemQuantity.toDouble()));
           }
           _assignments[itemId] = currentList;
       });
@@ -218,77 +212,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
       }
   }
 
-  void _markAsShared(ExpenseItem item) {
-      final currentList = _assignments[item.id] ?? [];
-      final selectedUsers = currentList.where((a) => a.userId != null).map((a) => a.userId!).toSet();
-      final selectedGuests = currentList.where((a) => a.guestName != null).map((a) => a.guestName!).toSet();
-      
-      showDialog(context: context, builder: (ctx) {
-         return StatefulBuilder(builder: (ctx, setDialogState) {
-            return AlertDialog(
-                title: Text("¿Compartieron ${item.name}?"),
-                content: SizedBox(
-                    width: double.maxFinite,
-                    child: ListView(
-                        shrinkWrap: true,
-                        children: [
-                            ..._members.map((m) => CheckboxListTile(
-                                title: Text(m.name),
-                                dense: true,
-                                value: selectedUsers.contains(m.id),
-                                onChanged: (val) {
-                                    setDialogState(() {
-                                        if (val == true) selectedUsers.add(m.id);
-                                        else selectedUsers.remove(m.id);
-                                    });
-                                }
-                            )),
-                            ..._tempGuests.map((g) => CheckboxListTile(
-                                title: Text("$g (Inv)"),
-                                dense: true,
-                                value: selectedGuests.contains(g),
-                                onChanged: (val) {
-                                    setDialogState(() {
-                                        if (val == true) selectedGuests.add(g);
-                                        else selectedGuests.remove(g);
-                                    });
-                                }
-                            )),
-                        ]
-                    )
-                ),
-                actions: [
-                    TextButton(onPressed: () => Navigator.pop(ctx), child: const Text("Cancelar")),
-                    ElevatedButton(onPressed: () {
-                        final totalSelected = selectedUsers.length + selectedGuests.length;
-                        if (totalSelected > 0) {
-                            final qtyPerPerson = item.quantity / totalSelected;
-                            final newAssignments = <AssignmentModel>[];
-                            for(var u in selectedUsers) newAssignments.add(AssignmentModel(userId: u, quantity: qtyPerPerson));
-                            for(var g in selectedGuests) newAssignments.add(AssignmentModel(guestName: g, quantity: qtyPerPerson));
-                            
-                            setState(() {
-                                _assignments[item.id] = newAssignments;
-                            });
-                            
-                            if (widget.expenseData['id'] != null) {
-                                _expenseRepository.updateItemAssignments(item.id, newAssignments)
-                                    .catchError((e) => print("Sync Error: $e"));
-                            }
-                            
-                            ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-                                content: Text("División aplicada. Recuerda presionar 'Confirmar' abajo para guardarlo."),
-                                duration: Duration(seconds: 2),
-                                behavior: SnackBarBehavior.floating,
-                            ));
-                        }
-                        Navigator.pop(ctx);
-                    }, child: const Text("Dividir"))
-                ]
-            );
-         });
-      });
-  }
+
 
   // WIZARD
   void _openSplitWizard(ExpenseItem item) {
@@ -796,11 +720,6 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                                                 ]
                                                             )
                                                         ),
-                                                        IconButton(
-                                                            onPressed: () => _openSplitWizard(item),
-                                                            icon: const Icon(Icons.auto_fix_high, color: AppTheme.primaryBrand),
-                                                            tooltip: "División Avanzada",
-                                                        )
                                                     ]
                                                 ),
                                                 const SizedBox(height: 8),
@@ -816,7 +735,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                                         const SizedBox(width: 8),
                                                         Expanded(
                                                             child: ElevatedButton(
-                                                                onPressed: () => _markAsShared(item),
+                                                                onPressed: () => _openSplitWizard(item),
                                                                 style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, elevation: 0),
                                                                 child: const Text("Compartido"),
                                                             )
@@ -826,23 +745,46 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                             ]
                                         )
                                     ),
-                                    // Mini preview of who pays
                                     if ((_assignments[item.id] ?? []).isNotEmpty)
                                       Padding(
                                         padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
                                         child: Wrap(
-                                            spacing: 4,
-                                            runSpacing: 4,
+                                            spacing: 8,
+                                            runSpacing: 8,
                                             children: (_assignments[item.id] ?? []).map((a) {
                                                 final name = _getUserName(a.userId, a.guestName);
-                                                return Chip(
-                                                    label: Text(
-                                                        "$name: ${a.quantity < 1 ? '${(a.quantity*100).toInt()}%' : a.quantity.toStringAsFixed(1)}", // Show % if < 1 (fraction) or Qty if > 1
-                                                        style: const TextStyle(fontSize: 10)
+                                                final isMe = a.userId == Supabase.instance.client.auth.currentUser?.id;
+                                                final color = isMe ? Colors.green.withOpacity(0.15) : Colors.blue.withOpacity(0.15);
+                                                final textColor = isMe ? Colors.green.shade800 : Colors.blue.shade800;
+                                                
+                                                String? avatarUrl;
+                                                if (a.userId != null) {
+                                                    final m = _members.cast<PlanMember?>().firstWhere((m) => m?.id == a.userId, orElse: () => null);
+                                                    avatarUrl = m?.avatarUrl;
+                                                }
+                                                
+                                                return Container(
+                                                    padding: const EdgeInsets.only(right: 8),
+                                                    decoration: BoxDecoration(
+                                                        color: color,
+                                                        borderRadius: BorderRadius.circular(20),
                                                     ),
-                                                    backgroundColor: Colors.grey[100],
-                                                    padding: EdgeInsets.zero,
-                                                    visualDensity: VisualDensity.compact,
+                                                    child: Row(
+                                                        mainAxisSize: MainAxisSize.min,
+                                                        children: [
+                                                            CircleAvatar(
+                                                                radius: 12,
+                                                                backgroundImage: avatarUrl != null ? NetworkImage(avatarUrl) : null,
+                                                                backgroundColor: textColor.withOpacity(0.3),
+                                                                child: avatarUrl == null ? Text(name.isNotEmpty ? name[0].toUpperCase() : '?', style: TextStyle(fontSize: 10, color: textColor)) : null,
+                                                            ),
+                                                            const SizedBox(width: 6),
+                                                            Text(
+                                                                "$name: ${a.quantity < 1 ? '${(a.quantity*100).toInt()}%' : a.quantity.toStringAsFixed(1)}",
+                                                                style: TextStyle(fontSize: 12, color: textColor, fontWeight: FontWeight.bold)
+                                                            ),
+                                                        ],
+                                                    ),
                                                 );
                                             }).toList(),
                                         ),
@@ -1027,6 +969,9 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
   void initState() {
       super.initState();
       _tabController = TabController(length: 4, vsync: this); // NEW Length 4
+      _tabController.addListener(() {
+          if (mounted) setState(() {});
+      });
       
       // Initialize with current quantities
       _initValuesFromCurrent();
@@ -1117,6 +1062,46 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
                       Text("Dividir: ${widget.item.name}", style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                       Text(CurrencyInputFormatter.format(widget.item.price), style: const TextStyle(color: Colors.grey)),
                       const SizedBox(height: 16),
+                      Builder(builder: (ctx) {
+                          double totalAssigned = 0;
+                          
+                          if (_tabController.index == 0) {
+                              final selectedCount = _tempValues.values.where((v) => v > 0).length;
+                              if (selectedCount > 0) totalAssigned = widget.item.quantity; 
+                          } else if (_tabController.index == 1) {
+                              totalAssigned = _tempValues.values.fold(0.0, (s,v) => s + v);
+                          } else if (_tabController.index == 2) {
+                              final totalPct = _tempValues.values.fold(0.0, (s,v) => s + v);
+                              totalAssigned = (totalPct / 100) * widget.item.quantity;
+                          } else if (_tabController.index == 3) {
+                              final unitPrice = widget.item.price / (widget.item.quantity == 0 ? 1 : widget.item.quantity);
+                              final totalAmt = _tempValues.values.fold(0.0, (s,v) => s + v);
+                              if (unitPrice > 0) totalAssigned = totalAmt / unitPrice;
+                          }
+                          
+                          final missing = widget.item.quantity - totalAssigned;
+                          final isComplete = missing.abs() < 0.05;
+                          
+                          final unitPrice = widget.item.price / (widget.item.quantity == 0 ? 1 : widget.item.quantity);
+                          String txt = "Pendiente: \$${CurrencyInputFormatter.format(missing * unitPrice)} (${missing.toStringAsFixed(1)} unds)";
+                          Color clr = Colors.orange;
+                          
+                          if (isComplete) {
+                              txt = "¡100% Asignado! 🎉";
+                              clr = Colors.green;
+                          } else if (missing < 0) {
+                              txt = "Excedente: \$${CurrencyInputFormatter.format(missing.abs() * unitPrice)} (${missing.abs().toStringAsFixed(1)} unds)";
+                              clr = Colors.red;
+                          }
+                          
+                          return Container(
+                              width: double.infinity,
+                              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                              margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+                              decoration: BoxDecoration(color: clr.withOpacity(0.2), borderRadius: BorderRadius.circular(8)),
+                              child: Text(txt, style: TextStyle(color: clr, fontWeight: FontWeight.bold), textAlign: TextAlign.center),
+                          );
+                      }),
                       TabBar(
                           controller: _tabController,
                           labelColor: AppTheme.primaryBrand,
@@ -1126,10 +1111,10 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
                               setState(() {});
                           },
                           tabs: const [
-                              Tab(text: "Selección"),
-                              Tab(text: "Unidades"),
-                              Tab(text: "%"),
-                              Tab(text: "\$"),
+                              Tab(text: "⚖️ Por Iguales"),
+                              Tab(text: "🍕 Por Cantidades"),
+                              Tab(text: "📊 %"),
+                              Tab(text: "💵 \$"),
                           ]
                       ),
                       SizedBox(
