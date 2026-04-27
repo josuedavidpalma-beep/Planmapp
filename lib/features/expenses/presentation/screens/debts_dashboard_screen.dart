@@ -532,34 +532,47 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                  const Text("Medios de Pago del Organizador:", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
+                                  const Text("Datos para Transferencia (Clic para copiar):", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.grey)),
                                   const SizedBox(height: 12),
                                   Wrap(
                                       spacing: 8,
                                       runSpacing: 8,
-                                      children: paymentMethods.map((pm) {
-                                          final type = pm['type']?.toString().toLowerCase() ?? '';
-                                          return ActionChip(
+                                      children: [
+                                          ActionChip(
                                               backgroundColor: Colors.white10,
                                               side: BorderSide.none,
                                               labelStyle: const TextStyle(color: Colors.white),
-                                              avatar: const Icon(Icons.account_balance_wallet, size: 16, color: AppTheme.primaryBrand),
-                                              label: Text("${pm['type']}: ${pm['details']}"),
-                                              onPressed: () async {
-                                                  Clipboard.setData(ClipboardData(text: pm['details'] ?? ''));
-                                                  ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Abre tu app bancaria. Copiado: ${pm['details']}")));
-                                                  
-                                                  // Deep linking
-                                                  if (type.contains('nequi')) {
-                                                      final uri = Uri.parse('nequi://');
-                                                      if (await canLaunchUrl(uri)) await launchUrl(uri);
-                                                  } else if (type.contains('daviplata')) {
-                                                      final uri = Uri.parse('daviplata://');
-                                                      if (await canLaunchUrl(uri)) await launchUrl(uri);
-                                                  }
+                                              avatar: const Icon(Icons.attach_money, size: 16, color: Colors.green),
+                                              label: Text("Valor: ${totalAmount.toInt()}"),
+                                              onPressed: () {
+                                                  Clipboard.setData(ClipboardData(text: totalAmount.toInt().toString()));
+                                                  ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Valor exacto copiado al portapapeles.")));
                                               },
-                                          );
-                                      }).toList(),
+                                          ),
+                                          ...paymentMethods.map((pm) {
+                                              final type = pm['type']?.toString().toLowerCase() ?? '';
+                                              return ActionChip(
+                                                  backgroundColor: Colors.white10,
+                                                  side: BorderSide.none,
+                                                  labelStyle: const TextStyle(color: Colors.white),
+                                                  avatar: const Icon(Icons.account_balance_wallet, size: 16, color: AppTheme.primaryBrand),
+                                                  label: Text("${pm['type']}: ${pm['details']}"),
+                                                  onPressed: () async {
+                                                      Clipboard.setData(ClipboardData(text: pm['details'] ?? ''));
+                                                      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Número copiado: ${pm['details']}")));
+                                                      
+                                                      // Deep linking
+                                                      if (type.contains('nequi')) {
+                                                          final uri = Uri.parse('nequi://');
+                                                          if (await canLaunchUrl(uri)) await launchUrl(uri);
+                                                      } else if (type.contains('daviplata')) {
+                                                          final uri = Uri.parse('daviplata://');
+                                                          if (await canLaunchUrl(uri)) await launchUrl(uri);
+                                                      }
+                                                  },
+                                              );
+                                          }).toList(),
+                                      ]
                                   )
                               ]
                           )

@@ -255,24 +255,22 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
   }
 
   Future<void> _saveExpense() async {
+      final currentUid = Supabase.instance.client.auth.currentUser?.id;
+      final isCreator = widget.expenseData['created_by'] == currentUid;
+
       setState(() => _isSaving = true);
       try {
           final expenseId = widget.expenseData['id'] as String;
           
-          // 1. Update Item Assignments
-          for (var item in _items) {
-             await _expenseRepository.updateItemAssignments(item.id, _assignments[item.id] ?? []);
-          }
-          
-          // 2. Recalculate debts globally
+          // 2. Recalculate debts globally (Items are saved instantly on interaction)
           await _expenseRepository.calculateAndUpdateDebts(expenseId);
 
           if (mounted) {
               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Cambios guardados exitosamente")));
               if (widget.expenseData['plan_id'] != null) {
-                  await _checkAndShowSurvey(widget.expenseData['plan_id']);
+                  await _checkAndShowSurvey(widget.expenseData['plan_id'], isCreator);
               } else {
-                  Navigator.pop(context, true);
+                  _navigateAfterSave(isCreator);
               }
           }
       } catch (e) {
@@ -282,18 +280,28 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
           }
       } 
   }
-  Future<void> _checkAndShowSurvey(String planId) async {
+
+  void _navigateAfterSave(bool isCreator) {
+      if (!mounted) return;
+      if (!isCreator) {
+          // Navigate guest to Debts Dashboard "Yo Debo" tab
+          Navigator.pushReplacement(context, MaterialPageRoute(builder: (_) => const DebtsDashboardScreen(initialTab: 1)));
+      } else {
+          Navigator.pop(context, true);
+      }
+  }
+  Future<void> _checkAndShowSurvey(String planId, bool isCreator) async {
       final supabase = Supabase.instance.client;
       try {
           final planRes = await supabase.from('plans').select('restaurant_id').eq('id', planId).maybeSingle();
           if (planRes == null || planRes['restaurant_id'] == null) {
-              if (mounted) Navigator.pop(context, true);
+              _navigateAfterSave(isCreator);
               return;
           }
           final resId = planRes['restaurant_id'];
           final restRes = await supabase.from('restaurants').select('name, maps_url, features').eq('id', resId).maybeSingle();
           if (restRes == null) {
-              if (mounted) Navigator.pop(context, true);
+              _navigateAfterSave(isCreator);
               return;
           }
 
@@ -352,10 +360,10 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                               )
                           ),
                       ),
-                      actions: [
+                       actions: [
                           TextButton(onPressed: () { 
                              Navigator.pop(ctx); 
-                             Navigator.pop(context, true); 
+                             _navigateAfterSave(isCreator); 
                           }, child: const Text("Omitir", style: TextStyle(color: Colors.grey))),
                           ElevatedButton(
                               style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand),
@@ -408,15 +416,14 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                               ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("¡Gracias por tu opinión!")));
                                           }
                                           
-                                          Navigator.pop(context, true); 
+                                          _navigateAfterSave(isCreator); 
                                       }
                                   } catch (e) {
                                       if (ctx.mounted) {
                                            Navigator.pop(ctx);
                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error interno enviando encuesta: $e"), duration: const Duration(seconds: 4)));
-                                           Navigator.pop(context, true); 
-                                      }
-                                  }
+                                           _navigateAfterSave(isCreator); 
+                                      }          }
                               },
                               child: const Text("Enviar", style: TextStyle(color: Colors.white))
                           )
@@ -425,7 +432,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
               );
           }
       } catch (e) {
-          if (mounted) Navigator.pop(context, true);
+          if (mounted) _navigateAfterSave(isCreator);
       }
   }
 
@@ -597,13 +604,13 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                  IconButton(icon: const Icon(Icons.person_add), onPressed: _addGuestName, tooltip: "Añadir Invitado"),
               ]
           ],
-          bottom: TabBar(
+          bottom: isCreator ? TabBar(
             controller: _tabController,
             tabs: const [
               Tab(text: "Ítems"),
               Tab(text: "Resumen"),
             ],
-          ),
+          ) : null,
         ),
         body: _isLoading 
           ? const Center(child: CircularProgressIndicator())
@@ -629,10 +636,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                     }
                 }
 
-                return TabBarView(
-                  controller: _tabController,
-                  children: [
-                Column(
+                Widget mainColumn = Column(
                   children: [
 
                       if (isCreator && _showShareBanner)
@@ -794,7 +798,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                         child: ElevatedButton.icon(
                             onPressed: _isSaving ? null : _saveExpense,
                             icon: _isSaving ? const SizedBox(width: 20, height: 20, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : const Icon(Icons.cloud_done),
-                            label: const Text("Confirmar y Guardar Vaca", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                            label: Text(isCreator ? "Confirmar y Guardar Vaca" : "Terminé, ver mi cuenta", style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                             style: ElevatedButton.styleFrom(
                                 minimumSize: const Size(double.infinity, 48),
                                 backgroundColor: AppTheme.primaryBrand,
@@ -804,11 +808,20 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                     )
                 )
               ],
-          ),
-          if (isCreator) _buildSummaryTab(),
-        ],
-      );
-    },
+          );
+          
+          if (!isCreator) {
+              return mainColumn;
+          }
+          
+          return TabBarView(
+            controller: _tabController,
+            children: [
+                mainColumn,
+                _buildSummaryTab(),
+            ]
+          );
+        },
   ),
 );
   }
