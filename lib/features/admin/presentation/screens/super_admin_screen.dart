@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:qr_flutter/qr_flutter.dart';
 import 'package:share_plus/share_plus.dart';
+import 'package:flutter/services.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../b2b/presentation/screens/restaurant_insights_screen.dart';
 
@@ -116,6 +117,28 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
     )));
   }
 
+  Future<void> _copyB2BLink(Map<String, dynamic> r) async {
+    final resId = r['id'];
+    try {
+        var tokenRes = await _supabase.from('restaurant_tokens').select('token_hash').eq('restaurant_id', resId).maybeSingle();
+        if (tokenRes == null) {
+             tokenRes = await _supabase.from('restaurant_tokens').insert({'restaurant_id': resId}).select('token_hash').single();
+        }
+        final token = tokenRes['token_hash'];
+        final link = 'https://planmapp.app/#/b2b/$token';
+        
+        await Clipboard.setData(ClipboardData(text: link));
+        if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                content: Text("¡Copiado! Enlace con Hash: $token"),
+                backgroundColor: Colors.green,
+            ));
+        }
+    } catch(e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
@@ -214,6 +237,10 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                   onPressed: () {
                     Navigator.push(context, MaterialPageRoute(builder: (_) => RestaurantInsightsScreen(token: r['id'])));
                   },
+                ),
+                IconButton(
+                  icon: const Icon(Icons.link, color: Colors.blueAccent),
+                  onPressed: () => _copyB2BLink(r),
                 ),
                 IconButton(
                   icon: const Icon(Icons.delete, color: Colors.redAccent),
