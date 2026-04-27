@@ -4,8 +4,15 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:planmapp/features/explore/data/models/event_model.dart';
 import 'package:planmapp/features/explore/services/places_service.dart';
 
+class ExploreFeedData {
+  final List<Event> viralEvents;
+  final List<Event> recommendedPlaces;
+
+  ExploreFeedData({required this.viralEvents, required this.recommendedPlaces});
+}
+
 // CACHE PROVIDER: Evita recargas molestas al cambiar de tabs
-final feedEventsProvider = FutureProvider.family<List<Event>, String>((ref, cacheKey) async {
+final feedEventsProvider = FutureProvider.family<ExploreFeedData, String>((ref, cacheKey) async {
   final params = jsonDecode(cacheKey);
   
   final city = params['city'] as String? ?? 'Bogotá';
@@ -16,7 +23,8 @@ final feedEventsProvider = FutureProvider.family<List<Event>, String>((ref, cach
   final service = EventsService();
   
   if (category == 'preventas') {
-      return service.getPlaces(city: city, category: category);
+      final preventas = await service.getPlaces(city: city, category: category);
+      return ExploreFeedData(viralEvents: preventas, recommendedPlaces: []);
   }
 
   final places = await service.getPlaces(
@@ -24,7 +32,7 @@ final feedEventsProvider = FutureProvider.family<List<Event>, String>((ref, cach
   );
 
   final dailyPromos = await service.getDailyEvents(
-    city: city, userInterests: userInterests, budgetLevel: budgetLevel
+    city: city, userInterests: userInterests, budgetLevel: budgetLevel, userAge: 20 // Dummy age to bypass strict filter if not provided
   );
 
   // Nest Promos directly onto their respective Places by ID or name
@@ -56,18 +64,17 @@ final feedEventsProvider = FutureProvider.family<List<Event>, String>((ref, cach
       }
   }
 
-  // La seccion de Explorar debe SER SOLO PARA LOCALES (con descuentos o informaciones integradas).
-  // Los standalonePromos (Planes) ya no se muestran aqui.
-  final List<Event> finalSpontaneousFeed = [...nestedPlaces];
-
   // Preserve billboard positioning if injected by getPlaces
-  final billboardIndex = finalSpontaneousFeed.indexWhere((e) => e.id == 'cartelera_nacional');
+  final billboardIndex = nestedPlaces.indexWhere((e) => e.id == 'cartelera_nacional');
   if (billboardIndex != -1) {
-      final billboard = finalSpontaneousFeed.removeAt(billboardIndex);
-      finalSpontaneousFeed.insert(0, billboard);
+      final billboard = nestedPlaces.removeAt(billboardIndex);
+      standalonePromos.insert(0, billboard);
   }
 
-  return finalSpontaneousFeed;
+  return ExploreFeedData(
+      viralEvents: standalonePromos,
+      recommendedPlaces: nestedPlaces,
+  );
 });
 
 class EventsService {

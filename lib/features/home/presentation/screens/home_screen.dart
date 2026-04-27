@@ -439,6 +439,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                           style: const TextStyle(fontSize: 18, color: Colors.grey, fontWeight: FontWeight.w500),
                         ),
                         const SizedBox(height: 24),
+                        if (_isGuest) _buildGuestBanner(),
                         if (_showCompleteProfileBanner)
                           GestureDetector(
                             onTap: () => context.push('/profile'),
@@ -525,7 +526,9 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                            padding: const EdgeInsets.all(16),
                            child: Center(child: Text("Error: $error")),
                         ),
-                        data: (filteredEvents) {
+                        data: (feedData) {
+                          final viralEvents = feedData.viralEvents;
+                          final recommendedPlaces = feedData.recommendedPlaces;
             
                       if (_isMapView) {
                          return Padding(
@@ -535,7 +538,7 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                child: ClipRRect(
                                    borderRadius: BorderRadius.circular(20),
                                    child: DiscoverMap(
-                                       events: filteredEvents,
+                                       events: recommendedPlaces,
                                        city: _selectedCity,
                                        onEventTap: (event) => _showPlanPreview(context, event.title, "${event.ratingGoogle != null ? '⭐ ${event.ratingGoogle} • ' : ''}${event.address ?? ''}", event.imageUrl ?? event.displayImageUrl, event)
                                    )
@@ -544,32 +547,69 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                          );
                       }
                       
-                      if (filteredEvents.isEmpty) {
-                         return const SizedBox(
-                           height: 400,
-                           child: PremiumEmptyState(
-                             icon: Icons.search_off_rounded,
-                             title: "Mmm, está muy tranquilo",
-                             subtitle: "No encontramos locales para esta categoría en tu zona.",
-                           ),
-                         );
-                      }
-                      
-                      return Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: Column(
-                          children: filteredEvents.map((event) => Padding(
-                            padding: const EdgeInsets.only(bottom: 16),
-                            child: _AnimatedPlanCard(
-                               title: event.title, 
-                               subtitle: "${event.ratingGoogle != null ? '⭐ ${event.ratingGoogle} • ' : ''}${event.address ?? ''}", 
-                               imageUrl: event.imageUrl ?? event.displayImageUrl,
-                               event: event,
-                               isRecommended: _userInterests.isNotEmpty,
-                               onTap: () => _showPlanPreview(context, event.title, "${event.address ?? ''}", event.imageUrl ?? event.displayImageUrl, event)
-                            ),
-                          )).toList(),
-                        ),
+                      return Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                              if (viralEvents.isNotEmpty) ...[
+                                  const Padding(
+                                      padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                      child: Text("Eventos & Virales 🔥", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                                  ),
+                                  SizedBox(
+                                      height: 250,
+                                      child: ListView.builder(
+                                          scrollDirection: Axis.horizontal,
+                                          padding: const EdgeInsets.symmetric(horizontal: 16),
+                                          itemCount: viralEvents.length,
+                                          itemBuilder: (context, i) {
+                                              final event = viralEvents[i];
+                                              return Container(
+                                                  width: 320,
+                                                  margin: const EdgeInsets.only(right: 16),
+                                                  child: _AnimatedPlanCard(
+                                                      title: event.title,
+                                                      subtitle: event.promoHighlights ?? event.category ?? '',
+                                                      imageUrl: event.imageUrl ?? event.displayImageUrl,
+                                                      event: event,
+                                                      onTap: () => _showPlanPreview(context, event.title, "${event.address ?? ''}", event.imageUrl ?? event.displayImageUrl, event)
+                                                  ),
+                                              );
+                                          }
+                                      ),
+                                  ),
+                              ],
+                              const SizedBox(height: 16),
+                              const Padding(
+                                  padding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                                  child: Text("Locales Recomendados 📍", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.white)),
+                              ),
+                              if (recommendedPlaces.isEmpty)
+                                  const SizedBox(
+                                    height: 200,
+                                    child: PremiumEmptyState(
+                                      icon: Icons.search_off_rounded,
+                                      title: "Mmm, está muy tranquilo",
+                                      subtitle: "No encontramos locales para esta categoría en tu zona.",
+                                    ),
+                                  )
+                              else
+                                  Padding(
+                                    padding: const EdgeInsets.symmetric(horizontal: 16),
+                                    child: Column(
+                                      children: recommendedPlaces.map((event) => Padding(
+                                        padding: const EdgeInsets.only(bottom: 16),
+                                        child: _AnimatedPlanCard(
+                                           title: event.title, 
+                                           subtitle: "${event.ratingGoogle != null ? '⭐ ${event.ratingGoogle} • ' : ''}${event.address ?? ''}", 
+                                           imageUrl: event.imageUrl ?? event.displayImageUrl,
+                                           event: event,
+                                           isRecommended: _userInterests.isNotEmpty,
+                                           onTap: () => _showPlanPreview(context, event.title, "${event.address ?? ''}", event.imageUrl ?? event.displayImageUrl, event)
+                                        ),
+                                      )).toList(),
+                                    ),
+                                  )
+                          ]
                       );
                     }
                   );
@@ -837,6 +877,39 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
               ),
           );
   }
+  Widget _buildGuestBanner() {
+      return Container(
+          margin: const EdgeInsets.only(bottom: 16),
+          padding: const EdgeInsets.all(16),
+          decoration: BoxDecoration(
+              color: AppTheme.secondaryBrand.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(16),
+              border: Border.all(color: AppTheme.secondaryBrand.withOpacity(0.3))
+          ),
+          child: Row(
+              children: [
+                  const Icon(Icons.person_outline, color: AppTheme.secondaryBrand, size: 30),
+                  const SizedBox(width: 16),
+                  const Expanded(
+                      child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                              Text("Explorando como invitado 👀", style: TextStyle(fontWeight: FontWeight.bold, color: Colors.white, fontSize: 14)),
+                              SizedBox(height: 4),
+                              Text("Regístrate para guardar tus favoritos y crear tus vacas.", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                          ],
+                      )
+                  ),
+                  TextButton(
+                      onPressed: () => context.push('/register'),
+                      style: TextButton.styleFrom(foregroundColor: AppTheme.secondaryBrand),
+                      child: const Text("Registrarme", style: TextStyle(fontWeight: FontWeight.bold)),
+                  )
+              ],
+          ),
+      );
+  }
+
   Widget _buildCompleteProfileBanner() {
     // ... logic omitted ...
     return Container(); // Placeholder or actual logic

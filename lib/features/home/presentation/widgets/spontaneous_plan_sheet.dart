@@ -4,6 +4,7 @@ import 'package:flutter_animate/flutter_animate.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:planmapp/features/itinerary/services/location_service.dart';
 import 'package:planmapp/features/home/presentation/widgets/spontaneous_results_view.dart';
+import 'package:go_router/go_router.dart';
 
 class SpontaneousPlanSheet extends StatefulWidget {
   const SpontaneousPlanSheet({super.key});
@@ -104,26 +105,50 @@ class _SpontaneousPlanSheetState extends State<SpontaneousPlanSheet> {
                     ).animate().fadeIn().moveY(begin: 10),
                     const SizedBox(height: 8),
                     Text(
-                        "Encuentra los tesoros más frescos de hoy.", 
+                        "Deja que la Inteligencia Artificial arme tu plan, o elige una vibra rápida.", 
                         style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.w500),
                         textAlign: TextAlign.center
                     ).animate().fadeIn().moveY(begin: 10, delay: 100.ms),
                     const SizedBox(height: 24),
                     
+                    // NEW: Premium AI Matchmaker Button
+                    InkWell(
+                        onTap: () {
+                            Navigator.pop(context);
+                            context.push('/ai-matchmaker');
+                        },
+                        borderRadius: BorderRadius.circular(20),
+                        child: Container(
+                            height: 80,
+                            decoration: BoxDecoration(
+                                gradient: const LinearGradient(colors: [Color(0xFF6B48FF), Color(0xFF1AD2A4)]),
+                                borderRadius: BorderRadius.circular(20),
+                                boxShadow: [BoxShadow(color: const Color(0xFF6B48FF).withOpacity(0.4), blurRadius: 15, offset: const Offset(0, 5))]
+                            ),
+                            child: Row(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                    const Icon(Icons.auto_awesome_rounded, color: Colors.white, size: 32),
+                                    const SizedBox(width: 16),
+                                    const Text("¡Sorpréndeme con IA!", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
+                                ],
+                            ),
+                        ),
+                    ).animate().fadeIn(delay: 150.ms).scale(begin: const Offset(0.95, 0.95)),
+                    
+                    const SizedBox(height: 24),
+
                     Expanded(
                         child: GridView.count(
                             crossAxisCount: 2,
                             mainAxisSpacing: 16,
                             crossAxisSpacing: 16,
-                            childAspectRatio: 1.1,
+                            childAspectRatio: 1.5,
                             children: [
                                 _buildVisualMoodCard("Rumba", "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=400&q=80"),
                                 _buildVisualMoodCard("Chill", "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=400&q=80"),
                                 _buildVisualMoodCard("Comida", "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=400&q=80"),
-                                _buildVisualMoodCard("Aventura", "https://images.unsplash.com/photo-1441974231531-c6227db76b6e?auto=format&fit=crop&w=400&q=80"),
                                 _buildVisualMoodCard("Cultura", "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=400&q=80"),
-                                _buildVisualMoodCard("Deportes 🏃", "https://images.unsplash.com/photo-1571019614242-c5c5dee9f50b?auto=format&fit=crop&w=400&q=80"),
-                                _buildDiceCard(),
                             ],
                         ).animate().fadeIn(delay: 200.ms),
                     )

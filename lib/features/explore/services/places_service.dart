@@ -82,7 +82,14 @@ class PlacesService {
           "excludedPrimaryTypes": [
               "dentist", "doctor", "school", "bank", "hospital", "pharmacy", 
               "police", "laundry", "car_repair", "hair_care", "hardware_store", 
-              "veterinary_care", "real_estate_agency", "lawyer", "atm"
+              "veterinary_care", "real_estate_agency", "lawyer", "atm",
+              "church", "hindu_temple", "mosque", "synagogue", "place_of_worship", 
+              "car_dealer", "car_rental", "car_wash", "gas_station", 
+              "convenience_store", "supermarket", "grocery_store", "clothing_store", 
+              "shoe_store", "furniture_store", "electronics_store", "home_goods_store", 
+              "jewelry_store", "department_store", "accounting", "insurance_agency", 
+              "travel_agency", "funeral_home", "cemetery", "local_government_office", 
+              "post_office", "embassy", "fire_station", "physiotherapist", "dentistry"
           ],
           "maxResultCount": 20,
           "locationRestriction": {
