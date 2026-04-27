@@ -108,35 +108,37 @@ class _GuestJoinScreenState extends State<GuestJoinScreen> {
     return Scaffold(
         appBar: AppBar(title: const Text("Unirse", style: TextStyle(fontWeight: FontWeight.bold))),
         body: Center(
-            child: ConstrainedBox(
-                constraints: const BoxConstraints(maxWidth: 400),
-                child: Padding(
-                    padding: const EdgeInsets.all(24.0),
-                    child: Column(
-                        mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                            const Icon(Icons.receipt_long, size: 80, color: AppTheme.primaryBrand),
-                            const SizedBox(height: 24),
-                            Text("Te han invitado a dividir\n*$_planTitle*", textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                            const SizedBox(height: 8),
-                            const Text("Ingresa tu nombre para entrar y ver la cuenta.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
-                            const SizedBox(height: 32),
-                            TextField(
-                                controller: _nameController,
-                                decoration: const InputDecoration(
-                                    labelText: "¿Cómo te llamas?",
-                                    border: OutlineInputBorder(),
-                                    prefixIcon: Icon(Icons.person),
+            child: SingleChildScrollView(
+                child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 400),
+                    child: Padding(
+                        padding: const EdgeInsets.all(24.0),
+                        child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                                const Icon(Icons.receipt_long, size: 80, color: AppTheme.primaryBrand),
+                                const SizedBox(height: 24),
+                                Text("Te han invitado a dividir\n*$_planTitle*", textAlign: TextAlign.center, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 8),
+                                const Text("Ingresa tu nombre para entrar y ver la cuenta.", textAlign: TextAlign.center, style: TextStyle(color: Colors.grey)),
+                                const SizedBox(height: 32),
+                                TextField(
+                                    controller: _nameController,
+                                    decoration: const InputDecoration(
+                                        labelText: "¿Cómo te llamas?",
+                                        border: OutlineInputBorder(),
+                                        prefixIcon: Icon(Icons.person),
+                                    ),
+                                    onSubmitted: (_) => _join(),
                                 ),
-                                onSubmitted: (_) => _join(),
-                            ),
-                            const SizedBox(height: 24),
-                            ElevatedButton(
-                                onPressed: _join,
-                                style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 50)),
-                                child: const Text("Entrar a la Cuenta", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                            )
-                        ]
+                                const SizedBox(height: 24),
+                                ElevatedButton(
+                                    onPressed: _join,
+                                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand, foregroundColor: Colors.white, minimumSize: const Size(double.infinity, 50)),
+                                    child: const Text("Entrar a la Cuenta", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                                )
+                            ]
+                        )
                     )
                 )
             )

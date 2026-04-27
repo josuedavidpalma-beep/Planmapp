@@ -648,7 +648,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                   children: [
                                       const Icon(Icons.share, color: Colors.green),
                                       const SizedBox(width: 12),
-                                      const Expanded(child: Text("¡Menos trabajo para ti! Deja que tus amigos registren sus propios gastos dando clic en el botón 'Compartir' (🔗) aquí arriba.", style: TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.bold))),
+                                      const Expanded(child: Text("¡Menos trabajo para ti! Deja que tus amigos registren sus propios gastos dando clic en el botón 'Compartir' aquí arriba.", style: TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.bold))),
                                       IconButton(
                                           icon: const Icon(Icons.close, color: Colors.green, size: 20),
                                           onPressed: () {
