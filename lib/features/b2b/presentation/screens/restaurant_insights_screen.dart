@@ -207,7 +207,6 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
             setState(() { _errorMsg = e.toString(); _isLoading = false; });
         }
     }
-    }
   }
 
   Future<void> _toggleFeature(String featureKey) async {
