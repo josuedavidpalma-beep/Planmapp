@@ -93,35 +93,41 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
     }
   }
   
-  Future<void> _createNewBill({String? initialTitle}) async {
+  Future<void> _createNewBill({String? initialTitle, bool manualOnly = false}) async {
       final ImagePicker picker = ImagePicker();
 
-      final source = await showModalBottomSheet<String>(
-          context: context,
-          builder: (ctx) => SafeArea(
-              child: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                      const ListTile(title: Text("¿Cómo registrarás el gasto?", style: TextStyle(fontWeight: FontWeight.bold))),
-                      ListTile(
-                          leading: const Icon(Icons.camera_alt),
-                          title: const Text("Tomar foto a la factura"),
-                          onTap: () => Navigator.pop(ctx, 'camera'),
-                      ),
-                      ListTile(
-                          leading: const Icon(Icons.photo_library),
-                          title: const Text("Subir foto de la galería"),
-                          onTap: () => Navigator.pop(ctx, 'gallery'),
-                      ),
-                      ListTile(
-                          leading: const Icon(Icons.edit),
-                          title: const Text("Ingresar datos manualmente"),
-                          onTap: () => Navigator.pop(ctx, 'manual'),
-                      ),
-                  ]
+      String? source;
+      
+      if (manualOnly) {
+          source = 'manual';
+      } else {
+          source = await showModalBottomSheet<String>(
+              context: context,
+              builder: (ctx) => SafeArea(
+                  child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                          const ListTile(title: Text("¿Cómo registrarás el gasto?", style: TextStyle(fontWeight: FontWeight.bold))),
+                          ListTile(
+                              leading: const Icon(Icons.camera_alt),
+                              title: const Text("Tomar foto a la factura"),
+                              onTap: () => Navigator.pop(ctx, 'camera'),
+                          ),
+                          ListTile(
+                              leading: const Icon(Icons.photo_library),
+                              title: const Text("Subir foto de la galería"),
+                              onTap: () => Navigator.pop(ctx, 'gallery'),
+                          ),
+                          ListTile(
+                              leading: const Icon(Icons.edit),
+                              title: const Text("Ingresar datos manualmente"),
+                              onTap: () => Navigator.pop(ctx, 'manual'),
+                          ),
+                      ]
+                  )
               )
-          )
-      );
+          );
+      }
       
       // If user tapped outside
       if (source == null) return;
@@ -206,8 +212,17 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
     // Total Summary logic
     final double totalPlan = _expenses.fold(0.0, (sum, item) => sum + item.totalAmount);
 
-    return CustomScrollView(
-        slivers: [
+    return Scaffold(
+        backgroundColor: Colors.transparent,
+        floatingActionButton: FloatingActionButton(
+            heroTag: 'expense_fab',
+            backgroundColor: AppTheme.primaryBrand,
+            onPressed: () => _createNewBill(manualOnly: false),
+            tooltip: "Escanear Factura",
+            child: const Icon(Icons.document_scanner, color: Colors.white),
+        ),
+        body: CustomScrollView(
+            slivers: [
              // Header
              SliverToBoxAdapter(
                  child: Padding(
@@ -246,8 +261,8 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
                                                          height: 32,
                                                          child: ElevatedButton(
                                                              style: ElevatedButton.styleFrom(backgroundColor: Colors.green, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(horizontal: 16)),
-                                                             onPressed: () => _createNewBill(initialTitle: "Primer Gasto"),
-                                                             child: const Text("Registrar Gasto"),
+                                                             onPressed: () => _createNewBill(initialTitle: "Primer Gasto", manualOnly: true),
+                                                             child: const Text("Registrar Manualmente"),
                                                          ),
                                                      )
                                                  ],

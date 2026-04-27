@@ -941,19 +941,6 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
   }
 
   Widget? _getFabForTab() {
-      // In Split mode, any group member (or guest) can act as a contributor / scanner.
-      if (_plan?.paymentMode == 'split') {
-          // Tab checking is tricky dynamic, so we check if current active tab is Gastos.
-          // Or just show it if the user is in the last tab.
-          if (_tabController.index == _tabController.length - 1) {
-              return FloatingActionButton(
-                backgroundColor: AppTheme.primaryBrand,
-                onPressed: _createNewBill,
-                tooltip: "Escanear Factura",
-                child: const Icon(Icons.document_scanner, color: Colors.white),
-              );
-          }
-      }
       return null;
   }
 
