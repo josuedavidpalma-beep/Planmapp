@@ -426,6 +426,7 @@ class _ManualExpenseFormState extends State<ManualExpenseForm> {
                  final index = entry.key;
                  final item = entry.value;
                  return Card(
+                     key: ObjectKey(item),
                      margin: const EdgeInsets.only(bottom: 8),
                      elevation: 0,
                      color: Theme.of(context).cardColor,

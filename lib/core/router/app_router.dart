@@ -80,6 +80,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                      state.uri.path.startsWith('/invite') || 
                      state.uri.path.startsWith('/pago') || 
                      state.uri.path.startsWith('/insights') || 
+                     state.uri.path.startsWith('/b2b') || 
                      state.uri.path.startsWith('/vaca') || 
                      state.uri.queryParameters['guest'] == 'true' || 
                      state.uri.path == '/onboarding-setup';
@@ -205,6 +206,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         parentNavigatorKey: rootNavigatorKey,
         builder: (context, state) {
             final token = state.uri.queryParameters['token'] ?? '';
+            return RestaurantInsightsScreen(token: token);
+        },
+      ),
+      GoRoute(
+        path: '/b2b/:token',
+        parentNavigatorKey: rootNavigatorKey,
+        builder: (context, state) {
+            final token = state.pathParameters['token'] ?? '';
             return RestaurantInsightsScreen(token: token);
         },
       ),

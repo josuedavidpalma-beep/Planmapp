@@ -39,6 +39,7 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
   
   // Editable state
   List<ParsedItem> _items = [];
+  List<UniqueKey> _itemKeys = [];
   double _total = 0.0;
   double _subtotal = 0.0;
   double _tax = 0.0;
@@ -126,6 +127,7 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
         setState(() {
           _receipt = receipt;
           _items = receipt.items;
+          _itemKeys = List.generate(_items.length, (_) => UniqueKey());
           _subtotal = receipt.subtotal ?? receipt.items.fold(0.0, (sum, item) => sum + item.price);
           _tax = receipt.tax ?? 0.0;
           _tip = receipt.tip ?? 0.0;
@@ -455,6 +457,7 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
                       
                       // Using keys to maintain state if reordered (not reordered here but good practice)
                       return Card(
+                        key: _itemKeys[index],
                         margin: const EdgeInsets.symmetric(vertical: 4),
                         child: Padding(
                             padding: const EdgeInsets.all(8.0),
@@ -519,6 +522,7 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
                                         onPressed: () {
                                             setState(() {
                                                 _items.removeAt(index);
+                                                _itemKeys.removeAt(index);
                                                 _subtotal = _items.fold(0, (sum, i) => sum + (i.price * i.quantity));
                                                 _total = _subtotal + _tax + _tip;
                                             });
@@ -535,6 +539,7 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
                       onPressed: () {
                           setState(() {
                               _items.add(ParsedItem(name: "Nuevo Ítem", price: 0.0, quantity: 1));
+                              _itemKeys.add(UniqueKey());
                           });
                       },
                       icon: const Icon(Icons.add),

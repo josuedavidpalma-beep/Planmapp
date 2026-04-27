@@ -35,6 +35,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
   late TabController _tabController;
   final Map<String, String> _dynamicNames = {};
   final Set<String> _fetchingKeys = {};
+  Map<String, dynamic>? _creatorProfile;
 
   @override
   void initState() {
@@ -42,7 +43,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
     final currentUid = Supabase.instance.client.auth.currentUser?.id;
     final isCreator = widget.expenseData['created_by'] == currentUid;
     
-    _tabController = TabController(length: isCreator ? 2 : 1, vsync: this);
+    _tabController = TabController(length: 2, vsync: this);
     _tabController.addListener(() {
       setState(() {});
     });
@@ -55,6 +56,19 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
     }
     
     _loadMembers();
+    if (!isCreator) _loadCreatorProfile();
+  }
+
+  Future<void> _loadCreatorProfile() async {
+      final creatorId = widget.expenseData['created_by'];
+      if (creatorId != null) {
+          try {
+              final res = await Supabase.instance.client.from('profiles').select('full_name, phone, payment_links').eq('id', creatorId).maybeSingle();
+              if (mounted && res != null) {
+                  setState(() => _creatorProfile = res);
+              }
+          } catch (_) {}
+      }
   }
 
   Future<void> _loadMembers() async {
@@ -584,9 +598,9 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
           ],
           bottom: TabBar(
             controller: _tabController,
-            tabs: [
-              const Tab(text: "Ítems"),
-              if (isCreator) const Tab(text: "Resumen"),
+            tabs: const [
+              Tab(text: "Ítems"),
+              Tab(text: "Resumen"),
             ],
           ),
         ),
@@ -619,49 +633,30 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                   children: [
                 Column(
                   children: [
-                      if (Supabase.instance.client.auth.currentUser?.isAnonymous == true)
+
+                      if (isCreator && _showShareBanner)
                           Container(
-                              width: double.infinity,
-                              color: Colors.deepPurple.shade900,
-                              padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
                               margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+                              padding: const EdgeInsets.all(12),
+                              decoration: BoxDecoration(
+                                  color: Colors.green.withOpacity(0.1),
+                                  borderRadius: BorderRadius.circular(12),
+                                  border: Border.all(color: Colors.green.withOpacity(0.3))
+                              ),
                               child: Row(
                                   children: [
-                                      const Icon(Icons.card_giftcard, color: Colors.orangeAccent, size: 20),
-                                      const SizedBox(width: 8),
-                                      const Expanded(child: Text("¡No pierdas premios!\nRegístrate para guardar tus recompensas.", style: TextStyle(color: Colors.white, fontSize: 12))),
-                                      TextButton(
+                                      const Icon(Icons.share, color: Colors.green),
+                                      const SizedBox(width: 12),
+                                      const Expanded(child: Text("¡Menos trabajo para ti! Deja que tus amigos registren sus propios gastos dando clic en el botón 'Compartir' (🔗) aquí arriba.", style: TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.bold))),
+                                      IconButton(
+                                          icon: const Icon(Icons.close, color: Colors.green, size: 20),
                                           onPressed: () {
-                                              if (mounted) Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil('/onboarding', (r) => false);
-                                          },
-                                          child: const Text("Registrarme", style: TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold))
+                                              setState(() => _showShareBanner = false);
+                                          }
                                       )
                                   ]
                               )
                           ),
-                      if (_showShareBanner)
-                          Container(
-                              margin: const EdgeInsets.fromLTRB(16, 16, 16, 0),
-                          padding: const EdgeInsets.all(12),
-                          decoration: BoxDecoration(
-                              color: Colors.green.withOpacity(0.1),
-                              borderRadius: BorderRadius.circular(12),
-                              border: Border.all(color: Colors.green.withOpacity(0.3))
-                          ),
-                          child: Row(
-                              children: [
-                                  const Icon(Icons.share, color: Colors.green),
-                                  const SizedBox(width: 12),
-                                  const Expanded(child: Text("¡Invita a tus amigos por WhatsApp dándole al botón de arriba (🔗) para que ellos mismos seleccionen lo que consumieron!", style: TextStyle(color: Colors.green, fontSize: 13, fontWeight: FontWeight.bold))),
-                                  IconButton(
-                                      icon: const Icon(Icons.close, color: Colors.green, size: 20),
-                                      onPressed: () {
-                                          setState(() => _showShareBanner = false);
-                                      }
-                                  )
-                              ]
-                          )
-                      ),
                       Expanded(
                           child: ListView.builder(
                         padding: const EdgeInsets.all(16),
@@ -924,6 +919,127 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
              const SizedBox(height: 32),
          ],
      );
+  }
+
+  Widget _buildPremiumBanner() {
+      return Container(
+          width: double.infinity,
+          color: Colors.deepPurple.shade900,
+          padding: const EdgeInsets.symmetric(vertical: 8, horizontal: 16),
+          margin: const EdgeInsets.only(bottom: 16),
+          child: Row(
+              children: [
+                  const Icon(Icons.card_giftcard, color: Colors.orangeAccent, size: 20),
+                  const SizedBox(width: 8),
+                  const Expanded(child: Text("¡No pierdas premios!\nRegístrate para guardar tus recompensas.", style: TextStyle(color: Colors.white, fontSize: 12))),
+                  TextButton(
+                      onPressed: () {
+                          if (mounted) Navigator.of(context, rootNavigator: true).pushNamedAndRemoveUntil('/onboarding', (r) => false);
+                      },
+                      child: const Text("Registrarme", style: TextStyle(color: Colors.orangeAccent, fontWeight: FontWeight.bold))
+                  )
+              ]
+          )
+      );
+  }
+
+  Widget _buildPersonalSummaryTab() {
+      final currentUid = Supabase.instance.client.auth.currentUser?.id;
+      if (currentUid == null) return const Center(child: Text("Cargando..."));
+
+      double myDebt = 0.0;
+      List<Widget> myItems = [];
+      
+      // Calculate my subtotal
+      for (var item in _items) {
+          final assigns = _assignments[item.id] ?? [];
+          final myAssign = assigns.where((a) => a.userId == currentUid);
+          if (myAssign.isNotEmpty) {
+              final myQty = myAssign.fold(0.0, (sum, a) => sum + a.quantity);
+              final itemCost = myQty * (item.price / (item.quantity == 0 ? 1 : item.quantity));
+              myDebt += itemCost;
+              
+              myItems.add(
+                  ListTile(
+                      contentPadding: EdgeInsets.zero,
+                      title: Text("${item.name} (${myQty < 1 ? '${(myQty*100).toInt()}%' : myQty.toStringAsFixed(1)})", style: const TextStyle(fontSize: 14)),
+                      trailing: Text(CurrencyInputFormatter.format(itemCost), style: const TextStyle(fontWeight: FontWeight.bold)),
+                  )
+              );
+          }
+      }
+      
+      // Add tax and tip multiplier
+      final dynamicSubtotal = _items.fold(0.0, (sum, i) => sum + i.price);
+      final subtotal = dynamicSubtotal > 0 ? dynamicSubtotal : ((widget.expenseData['subtotal'] as num?)?.toDouble() ?? 0.0);
+      final tax = (widget.expenseData['tax_amount'] as num?)?.toDouble() ?? 0.0;
+      final tip = (widget.expenseData['tip_amount'] as num?)?.toDouble() ?? 0.0;
+      
+      if (subtotal > 0 && (tax > 0 || tip > 0)) {
+          final extraMultiplier = (tax + tip) / subtotal;
+          myDebt = myDebt * (1 + extraMultiplier);
+      }
+
+      final creatorName = _creatorProfile?['full_name'] ?? 'el organizador';
+      final paymentLinks = _creatorProfile?['payment_links'] as List? ?? [];
+      final phone = _creatorProfile?['phone'];
+
+      return ListView(
+          padding: const EdgeInsets.all(16),
+          children: [
+              if (Supabase.instance.client.auth.currentUser?.isAnonymous == true)
+                  _buildPremiumBanner(),
+              Card(
+                  color: AppTheme.primaryBrand,
+                  child: Padding(
+                      padding: const EdgeInsets.all(24),
+                      child: Column(
+                          children: [
+                              const Text("Tu Parte a Pagar", style: TextStyle(color: Colors.white70, fontSize: 16)),
+                              const SizedBox(height: 8),
+                              Text(CurrencyInputFormatter.format(myDebt), style: const TextStyle(color: Colors.white, fontSize: 36, fontWeight: FontWeight.bold)),
+                              if (myDebt == 0)
+                                  const Padding(
+                                      padding: EdgeInsets.only(top: 8.0),
+                                      child: Text("Aún no has seleccionado tus consumos", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                                  )
+                          ],
+                      ),
+                  ),
+              ),
+              const SizedBox(height: 24),
+              const Text("Tus Consumos", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              if (myItems.isEmpty) const Padding(padding: EdgeInsets.only(top:8), child: Text("Ve a la pestaña de Ítems y presiona 'Mío' en lo que hayas consumido.", style: TextStyle(color: Colors.grey))),
+              ...myItems,
+              const Divider(height: 32),
+              Text("Transferir a $creatorName", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 12),
+              if (paymentLinks.isNotEmpty) ...[
+                  ...paymentLinks.map((link) => ListTile(
+                      leading: const Icon(Icons.account_balance_wallet, color: AppTheme.primaryBrand),
+                      title: const Text("Pagar por App"),
+                      subtitle: Text(link.toString(), maxLines: 1, overflow: TextOverflow.ellipsis),
+                      trailing: const Icon(Icons.open_in_new, size: 16),
+                      onTap: () => launchUrl(Uri.parse(link.toString())),
+                  )),
+              ],
+              if (phone != null)
+                  ListTile(
+                      leading: const Icon(Icons.phone_android, color: Colors.green),
+                      title: const Text("Número para Transferencia"),
+                      subtitle: Text(phone),
+                      trailing: const Icon(Icons.copy, size: 16),
+                      onTap: () {
+                          Clipboard.setData(ClipboardData(text: phone));
+                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Número copiado")));
+                      },
+                  ),
+              if (paymentLinks.isEmpty && phone == null)
+                  const Text("El organizador no ha configurado sus métodos de pago. Pídeselos directamente.", style: TextStyle(color: Colors.grey, fontStyle: FontStyle.italic)),
+              
+              const SizedBox(height: 48),
+          ],
+      );
   }
 }
 
