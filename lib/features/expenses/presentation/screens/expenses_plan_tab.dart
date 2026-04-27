@@ -349,7 +349,7 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
              
              const SliverToBoxAdapter(child: SizedBox(height: 80)),
         ],
-    );
+    ));
   }
 
   // GAME LOGIC (Copied/Shared from PlanDetailScreen)
