@@ -435,11 +435,46 @@ class _AdminAnalyticsTabState extends State<_AdminAnalyticsTab> {
       final startIso = _dateRange?.start.toIso8601String() ?? DateTime(2000).toIso8601String();
       final endIso = _dateRange?.end.add(const Duration(days: 1)).toIso8601String() ?? DateTime.now().toIso8601String();
 
-      // We use RPC or raw fetches. For simplicity, fetch and filter locally if not too big, or use Postgrest filters.
-      final usersReq = await _supabase.from('profiles').select('created_at, origin').gte('created_at', startIso).lte('created_at', endIso);
-      final plansReq = await _supabase.from('plans').select('created_at, status, plan_type').gte('created_at', startIso).lte('created_at', endIso);
-      final surveyReq = await _supabase.from('survey_responses').select('id').gte('created_at', startIso).lte('created_at', endIso);
-      final restReq = await _supabase.from('restaurants').select('created_at, tier'); // all active
+      List<dynamic> usersReq = [];
+      try {
+          usersReq = await _supabase.from('profiles').select('created_at, origin').gte('created_at', startIso).lte('created_at', endIso);
+      } catch (e) {
+          print("Profiles fetch error: $e");
+          // Fallback without created_at filter if it fails
+          try {
+             usersReq = await _supabase.from('profiles').select('origin');
+          } catch(e2) { print("Profiles fallback error: $e2"); }
+      }
+
+      List<dynamic> plansReq = [];
+      try {
+          plansReq = await _supabase.from('plans').select('created_at, status, plan_type').gte('created_at', startIso).lte('created_at', endIso);
+      } catch (e) {
+          print("Plans fetch error: $e");
+          try {
+             plansReq = await _supabase.from('plans').select('status, plan_type');
+          } catch(e2) {}
+      }
+
+      List<dynamic> surveyReq = [];
+      try {
+          surveyReq = await _supabase.from('survey_responses').select('id, created_at').gte('created_at', startIso).lte('created_at', endIso);
+      } catch (e) {
+          print("Surveys fetch error: $e");
+          try {
+             surveyReq = await _supabase.from('survey_responses').select('id');
+          } catch(e2) {}
+      }
+
+      List<dynamic> restReq = [];
+      try {
+          restReq = await _supabase.from('restaurants').select('created_at, tier'); 
+      } catch (e) {
+          print("Restaurants fetch error: $e");
+          try {
+             restReq = await _supabase.from('restaurants').select('tier');
+          } catch(e2) {}
+      }
 
       final now = DateTime.now();
 
@@ -454,9 +489,15 @@ class _AdminAnalyticsTabState extends State<_AdminAnalyticsTab> {
           if (p['plan_type'] == 'ai_suggestion') aiP++;
           
           if (p['status'] == 'draft') {
-              final created = DateTime.parse(p['created_at']);
-              if (now.difference(created).inHours > 48) {
-                  abPlans++;
+              if (p['created_at'] != null) {
+                  try {
+                      final created = DateTime.parse(p['created_at'].toString());
+                      if (now.difference(created).inHours > 48) {
+                          abPlans++;
+                      }
+                  } catch(_) {}
+              } else {
+                  abPlans++; // Assume abandoned if no date
               }
           }
       }
@@ -483,7 +524,11 @@ class _AdminAnalyticsTabState extends State<_AdminAnalyticsTab> {
       }
 
     } catch (e) {
-      if (mounted) setState(() => _isLoading = false);
+      print('SuperAdmin Dashboard Error: $e');
+      if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error cargando métricas: $e")));
+          setState(() => _isLoading = false);
+      }
     }
   }
 
