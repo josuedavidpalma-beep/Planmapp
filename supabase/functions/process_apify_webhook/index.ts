@@ -21,13 +21,23 @@ serve(async (req) => {
     console.log("Recibido Webhook de Apify:", JSON.stringify(payload));
 
     // Validar payload
-    // Apify envía los datos dentro de un dataset o directamente. Asumimos un array de posts.
-    const items = Array.isArray(payload) ? payload : (payload.items || [payload]);
+    let items = [];
+    if (payload.resource && payload.resource.defaultDatasetId) {
+        // Es un webhook de Apify (Run Succeeded)
+        const datasetId = payload.resource.defaultDatasetId;
+        const datasetRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items`);
+        items = await datasetRes.json();
+        console.log(`Recuperados ${items.length} items del dataset ${datasetId}`);
+    } else {
+        // Envio directo o formato diferente
+        items = Array.isArray(payload) ? payload : (payload.items || [payload]);
+    }
     
     const geminiApiKey = Deno.env.get('GEMINI_API_KEY');
     if (!geminiApiKey) throw new Error("Falta GEMINI_API_KEY");
 
     let processedCount = 0;
+    let lastError = null;
 
     for (const item of items) {
        const caption = item.caption || item.text || "";
@@ -50,13 +60,12 @@ Extrae la siguiente información en formato JSON estricto sin markdown extra:
    "date": "Fecha en formato YYYY-MM-DD (Si menciona 'hoy' o 'mañana', aproxima basado en el texto, si no hay asume null)",
    "price_level": "Nivel de precio: $, $$, $$$, o $$$$",
    "location": "Nombre del lugar (Ej: Puerta de Oro, El Gran Malecón)",
-   "category": "Una de: Rumba, Comida, Cultura, Arte, Deporte, Concierto",
    "vibes": ["Relajado", "Romántico", "Electrónica", "Familiar", "etc... extrae máximo 3 vibes clave"]
 }
 Si la publicación NO parece ser un evento o plan, devuelve {"is_valid": false}
        `;
 
-       const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${geminiApiKey}`, {
+       const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
            method: 'POST',
            headers: { 'Content-Type': 'application/json' },
            body: JSON.stringify({
@@ -74,26 +83,46 @@ Si la publicación NO parece ser un evento o plan, devuelve {"is_valid": false}
            const parsed = JSON.parse(cleanJson);
            if (parsed.is_valid === false) continue;
 
-           // 2. Insert into local_events with status = 'pending'
-           const insertData = {
-               event_name: parsed.event_name,
-               description: parsed.description,
-               date: parsed.date,
-               price_level: parsed.price_level,
-               location: parsed.location,
-               category: parsed.category,
-               image_url: imageUrl,
-               source_url: url,
-               city: "Barranquilla", // Default based on target scraping
-               status: 'pending', // Requires Super Admin approval!
-               vibes: parsed.vibes || []
-           };
+            // 2. Insert into local_events with status = 'pending'
+            const insertData = {
+                event_name: parsed.event_name || 'Evento sin título',
+                description: parsed.description || '',
+                date: parsed.date || new Date().toISOString().split('T')[0], // FECHA SEGURA
+                price_level: parsed.price_level || '',
+                venue_name: parsed.location || 'Desconocido',
+                image_url: imageUrl,
+                primary_source: url,
+                city: "Barranquilla", // Default based on target scraping
+                status: 'pending', // Requires Super Admin approval!
+                vibe_tag: (parsed.vibes || []).join(", ")
+            };
 
-           await supabase.from('local_events').insert(insertData);
-           processedCount++;
+            const { error } = await supabase.from('local_events').insert(insertData);
+            if (error) {
+                console.error("Supabase insert error:", error);
+                lastError = error;
+            } else {
+                processedCount++;
+            }
 
-       } catch (parseError) {
-           console.error("Error parseando Gemini JSON:", rawText);
+        } catch (parseError) {
+            console.error("Error parseando Gemini JSON:", rawText);
+        }
+    }
+
+    if (processedCount === 0 && items.length > 0) {
+       // Insert a debug event so the user can see what data came in
+       try {
+           await supabase.from('local_events').insert({
+               event_name: 'Debug Apify',
+               description: lastError ? `ERROR: ${JSON.stringify(lastError)}` : JSON.stringify(items[0]).substring(0, 500),
+               venue_name: 'Debug',
+               date: new Date().toISOString().split('T')[0],
+               status: 'pending',
+               city: 'Barranquilla'
+           });
+       } catch(e) {
+           console.error("Debug insert failed", e);
        }
     }
 

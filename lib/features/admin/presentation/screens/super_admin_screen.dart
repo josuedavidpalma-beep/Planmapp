@@ -675,13 +675,25 @@ class _AdminCuraduriaTabState extends State<_AdminCuraduriaTab> {
     _loadPendingEvents();
   }
 
+  String? _errorMessage;
+
   Future<void> _loadPendingEvents() async {
-    setState(() => _isLoading = true);
-    final res = await _supabase.from('local_events').select().eq('status', 'pending').order('created_at', ascending: false);
     setState(() {
-      _pendingEvents = res;
-      _isLoading = false;
+        _isLoading = true;
+        _errorMessage = null;
     });
+    try {
+        final res = await _supabase.from('local_events').select().eq('status', 'pending').order('created_at', ascending: false);
+        setState(() {
+          _pendingEvents = res;
+          _isLoading = false;
+        });
+    } catch (e) {
+        setState(() {
+          _errorMessage = e.toString();
+          _isLoading = false;
+        });
+    }
   }
 
   Future<void> _approveEvent(String id) async {
@@ -697,6 +709,12 @@ class _AdminCuraduriaTabState extends State<_AdminCuraduriaTab> {
   @override
   Widget build(BuildContext context) {
     if (_isLoading) return const Center(child: CircularProgressIndicator());
+    if (_errorMessage != null) {
+        return Center(child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Text('Error DB: $_errorMessage', style: const TextStyle(color: Colors.red)),
+        ));
+    }
     if (_pendingEvents.isEmpty) {
         return const Center(child: Text('No hay eventos pendientes por revisar.', style: TextStyle(color: Colors.white70)));
     }
