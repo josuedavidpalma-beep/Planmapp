@@ -697,13 +697,21 @@ class _AdminCuraduriaTabState extends State<_AdminCuraduriaTab> {
   }
 
   Future<void> _approveEvent(String id) async {
-    await _supabase.from('local_events').update({'status': 'active'}).eq('id', id);
-    _loadPendingEvents();
+    try {
+      await _supabase.from('local_events').update({'status': 'active'}).eq('id', id);
+      _loadPendingEvents();
+    } catch (e) {
+      setState(() => _errorMessage = 'Approve error: $e');
+    }
   }
 
   Future<void> _rejectEvent(String id) async {
-    await _supabase.from('local_events').delete().eq('id', id);
-    _loadPendingEvents();
+    try {
+      await _supabase.from('local_events').update({'status': 'rejected'}).eq('id', id);
+      _loadPendingEvents();
+    } catch (e) {
+      setState(() => _errorMessage = 'Reject error: $e');
+    }
   }
 
   @override
