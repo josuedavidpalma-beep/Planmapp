@@ -86,6 +86,22 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
+  Future<void> _loginWithGoogle() async {
+    setState(() => _isLoading = true);
+    try {
+        // Redirigir a la misma página actual si es posible, o a home
+        final redirectUrl = kIsWeb ? Uri.base.origin : 'planmapp://login-callback';
+        await Supabase.instance.client.auth.signInWithOAuth(
+            OAuthProvider.google,
+            redirectTo: redirectUrl,
+        );
+        // Nota: en la web, el redirect recargará la página.
+    } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error con Google: $e'), backgroundColor: Colors.red));
+        if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   void _showComingSoon() {
     ScaffoldMessenger.of(context).showSnackBar(
       const SnackBar(content: Text('Acceso por teléfono próximamente (Fase Beta)')),
@@ -179,6 +195,33 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                  ),
                                  child: Column(
                                      children: [
+                                         // NEW: One-Click Google Login
+                                         SizedBox(
+                                           width: double.infinity,
+                                           child: ElevatedButton.icon(
+                                              icon: Image.network("https://img.icons8.com/color/48/google-logo.png", width: 24, height: 24),
+                                              label: const Text("Continuar con Google", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+                                              onPressed: _isLoading ? null : _loginWithGoogle,
+                                              style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.white,
+                                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                                              ),
+                                           ),
+                                         ),
+                                         const SizedBox(height: 24),
+                                         Row(
+                                             children: [
+                                                 Expanded(child: Divider(color: Colors.white.withOpacity(0.2))),
+                                                 Padding(
+                                                     padding: const EdgeInsets.symmetric(horizontal: 8),
+                                                     child: Text("O usa tu correo", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
+                                                 ),
+                                                 Expanded(child: Divider(color: Colors.white.withOpacity(0.2))),
+                                             ]
+                                         ),
+                                         const SizedBox(height: 24),
+
                                          TabBar(
                                            dividerColor: Colors.transparent,
                                            indicatorColor: AppTheme.primaryBrand,

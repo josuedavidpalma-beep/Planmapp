@@ -32,14 +32,30 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
 
   Future<void> _loadPlanData() async {
     try {
-      final plan = await PlanService().getPlanById(widget.planId).timeout(const Duration(seconds: 10));
-      final members = await PlanMembersService().getMembers(widget.planId);
+      Plan? plan;
+      try {
+          plan = await PlanService().getPlanById(widget.planId).timeout(const Duration(seconds: 10));
+      } catch (e) {
+          plan = null;
+      }
+      
+      // Fallback a Preview si RLS lo bloquea (usuario anónimo o no invitado aún)
+      if (plan == null) {
+          plan = await PlanService().getPlanPreview(widget.planId).timeout(const Duration(seconds: 10));
+      }
+
+      List<PlanMember> members = [];
+      try {
+          members = await PlanMembersService().getMembers(widget.planId);
+      } catch (e) {
+          // RLS might block this too, it's fine, we show 0 guests or just creator
+      }
       
       // Smart Redirect: If already a member or creator, go to Dashboard
       final uid = Supabase.instance.client.auth.currentUser?.id;
       if (uid != null) {
           final isMember = members.any((m) => m.id == uid && m.status == 'accepted');
-          final isCreator = (plan != null && plan!.creatorId == uid);
+          final isCreator = (plan != null && plan.creatorId == uid);
           
           if (isMember || isCreator) {
               if (mounted) {
@@ -72,8 +88,8 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
     if (accept) {
       final session = Supabase.instance.client.auth.currentSession;
       if (session == null || session.user.isAnonymous) {
-          // Send anonymous or null users directly into the plan as guests.
-          context.pushReplacement('/plan/${widget.planId}?guest=true');
+          // En lugar de enviarlos a guest, forzamos el login/registro aquí mismo
+          _showExpressRegistration();
       } else {
           _joinPlan();
       }
@@ -99,61 +115,38 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
       shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
       isScrollControlled: true,
       builder: (BuildContext ctx) {
-        bool acceptedTerms = false;
-        return StatefulBuilder(
-          builder: (BuildContext context, StateSetter setModalState) {
-            return Padding(
-              padding: EdgeInsets.only(
-                bottom: MediaQuery.of(context).viewInsets.bottom,
-                left: 24, right: 24, top: 24,
-              ),
-              child: Column(
-                mainAxisSize: MainAxisSize.min,
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const Text("Completar Registro 🚀", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-                  const SizedBox(height: 16),
-                  const Text("Para sumarte a este plan necesitas una cuenta de Planmapp. Solo toma 1 minuto."),
-                  const SizedBox(height: 24),
-                  Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Checkbox(
-                        value: acceptedTerms,
-                        onChanged: (val) {
-                          setModalState(() {
-                            acceptedTerms = val ?? false;
-                          });
-                        },
-                      ),
-                      const Expanded(
-                        child: Text(
-                          "Acepto el tratamiento de mis datos personales según la Ley 1581 de 2012.",
-                          style: TextStyle(fontSize: 12, color: Colors.grey),
-                        ),
-                      ),
-                    ],
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: MediaQuery.of(context).viewInsets.bottom,
+            left: 24, right: 24, top: 24,
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("Únete a este parche 🚀", style: TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              const Text("Inicia sesión o regístrate en 1 clic para ver todos los detalles y confirmar tu asistencia al plan."),
+              const SizedBox(height: 24),
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton.icon(
+                  icon: const Icon(Icons.login),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    // Pasamos a login. Guardaremos el invite en la URL para que tras logearse vuelva aquí.
+                    context.push('/login'); 
+                  },
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryBrand,
+                    padding: const EdgeInsets.symmetric(vertical: 16),
                   ),
-                  const SizedBox(height: 24),
-                  SizedBox(
-                    width: double.infinity,
-                    child: ElevatedButton(
-                      onPressed: acceptedTerms ? () {
-                        Navigator.pop(context);
-                        context.push('/register');
-                      } : null,
-                      style: ElevatedButton.styleFrom(
-                        backgroundColor: AppTheme.primaryBrand,
-                        padding: const EdgeInsets.symmetric(vertical: 16),
-                      ),
-                      child: const Text("Ir a Registro", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
-                    ),
-                  ),
-                  const SizedBox(height: 32),
-                ],
+                  label: const Text("Continuar con mi Cuenta", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
+                ),
               ),
-            );
-          },
+              const SizedBox(height: 32),
+            ],
+          ),
         );
       },
     );

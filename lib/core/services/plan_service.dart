@@ -113,6 +113,30 @@ class PlanService {
     }
   }
 
+  Future<Plan?> getPlanPreview(String id) async {
+    try {
+      final response = await _supabase.rpc('get_plan_preview', params: {'p_plan_id': id});
+      if (response == null) return null;
+      
+      // Construir un Plan parcial (preview) a partir del JSON devuelto
+      return Plan(
+         id: response['id'],
+         title: response['title'],
+         description: '',
+         creatorId: response['creator_id'],
+         eventDate: response['event_date'] != null ? DateTime.tryParse(response['event_date']) : null,
+         locationName: response['location_name'] ?? '',
+         locationAddress: '',
+         latitude: null,
+         longitude: null,
+         createdAt: DateTime.now(),
+      );
+    } catch (e) {
+      print("Error fetching plan preview: $e");
+      return null;
+    }
+  }
+
   Future<void> updatePlanSettings(String planId, int reminderDays, {String channel = 'whatsapp'}) async {
       try {
           await _supabase.from('plans').update({

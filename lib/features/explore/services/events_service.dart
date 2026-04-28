@@ -336,11 +336,14 @@ class EventsService {
     int? userAge,
   }) async {
     try {
+      final today = DateTime.now().toIso8601String().split('T')[0];
+
       var query = _supabase
           .from('local_events')
           .select()
           .eq('city', city)
-          .eq('status', 'active');
+          .eq('status', 'active')
+          .or('date.gte.$today,date.is.null'); // Filtrar eventos pasados
 
       final localResponse = await query.order('date', ascending: true);
 

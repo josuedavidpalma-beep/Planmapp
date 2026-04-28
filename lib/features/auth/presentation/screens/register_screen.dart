@@ -64,6 +64,24 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
+  Future<void> _loginWithGoogle() async {
+    if (!_acceptedTerms) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Debes aceptar el tratamiento de datos para continuar."), backgroundColor: Colors.red));
+        return;
+    }
+    setState(() => _isLoading = true);
+    try {
+        final redirectUrl = kIsWeb ? Uri.base.origin : 'planmapp://login-callback';
+        await Supabase.instance.client.auth.signInWithOAuth(
+            OAuthProvider.google,
+            redirectTo: redirectUrl,
+        );
+    } catch (e) {
+        if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error con Google: $e'), backgroundColor: Colors.red));
+        if (mounted) setState(() => _isLoading = false);
+    }
+  }
+
   void _showComingSoon() {
     if (!_acceptedTerms) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Debes aceptar el tratamiento de datos para continuar."), backgroundColor: Colors.red));
@@ -161,6 +179,50 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                  ),
                                  child: Column(
                                      children: [
+                                         // NEW: One-Click Google Login
+                                         SizedBox(
+                                           width: double.infinity,
+                                           child: ElevatedButton.icon(
+                                              icon: Image.network("https://img.icons8.com/color/48/google-logo.png", width: 24, height: 24),
+                                              label: const Text("Registrarme con Google", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold, fontSize: 16)),
+                                              onPressed: _isLoading ? null : _loginWithGoogle,
+                                              style: ElevatedButton.styleFrom(
+                                                  backgroundColor: Colors.white,
+                                                  padding: const EdgeInsets.symmetric(vertical: 14),
+                                                  shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                                              ),
+                                           ),
+                                         ),
+                                         const SizedBox(height: 12),
+                                         Row(
+                                             crossAxisAlignment: CrossAxisAlignment.start,
+                                             children: [
+                                                 SizedBox(
+                                                     width: 24, height: 24,
+                                                     child: Checkbox(
+                                                         value: _acceptedTerms,
+                                                         onChanged: (v) => setState(() => _acceptedTerms = v ?? false),
+                                                         fillColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? AppTheme.primaryBrand : Colors.transparent),
+                                                         side: const BorderSide(color: Colors.white70),
+                                                     ),
+                                                 ),
+                                                 const SizedBox(width: 8),
+                                                 Expanded(child: Text("Acepto los Términos de Servicio y la Política de Tratamiento de Datos Personales (Ley 1581).", style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11))),
+                                             ],
+                                         ),
+                                         const SizedBox(height: 24),
+                                         Row(
+                                             children: [
+                                                 Expanded(child: Divider(color: Colors.white.withOpacity(0.2))),
+                                                 Padding(
+                                                     padding: const EdgeInsets.symmetric(horizontal: 8),
+                                                     child: Text("O usa tu correo", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
+                                                 ),
+                                                 Expanded(child: Divider(color: Colors.white.withOpacity(0.2))),
+                                             ]
+                                         ),
+                                         const SizedBox(height: 24),
+
                                          TabBar(
                                            dividerColor: Colors.transparent,
                                            indicatorColor: AppTheme.primaryBrand,
@@ -201,23 +263,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                                       ),
                                                       obscureText: _obscurePassword,
                                                    ),
-                                                   const SizedBox(height: 16),
-                                                   Row(
-                                                       crossAxisAlignment: CrossAxisAlignment.start,
-                                                       children: [
-                                                           SizedBox(
-                                                               width: 24, height: 24,
-                                                               child: Checkbox(
-                                                                   value: _acceptedTerms,
-                                                                   onChanged: (v) => setState(() => _acceptedTerms = v ?? false),
-                                                                   fillColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? AppTheme.primaryBrand : Colors.transparent),
-                                                                   side: const BorderSide(color: Colors.white70),
-                                                               ),
-                                                           ),
-                                                           const SizedBox(width: 8),
-                                                           Expanded(child: Text("Acepto los Términos de Servicio y la Política de Tratamiento de Datos Personales (Ley 1581).", style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11))),
-                                                       ],
-                                                   ),
                                                    const SizedBox(height: 24),
                                                    SizedBox(
                                                      width: double.infinity,
@@ -255,23 +300,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                                           ),
                                                       ),
                                                       obscureText: _obscurePhonePassword,
-                                                   ),
-                                                   const SizedBox(height: 16),
-                                                   Row(
-                                                       crossAxisAlignment: CrossAxisAlignment.start,
-                                                       children: [
-                                                           SizedBox(
-                                                               width: 24, height: 24,
-                                                               child: Checkbox(
-                                                                   value: _acceptedTerms,
-                                                                   onChanged: (v) => setState(() => _acceptedTerms = v ?? false),
-                                                                   fillColor: WidgetStateProperty.resolveWith((states) => states.contains(WidgetState.selected) ? AppTheme.primaryBrand : Colors.transparent),
-                                                                   side: const BorderSide(color: Colors.white70),
-                                                               ),
-                                                           ),
-                                                           const SizedBox(width: 8),
-                                                           Expanded(child: Text("Acepto los Términos de Servicio y la Política de Tratamiento de Datos Personales (Ley 1581).", style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11))),
-                                                       ],
                                                    ),
                                                    const SizedBox(height: 24),
                                                    SizedBox(

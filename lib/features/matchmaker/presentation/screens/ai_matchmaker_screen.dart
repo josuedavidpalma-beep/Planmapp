@@ -37,6 +37,69 @@ class _AiMatchmakerScreenState extends State<AiMatchmakerScreen> {
         _isLoading = false;
       });
     }
+    _checkMyProfile();
+  }
+
+  Future<void> _checkMyProfile() async {
+    final myId = Supabase.instance.client.auth.currentUser!.id;
+    final myProfileRes = await Supabase.instance.client.from('profiles').select('interests, budget_level').eq('id', myId).maybeSingle();
+    
+    if (myProfileRes != null) {
+        final interests = myProfileRes['interests'] as List<dynamic>?;
+        if (interests == null || interests.isEmpty) {
+            _showProgressiveProfilingModal();
+        }
+    }
+  }
+
+  void _showProgressiveProfilingModal() {
+    if (!mounted) return;
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      shape: const RoundedRectangleBorder(borderRadius: BorderRadius.vertical(top: Radius.circular(24))),
+      builder: (ctx) {
+        return Container(
+          padding: const EdgeInsets.all(24),
+          decoration: const BoxDecoration(
+            color: Color(0xFF1A1F2E),
+            borderRadius: BorderRadius.vertical(top: Radius.circular(24))
+          ),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text("¿Qué vibra te gusta?", style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.white)),
+              const SizedBox(height: 16),
+              const Text("Para que la IA funcione mejor, cuéntanos qué te gusta hacer.", style: TextStyle(color: Colors.white70)),
+              const SizedBox(height: 24),
+              // We could navigate to the profile edit screen or handle it here
+              SizedBox(
+                width: double.infinity,
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand),
+                  onPressed: () {
+                    Navigator.pop(context);
+                    context.push('/profile'); // or wherever they can set preferences
+                    ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Ve a 'Editar Perfil' para añadir tus vibes.")));
+                  },
+                  child: const Text("Configurar Mis Vibes"),
+                )
+              ),
+              const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: TextButton(
+                  onPressed: () => Navigator.pop(context),
+                  child: const Text("En otro momento", style: TextStyle(color: Colors.white54)),
+                )
+              ),
+              const SizedBox(height: 24),
+            ]
+          )
+        );
+      }
+    );
   }
 
   Future<void> _generatePlan() async {

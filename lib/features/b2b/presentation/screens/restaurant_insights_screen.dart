@@ -524,6 +524,62 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
         );
     }
 
+    void _showAddPromoModal() {
+        String title = '';
+        String desc = '';
+        String imageUrl = '';
+        String dateStr = DateFormat('yyyy-MM-dd').format(DateTime.now());
+
+        showDialog(context: context, builder: (c) => AlertDialog(
+            backgroundColor: AppTheme.darkBackground,
+            title: const Text("Publicar Evento / Promo", style: TextStyle(color: Colors.white)),
+            content: SingleChildScrollView(
+               child: Column(
+                   mainAxisSize: MainAxisSize.min,
+                   children: [
+                       const Text("Los comercios Premium pueden publicar eventos que aparecerán directamente en el feed Explorar.", style: TextStyle(color: Colors.white70, fontSize: 12)),
+                       const SizedBox(height: 16),
+                       TextField(style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: "Título del Evento"), onChanged: (v) => title = v),
+                       const SizedBox(height: 8),
+                       TextField(style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: "Descripción corta"), onChanged: (v) => desc = v),
+                       const SizedBox(height: 8),
+                       TextField(style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: "URL de Imagen (Link)"), onChanged: (v) => imageUrl = v),
+                       const SizedBox(height: 8),
+                       TextField(style: const TextStyle(color: Colors.white), decoration: const InputDecoration(labelText: "Fecha (YYYY-MM-DD)", hintText: "Ej: 2026-10-31"), controller: TextEditingController(text: dateStr), onChanged: (v) => dateStr = v),
+                   ]
+               )
+            ),
+            actions: [
+                TextButton(onPressed: () => Navigator.pop(c), child: const Text("Cancelar", style: TextStyle(color: Colors.white54))),
+                ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryBrand),
+                    onPressed: () async {
+                        if (title.isEmpty) return;
+                        try {
+                            await Supabase.instance.client.from('local_events').insert({
+                                'event_name': title,
+                                'description': desc,
+                                'image_url': imageUrl,
+                                'date': dateStr,
+                                'location': _restData['name'],
+                                'source_url': 'b2b_dashboard',
+                                'status': 'active', // B2B direct uploads are active immediately
+                                'city': 'Barranquilla'
+                            });
+                            if (mounted) {
+                                Navigator.pop(c);
+                                ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Evento publicado con éxito en Explorar.")));
+                            }
+                        } catch (e) {
+                            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+                        }
+                    }, 
+                    child: const Text("Publicar", style: TextStyle(color: Colors.black))
+                )
+            ]
+        ));
+    }
+
     AppBar buildAppBar() {
         return AppBar(
             backgroundColor: AppTheme.darkBackground,
@@ -555,16 +611,23 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
         );
     }
     
+    final String tier = _restData['tier']?.toString().toLowerCase() ?? 'basic';
+    final bool isSuperAdmin = Supabase.instance.client.auth.currentUser?.email == 'josuedavidpalma@gmail.com';
+
+    final Map<String, dynamic> featuresMap = _restData['features'] ?? {};
+
     return Scaffold(
         backgroundColor: AppTheme.darkBackground,
         appBar: buildAppBar(),
+        floatingActionButton: (tier == 'premium' || tier == 'gold' || isSuperAdmin) ? FloatingActionButton.extended(
+            onPressed: () => _showAddPromoModal(),
+            icon: const Icon(Icons.add_a_photo, color: Colors.black),
+            label: const Text("Añadir Promo", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+            backgroundColor: AppTheme.primaryBrand,
+        ) : null,
         body: LayoutBuilder(builder: (context, constraints) {
             final isDesktop = constraints.maxWidth > 900;
             
-            final String tier = _restData['tier']?.toString().toLowerCase() ?? 'basic';
-            final Map<String, dynamic> featuresMap = _restData['features'] ?? {};
-            final bool isSuperAdmin = Supabase.instance.client.auth.currentUser?.email == 'josuedavidpalma@gmail.com';
-
             bool hasFeature(String key, bool defPrem, bool defGold) {
                 if (tier == 'gold') return true;
                 if (tier == 'premium') return defPrem;
