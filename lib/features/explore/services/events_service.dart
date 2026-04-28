@@ -470,6 +470,7 @@ class EventsService {
           ];
       }
 
-      return images[hash % images.length];
+      final rawUrl = images[hash % images.length];
+      return 'https://wsrv.nl/?url=${Uri.encodeComponent(rawUrl)}';
   }
 }

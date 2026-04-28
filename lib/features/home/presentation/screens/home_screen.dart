@@ -701,17 +701,11 @@ class _HomeScreenState extends ConsumerState<HomeScreen> {
                                 height: 200, 
                                 width: double.infinity, 
                                 fit: BoxFit.cover,
-                                errorWidget: (context, url, err) => Container(
+                                errorWidget: (context, url, err) => CachedNetworkImage(
+                                    imageUrl: event.displayImageUrl,
                                     height: 200,
                                     width: double.infinity,
-                                    decoration: BoxDecoration(
-                                      gradient: LinearGradient(
-                                        colors: [AppTheme.primaryBrand.withOpacity(0.5), AppTheme.secondaryBrand.withOpacity(0.5)],
-                                        begin: Alignment.topLeft,
-                                        end: Alignment.bottomRight,
-                                      )
-                                    ),
-                                    child: const Center(child: Icon(Icons.flash_on_rounded, size: 50, color: Colors.white))
+                                    fit: BoxFit.cover,
                                 ),
                             ),
                         ),
@@ -1068,15 +1062,11 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
                     width: double.infinity, 
                     height: double.infinity,
                     placeholder: (context, url) => Container(color: Theme.of(context).cardColor),
-                    errorWidget: (context, url, err) => Container(
-                         decoration: BoxDecoration(
-                           gradient: LinearGradient(
-                             colors: [AppTheme.primaryBrand.withOpacity(0.5), AppTheme.secondaryBrand.withOpacity(0.5)],
-                             begin: Alignment.topLeft,
-                             end: Alignment.bottomRight,
-                           )
-                         ),
-                         child: const Center(child: Icon(Icons.flash_on_rounded, size: 50, color: Colors.white))
+                    errorWidget: (context, url, err) => CachedNetworkImage(
+                         imageUrl: widget.event.displayImageUrl,
+                         fit: BoxFit.cover,
+                         width: double.infinity,
+                         height: double.infinity,
                     ),
                   ),
 
