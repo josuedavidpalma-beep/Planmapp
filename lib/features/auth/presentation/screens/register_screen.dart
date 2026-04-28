@@ -8,6 +8,7 @@ import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:planmapp/core/services/session_persistence_service.dart';
 import 'package:planmapp/features/plans/services/plan_members_service.dart';
+import 'package:flutter/foundation.dart';
 
 class RegisterScreen extends ConsumerStatefulWidget {
   const RegisterScreen({super.key});

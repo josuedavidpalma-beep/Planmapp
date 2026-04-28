@@ -126,10 +126,7 @@ class PlanService {
          creatorId: response['creator_id'],
          eventDate: response['event_date'] != null ? DateTime.tryParse(response['event_date']) : null,
          locationName: response['location_name'] ?? '',
-         locationAddress: '',
-         latitude: null,
-         longitude: null,
-         createdAt: DateTime.now(),
+         paymentMode: 'individual',
       );
     } catch (e) {
       print("Error fetching plan preview: $e");
