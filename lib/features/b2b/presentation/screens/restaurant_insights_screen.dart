@@ -6,6 +6,9 @@ import 'package:fl_chart/fl_chart.dart';
 import 'package:google_generative_ai/google_generative_ai.dart';
 import 'package:intl/intl.dart';
 import 'package:url_launcher/url_launcher.dart';
+import 'package:pdf/pdf.dart';
+import 'package:pdf/widgets.dart' as pw;
+import 'package:printing/printing.dart';
 import '../../../../core/theme/app_theme.dart';
 
 class RestaurantInsightsScreen extends StatefulWidget {
@@ -89,7 +92,7 @@ class _RestaurantInsightsScreenState extends State<RestaurantInsightsScreen> {
       }
       
       // 2. Load restaurant info
-      final restInfo = await supabase.from('restaurants').select('name, tier, features').eq('id', resId).maybeSingle();
+      final restInfo = await supabase.from('restaurants').select('name, tier, features, logo_url').eq('id', resId).maybeSingle();
       
       // 3. Load past X days surveys based on filters
       final surveysRes = await supabase.from('survey_responses').select()
@@ -402,6 +405,57 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
       }
   }
 
+  Future<void> _exportPDF() async {
+      final doc = pw.Document();
+      pw.ImageProvider? logoImage;
+      if (_restData['logo_url'] != null && _restData['logo_url'].toString().isNotEmpty) {
+          try {
+              logoImage = await networkImage(_restData['logo_url']);
+          } catch(e) { print("Error cargando logo PDF: $e"); }
+      }
+
+      doc.addPage(
+         pw.MultiPage(
+            pageFormat: PdfPageFormat.a4,
+            build: (pw.Context context) {
+               return [
+                  pw.Header(
+                     level: 0,
+                     child: pw.Row(
+                        mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                        children: [
+                           pw.Text("Reporte B2B: ${_restData['name']}", style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
+                           if (logoImage != null) pw.Container(width: 50, height: 50, child: pw.Image(logoImage)),
+                        ]
+                     )
+                  ),
+                  pw.SizedBox(height: 20),
+                  pw.Text("Resumen de Desempeno", style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                  pw.SizedBox(height: 10),
+                  pw.Bullet(text: "NPS (Net Promoter Score): $_npsScore"),
+                  pw.Bullet(text: "Total Encuestas: $_totalSurveys"),
+                  pw.Bullet(text: "Ticket Promedio Estimado: \$${_avgTicket.toStringAsFixed(0)}"),
+                  pw.Bullet(text: "Calificacion Promedio: ${_avgGeneral.toStringAsFixed(1)} / 5.0"),
+                  pw.SizedBox(height: 20),
+                  
+                  if (_aiRecommendation != null) ...[
+                     pw.Text("Recomendacion Estrategica IA", style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                     pw.SizedBox(height: 10),
+                     pw.Text(_aiRecommendation!),
+                     pw.SizedBox(height: 20),
+                  ],
+
+                  pw.Text("Platos Estrella (Favoritos)", style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
+                  pw.SizedBox(height: 10),
+                  ..._topDishes.take(5).map((d) => pw.Bullet(text: d['name'])),
+               ];
+            }
+         )
+      );
+      
+      await Printing.sharePdf(bytes: await doc.save(), filename: 'Reporte_Planmapp_${_restData['name'].toString().replaceAll(" ", "_")}.pdf');
+  }
+
   @override
   Widget build(BuildContext context) {
     if (_isLoading) {
@@ -473,14 +527,30 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
     AppBar buildAppBar() {
         return AppBar(
             backgroundColor: AppTheme.darkBackground,
-            title: Text("Resumen: ${_restData['name']}"),
+            title: Row(
+                children: [
+                    if (_restData['logo_url'] != null && _restData['logo_url'].toString().isNotEmpty)
+                        Padding(
+                            padding: const EdgeInsets.only(right: 12),
+                            child: CircleAvatar(
+                                backgroundImage: NetworkImage(_restData['logo_url']),
+                                radius: 16,
+                            ),
+                        ),
+                    Expanded(child: Text("Resumen: ${_restData['name'] ?? ''}", overflow: TextOverflow.ellipsis)),
+                ]
+            ),
             actions: [
+                IconButton(
+                    onPressed: _exportPDF, 
+                    icon: const Icon(Icons.picture_as_pdf, color: Colors.redAccent),
+                    tooltip: "Descargar PDF",
+                ),
                 TextButton.icon(
                     onPressed: _exportCsv, 
                     icon: const Icon(Icons.download, color: Colors.greenAccent), 
-                    label: const Text("Exportar CSV", style: TextStyle(color: Colors.greenAccent))
+                    label: const Text("CSV", style: TextStyle(color: Colors.greenAccent))
                 ),
-                const SizedBox(width: 8)
             ],
         );
     }

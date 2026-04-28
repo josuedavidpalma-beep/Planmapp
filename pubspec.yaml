@@ -63,6 +63,10 @@ dependencies:
   rxdart: ^0.27.7
   webview_flutter: ^4.13.1
   flutter_secure_storage: ^10.0.0
+  
+  # Reports & PDF
+  pdf: ^3.11.0
+  printing: ^5.12.0
 
 dev_dependencies:
   flutter_test:

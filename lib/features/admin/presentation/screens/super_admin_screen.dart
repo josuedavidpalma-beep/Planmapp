@@ -173,6 +173,7 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                     bool isFeatured = r['is_featured'] ?? false;
                     String whatsappLink = r['whatsapp_link'] ?? '';
                     String promoText = r['promo_text'] ?? '';
+                    String logoUrl = r['logo_url'] ?? '';
                     String currentPin = '';
                     
                     try {
@@ -193,6 +194,7 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                     final placeIdCtrl = TextEditingController(text: googlePlaceId);
                     final waCtrl = TextEditingController(text: whatsappLink);
                     final promoCtrl = TextEditingController(text: promoText);
+                    final logoCtrl = TextEditingController(text: logoUrl);
                     
                     final save = await showDialog<bool>(context: context, builder: (c) => StatefulBuilder(builder: (ctx, setSt) => AlertDialog(
                         title: const Text("Ajustes del Comercio B2B"),
@@ -212,6 +214,12 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                                                 DropdownMenuItem(value: 'custom', child: Text("A la Carta (Personalizado)")),
                                             ],
                                             onChanged: (v) => setSt(() => currentTier = v!),
+                                        ),
+                                        const Divider(height: 30),
+                                        const Text("Personalidad de Marca", style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBrand)),
+                                        TextField(
+                                            controller: logoCtrl,
+                                            decoration: const InputDecoration(labelText: "URL del Logo (Opcional)"),
                                         ),
                                         const Divider(height: 30),
                                         const Text("Integración Explorar", style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBrand)),
@@ -270,6 +278,7 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                                 'is_featured': isFeatured,
                                 'whatsapp_link': waCtrl.text,
                                 'promo_text': promoCtrl.text,
+                                'logo_url': logoCtrl.text.isEmpty ? null : logoCtrl.text,
                             }).eq('id', r['id']);
                             
                             if (pinCtrl.text != currentPin) {
