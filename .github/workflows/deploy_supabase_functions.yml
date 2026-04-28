@@ -28,14 +28,15 @@ jobs:
         run: |
           # Solo ejecutará el comando si se proporcionaron los permisos
           if [ -z "$SUPABASE_ACCESS_TOKEN" ]; then
-            echo "ERROR: SUPABASE_ACCESS_TOKEN is required in Github Secrets."
-            exit 1
+            echo "WARNING: SUPABASE_ACCESS_TOKEN is missing in Github Secrets. Skipping Supabase deploy."
+            exit 0
           fi
           
           if [ -z "$PROJECT_ID" ]; then
-            echo "ERROR: SUPABASE_PROJECT_ID is required in Github Secrets."
-            exit 1
+            echo "WARNING: SUPABASE_PROJECT_ID is missing in Github Secrets. Skipping Supabase deploy."
+            exit 0
           fi
           
           supabase functions deploy fcm-dispatcher --project-ref $PROJECT_ID
           supabase functions deploy notify-debts --no-verify-jwt --project-ref $PROJECT_ID
+          supabase functions deploy alert_low_rating --project-ref $PROJECT_ID
