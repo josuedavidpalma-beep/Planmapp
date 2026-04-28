@@ -8,11 +8,16 @@ serve(async (req) => {
     const { record } = await req.json();
 
     // 1. Extraer los datos de la encuesta
-    const food = record.responses?.rating_food || 0;
-    const service = record.responses?.rating_service || 0;
-    const ambiance = record.responses?.rating_ambiance || 0;
-    const feedback = record.responses?.feedback_text || "Sin comentarios";
-
+    const food = record.rating_food || 0;
+    const service = record.rating_service || 0;
+    const ambiance = record.rating_ambiance || 0;
+    const feedback = record.feedback_text || "Sin comentarios";
+    
+    // Extraer datos del comensal y la cuenta
+    const dinerName = record.user_name || "Cliente Anónimo";
+    const totalBill = record.responses?.ai_raw_total || 0;
+    const items = Array.isArray(record.receipt_items) ? record.receipt_items : [];
+    
     const avg = (food + service + ambiance) / 3;
 
     // 2. Verificar si es una calificación crítica (<= 2.0)
@@ -43,6 +48,16 @@ serve(async (req) => {
       }
 
       const restName = restaurant?.name || "Tu Restaurante";
+      
+      let itemsHtml = "";
+      if (items.length > 0) {
+         itemsHtml = `
+            <h3>Artículos de la Cuenta</h3>
+            <ul>
+               ${items.map((i: any) => `<li>${i.qty || 1}x ${i.name} ($${i.price})</li>`).join('')}
+            </ul>
+         `;
+      }
 
       // 3. Enviar correo usando la API de Resend
       const res = await fetch('https://api.resend.com/emails', {
@@ -56,17 +71,30 @@ serve(async (req) => {
           to: [targetEmail],
           subject: `🚨 ALERTA CRÍTICA: Cliente Insatisfecho en ${restName}`,
           html: `
-            <h2>¡Atención Inmediata!</h2>
-            <p>Se acaba de registrar una encuesta con una calificación crítica en <b>${restName}</b>.</p>
-            <ul>
-              <li><strong>Promedio General:</strong> <span style="color:red;font-weight:bold;">${avg.toFixed(1)} / 5.0</span></li>
-              <li><strong>Comida:</strong> ${food}</li>
-              <li><strong>Servicio:</strong> ${service}</li>
-              <li><strong>Ambiente:</strong> ${ambiance}</li>
-            </ul>
-            <p><strong>Comentarios del cliente:</strong> "${feedback}"</p>
-            <hr/>
-            <p>Por favor acércate a la mesa o revisa la situación para compensar la experiencia antes de que el cliente se retire.</p>
+            <div style="font-family: sans-serif; padding: 20px; color: #333;">
+                <h2 style="color: #d9534f;">¡Atención Inmediata!</h2>
+                <p>Se acaba de registrar una encuesta con una calificación crítica en <b>${restName}</b>.</p>
+                
+                <div style="background-color: #f9f9f9; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
+                    <p><strong>Comensal:</strong> ${dinerName}</p>
+                    <p><strong>Total de la cuenta:</strong> $${totalBill}</p>
+                    <p><strong>Hora:</strong> ${new Date(record.created_at || new Date()).toLocaleString()}</p>
+                </div>
+
+                <h3>Calificaciones</h3>
+                <ul>
+                  <li><strong>Promedio General:</strong> <span style="color:red;font-weight:bold;">${avg.toFixed(1)} / 5.0</span></li>
+                  <li><strong>Comida:</strong> ${food}</li>
+                  <li><strong>Servicio:</strong> ${service}</li>
+                  <li><strong>Ambiente:</strong> ${ambiance}</li>
+                </ul>
+                <p><strong>Comentarios del cliente:</strong> <br/><i>"${feedback}"</i></p>
+                
+                ${itemsHtml}
+
+                <hr/>
+                <p style="color: #555;">Por favor acércate a la mesa de ser posible o revisa la situación para compensar la experiencia.</p>
+            </div>
           `
         })
       });
