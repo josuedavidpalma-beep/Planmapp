@@ -52,18 +52,16 @@ class _SpontaneousPlanSheetState extends State<SpontaneousPlanSheet> {
 
   void _onMoodSelected(String category) {
       if (_currentPosition == null) return;
+      final pos = _currentPosition!;
       
-      // Close this sheet and open results directly (or navigate)
-      // For cleaner UX, let's replace content or push modal.
-      // Replacing content in same sheet is smoother.
-      
-      Navigator.pop(context); // Close vibe check
+      final nav = Navigator.of(context);
+      nav.pop(); // Close vibe check
       
       showModalBottomSheet(
-          context: context,
+          context: nav.context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
-          builder: (c) => SpontaneousResultsView(category: category, position: _currentPosition!, city: "")
+          builder: (c) => SpontaneousResultsView(category: category, position: pos, city: "")
       );
   }
 

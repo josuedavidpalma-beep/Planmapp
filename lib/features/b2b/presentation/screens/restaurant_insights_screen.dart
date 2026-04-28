@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:fl_chart/fl_chart.dart';
@@ -601,31 +602,22 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
                     else if (_menuMatrix.isEmpty)
                        const Text("Sin datos suficientes", style: TextStyle(color: Colors.grey))
                     else
-                       GridView.builder(
-                           shrinkWrap: true,
-                           physics: const NeverScrollableScrollPhysics(),
-                           gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-                               crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.5
-                           ),
-                           itemCount: _menuMatrix.length,
-                           itemBuilder: (ctx, i) {
-                               final d = _menuMatrix[i];
-                               Color c = d['type'] == 'Estrella' ? Colors.green : (d['type'] == 'Caballito' ? Colors.blue : (d['type'] == 'Rompecabezas' ? Colors.orange : Colors.red));
-                               String icon = d['type'] == 'Estrella' ? '✨' : (d['type'] == 'Caballito' ? '🐴' : (d['type'] == 'Rompecabezas' ? '🧩' : '🐕'));
-                               return Container(
-                                   padding: const EdgeInsets.all(8),
-                                   decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: c.withOpacity(0.3))),
-                                   child: Column(
-                                       mainAxisAlignment: MainAxisAlignment.center,
-                                       children: [
-                                           Text("$icon ${d['name']}", textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: c, fontWeight: FontWeight.bold, fontSize: 13)),
-                                           const SizedBox(height: 4),
-                                           Text("${d['hits']}x pedidos", style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                                           Text("⭐ ${d['rating'].toStringAsFixed(1)}", style: const TextStyle(color: Colors.white70, fontSize: 11)),
-                                       ]
-                                   )
-                               );
-                           }
+                       SizedBox(
+                           height: 350,
+                           child: SingleChildScrollView(
+                               child: GridView.builder(
+                                   shrinkWrap: true,
+                                   physics: const NeverScrollableScrollPhysics(),
+                                   gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
+                                       crossAxisCount: 2, crossAxisSpacing: 10, mainAxisSpacing: 10, childAspectRatio: 1.5
+                                   ),
+                                   itemCount: _menuMatrix.length,
+                                   itemBuilder: (ctx, i) {
+                                       final d = _menuMatrix[i];
+                                       return _MenuMatrixFlipCard(data: d);
+                                   }
+                               )
+                           )
                        )
                 ]
             );
@@ -890,5 +882,87 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
             ]
          )
       );
+  }
+}
+
+class _MenuMatrixFlipCard extends StatefulWidget {
+  final Map<String, dynamic> data;
+  const _MenuMatrixFlipCard({Key? key, required this.data}) : super(key: key);
+
+  @override
+  State<_MenuMatrixFlipCard> createState() => _MenuMatrixFlipCardState();
+}
+
+class _MenuMatrixFlipCardState extends State<_MenuMatrixFlipCard> {
+  bool _isFlipped = false;
+
+  @override
+  Widget build(BuildContext context) {
+    final d = widget.data;
+    Color c = d['type'] == 'Estrella' ? Colors.green : (d['type'] == 'Caballito' ? Colors.blue : (d['type'] == 'Rompecabezas' ? Colors.orange : Colors.red));
+    String icon = d['type'] == 'Estrella' ? '✨' : (d['type'] == 'Caballito' ? '🐴' : (d['type'] == 'Rompecabezas' ? '🧩' : '🐕'));
+    
+    String description = '';
+    if (d['type'] == 'Estrella') description = 'Alto margen, alta popularidad. Promociónalos.';
+    else if (d['type'] == 'Caballito') description = 'Alta popularidad, bajo margen. Sube el precio sutilmente.';
+    else if (d['type'] == 'Rompecabezas') description = 'Alto margen, baja popularidad. Renombra o promociona.';
+    else description = 'Bajo margen, baja popularidad. Considera eliminarlos.';
+
+    Widget frontCard = Container(
+        key: const ValueKey(1),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(color: c.withOpacity(0.1), borderRadius: BorderRadius.circular(10), border: Border.all(color: c.withOpacity(0.3))),
+        child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+                Text("$icon ${d['name']}", textAlign: TextAlign.center, maxLines: 2, overflow: TextOverflow.ellipsis, style: TextStyle(color: c, fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 4),
+                Text("${d['hits']}x pedidos", style: const TextStyle(color: Colors.white70, fontSize: 11)),
+                Text("⭐ ${d['rating'].toStringAsFixed(1)}", style: const TextStyle(color: Colors.white70, fontSize: 11)),
+            ]
+        )
+    );
+
+    Widget backCard = Container(
+        key: const ValueKey(2),
+        padding: const EdgeInsets.all(8),
+        decoration: BoxDecoration(color: c.withOpacity(0.2), borderRadius: BorderRadius.circular(10), border: Border.all(color: c)),
+        child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+                Text(d['type'], style: TextStyle(color: c, fontWeight: FontWeight.bold, fontSize: 13)),
+                const SizedBox(height: 4),
+                Text(description, textAlign: TextAlign.center, style: const TextStyle(color: Colors.white, fontSize: 10)),
+            ]
+        )
+    );
+
+    return GestureDetector(
+        onTap: () {
+            setState(() => _isFlipped = !_isFlipped);
+        },
+        child: AnimatedSwitcher(
+            duration: const Duration(milliseconds: 600),
+            transitionBuilder: (Widget child, Animation<double> animation) {
+                final rotateAnim = Tween(begin: pi, end: 0.0).animate(animation);
+                return AnimatedBuilder(
+                    animation: rotateAnim,
+                    child: child,
+                    builder: (context, widget) {
+                        final isUnder = (ValueKey(1) != child.key);
+                        var tilt = ((animation.value - 0.5).abs() - 0.5) * 0.003;
+                        tilt *= isUnder ? -1.0 : 1.0;
+                        final value = isUnder ? min(rotateAnim.value, pi / 2) : rotateAnim.value;
+                        return Transform(
+                            transform: Matrix4.rotationY(value)..setEntry(3, 0, tilt),
+                            alignment: Alignment.center,
+                            child: widget,
+                        );
+                    },
+                );
+            },
+            child: _isFlipped ? backCard : frontCard,
+        )
+    );
   }
 }

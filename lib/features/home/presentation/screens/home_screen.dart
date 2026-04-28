@@ -1149,7 +1149,15 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(widget.title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                      Row(
+                          children: [
+                              Flexible(child: Text(widget.title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold), overflow: TextOverflow.ellipsis, maxLines: 1)),
+                              if (widget.event.isVerified) ...[
+                                  const SizedBox(width: 8),
+                                  const Icon(Icons.verified, color: Colors.blue, size: 20),
+                              ]
+                          ],
+                      ),
                       const SizedBox(height: 4),
                       Row(
                         children: [

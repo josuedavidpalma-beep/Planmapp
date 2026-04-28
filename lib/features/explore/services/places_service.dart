@@ -115,6 +115,16 @@ class PlacesService {
           if (nameStr.contains('barrio') || types.contains('neighborhood') || types.contains('sublocality') || types.contains('locality') || types.contains('political') || types.contains('administrative_area_level_1') || types.contains('administrative_area_level_2')) {
               continue;
           }
+          
+          // Strict block against industrial, corporate, or non-recreational entities
+          if (nameStr.contains('planta') || nameStr.contains('corrugado') || nameStr.contains('fábrica') || nameStr.contains('fabrica') || 
+              nameStr.contains('bodega') || nameStr.contains('taller') || nameStr.contains('industria') || nameStr.contains('empresa') || 
+              nameStr.contains('distribuidora') || nameStr.contains('clínica') || nameStr.contains('clinica') || nameStr.contains('hospital') || 
+              nameStr.contains('colegio') || nameStr.contains('universidad') || nameStr.contains('notaría') || nameStr.contains('banco') || 
+              nameStr.contains('iglesia') || nameStr.contains('ministerio') || nameStr.contains('eps') || nameStr.contains('caja de compensación')) {
+              continue;
+          }
+
           final mapped = {
             'place_id': p['id'],
             'name': p['displayName']?['text'] ?? 'Lugar desconocido',
@@ -196,6 +206,15 @@ class PlacesService {
           if (nameStr.contains('barrio') || types.contains('neighborhood') || types.contains('sublocality') || types.contains('locality') || types.contains('political') || types.contains('administrative_area_level_1') || types.contains('administrative_area_level_2')) {
               continue;
           }
+          
+          if (nameStr.contains('planta') || nameStr.contains('corrugado') || nameStr.contains('fábrica') || nameStr.contains('fabrica') || 
+              nameStr.contains('bodega') || nameStr.contains('taller') || nameStr.contains('industria') || nameStr.contains('empresa') || 
+              nameStr.contains('distribuidora') || nameStr.contains('clínica') || nameStr.contains('clinica') || nameStr.contains('hospital') || 
+              nameStr.contains('colegio') || nameStr.contains('universidad') || nameStr.contains('notaría') || nameStr.contains('banco') || 
+              nameStr.contains('iglesia') || nameStr.contains('ministerio') || nameStr.contains('eps') || nameStr.contains('caja de compensación')) {
+              continue;
+          }
+          
           final mapped = {
             'place_id': p['id'],
             'name': p['displayName']?['text'] ?? 'Lugar desconocido',

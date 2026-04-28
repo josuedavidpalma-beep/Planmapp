@@ -179,7 +179,31 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
               return "Organizador";
           }
           
-          return dbName ?? '...';
+      return dbName ?? '...';
+      }
+      return gName ?? "?";
+  }
+
+  String _getActualUserName(String? uId, String? gName) {
+      if (uId != null) {
+          final m = _members.cast<PlanMember?>().firstWhere((m) => m?.id == uId, orElse: () => null);
+          if (m != null) return m.name;
+          
+          final dbName = _dynamicNames[uId];
+          final creatorId = widget.expenseData['created_by'];
+          
+          if (uId == creatorId && (dbName == null || dbName.toLowerCase().contains("nuevo usuario") || dbName.toLowerCase() == "usuario")) {
+              return "Organizador";
+          }
+          
+          if (dbName != null) return dbName;
+          
+          // As a last resort, try getting the user metadata if it's the current user
+          if (uId == Supabase.instance.client.auth.currentUser?.id) {
+             return Supabase.instance.client.auth.currentUser?.userMetadata?['full_name'] ?? Supabase.instance.client.auth.currentUser?.email ?? 'Tú';
+          }
+          
+          return '...';
       }
       return gName ?? "?";
   }
@@ -374,7 +398,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                           'restaurant_id': resId,
                                           'plan_id': planId,
                                           'user_id': Supabase.instance.client.auth.currentUser?.id,
-                                          'user_name': _getUserName(Supabase.instance.client.auth.currentUser?.id, widget.expenseData['guest_name']),
+                                          'user_name': _getActualUserName(Supabase.instance.client.auth.currentUser?.id, widget.expenseData['guest_name']),
                                           'responses': {
                                               'ai_raw_total': widget.expenseData['ai_raw_total'] ?? widget.expenseData['total_amount'] ?? 0.0
                                           },
@@ -389,9 +413,9 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
                                           
                                           // GOOGLE MAPS HARVESTER (Protegemos NPS < 4.5)
                                           final double avgRating = (ratingFood + ratingService + ratingAmbiance) / 3.0;
-                                          final features = restRes['features'] as Map<String, dynamic>? ?? {};
-                                          final bool mapsEnabled = features['google_maps_reviews'] == true;
-                                          final String mapsUrl = restRes['maps_url'] ?? '';
+                                          final String tier = restRes['tier'] ?? 'basic';
+                                          final bool mapsEnabled = tier == 'premium' || tier == 'gold';
+                                          final String mapsUrl = restRes['google_maps_url'] ?? restRes['maps_url'] ?? '';
 
                                           if (mapsEnabled && mapsUrl.isNotEmpty && avgRating >= 4.5) {
                                               await showDialog(context: context, builder: (mc) => AlertDialog(

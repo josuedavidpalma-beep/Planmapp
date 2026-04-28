@@ -148,7 +148,7 @@ class EventsService {
         title: p['name'],
         address: p['address'],
         location: p['name'],
-        imageUrl: _placesService.getPhotoUrl(p['photo_reference']),
+        imageUrl: _placesService.getPhotoUrl(p['photo_reference']) ?? _getDeterministicImage(p['place_id'], category ?? p['category']),
         ratingGoogle: p['rating'],
         latitude: p['latitude'],
         longitude: p['longitude'],
@@ -157,6 +157,64 @@ class EventsService {
         googlePlaceId: p['place_id'],
         priceLevel: p['price_level'],
       )).toList();
+
+      // ====== B2B INJECTION (Planmapp Business) ======
+      try {
+          // Fetch all active B2B clients that have a Google Place ID mapped
+          final b2bRes = await _supabase.from('restaurants').select().not('google_place_id', 'is', null);
+          final List<dynamic> b2bClients = b2bRes as List<dynamic>;
+
+          if (b2bClients.isNotEmpty) {
+              final List<Event> featuredEvents = [];
+              
+              for (var i = 0; i < events.length; i++) {
+                  final e = events[i];
+                  // Find if this Google Place is one of our B2B clients
+                  final b2bMatch = b2bClients.cast<Map<String,dynamic>>().firstWhere(
+                      (r) => r['google_place_id'] == e.googlePlaceId,
+                      orElse: () => <String,dynamic>{}
+                  );
+                  
+                  if (b2bMatch.isNotEmpty) {
+                      final tier = b2bMatch['tier'] ?? 'basic';
+                      final isVerified = b2bMatch['is_verified'] == true;
+                      final isFeatured = b2bMatch['is_featured'] == true;
+                      
+                      // Upgrade the event card with B2B perks
+                      final upgradedEvent = e.copyWith(
+                          isVerified: isVerified,
+                          b2bTier: tier,
+                          contactPhone: (tier == 'premium' || tier == 'gold') ? (b2bMatch['whatsapp_link'] ?? e.contactPhone) : e.contactPhone,
+                          promoHighlights: (tier == 'premium' || tier == 'gold') ? (b2bMatch['promo_text'] ?? e.promoHighlights) : e.promoHighlights,
+                      );
+                      
+                      events[i] = upgradedEvent;
+                      
+                      if (isFeatured && tier == 'gold') {
+                          featuredEvents.add(upgradedEvent);
+                      }
+                  }
+              }
+              
+              // Move featured Gold events to the top of the list
+              for (var fEvent in featuredEvents) {
+                  events.removeWhere((e) => e.id == fEvent.id);
+                  events.insert(0, fEvent);
+              }
+          }
+      } catch (e) {
+          print("Error injecting B2B data: $e");
+      }
+      // ===============================================
+
+      // Shuffle if category is "Todo" (null) to interleave different types of places
+      if (category == null) {
+          // Keep featured events at top, shuffle the rest
+          final featured = events.where((e) => e.b2bTier == 'gold').toList();
+          final rest = events.where((e) => e.b2bTier != 'gold').toList();
+          rest.shuffle();
+          events = [...featured, ...rest];
+      }
 
       // INTERCEPT: Cine & Arte Custom Billboard Injection
       if (category == 'movie_theater') {
@@ -295,7 +353,7 @@ class EventsService {
           endDate: e['end_date'],
           location: e['venue_name'],
           address: e['address'],
-          imageUrl: (e['image_url'] != null && e['image_url'].toString().isNotEmpty) ? e['image_url'] : null,
+          imageUrl: (e['image_url'] != null && e['image_url'].toString().isNotEmpty) ? e['image_url'] : _getDeterministicImage(e['id'].toString(), e['vibe_tag']),
           category: e['vibe_tag']?.split('/')[0] ?? 'General',
           sourceUrl: e['reservation_link'] ?? e['primary_source'],
           contactPhone: e['contact_phone'],
@@ -367,5 +425,48 @@ class EventsService {
       print('❌ getDailyEvents Error: $e');
       return [];
     }
+  }
+
+  /// Helper: Deterministically pick a high quality image based on the ID and category
+  String _getDeterministicImage(String id, String? category) {
+      final int hash = id.hashCode.abs();
+      final cat = (category ?? '').toLowerCase();
+      
+      List<String> images = [
+          "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80",
+          "https://images.unsplash.com/photo-1554118811-1e0d58224f24?auto=format&fit=crop&w=800&q=80",
+          "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800&q=80",
+          "https://images.unsplash.com/photo-1533174072545-7a4b6ad7a6c3?auto=format&fit=crop&w=800&q=80",
+          "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+          "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+          "https://images.unsplash.com/photo-1525268771113-32d9e9021a97?auto=format&fit=crop&w=800&q=80",
+          "https://images.unsplash.com/photo-1563298723-dcfebaa392e3?auto=format&fit=crop&w=800&q=80",
+      ];
+
+      if (cat.contains('rumba') || cat.contains('nocturna') || cat.contains('bar') || cat.contains('fiesta')) {
+          images = [
+              "https://images.unsplash.com/photo-1545128485-c400e7702796?auto=format&fit=crop&w=800&q=80",
+              "https://images.unsplash.com/photo-1514525253161-7a46d19cd819?auto=format&fit=crop&w=800&q=80",
+              "https://images.unsplash.com/photo-1516450360452-9312f5e86fc7?auto=format&fit=crop&w=800&q=80",
+              "https://images.unsplash.com/photo-1470229722913-7c090be5f524?auto=format&fit=crop&w=800&q=80",
+              "https://images.unsplash.com/photo-1572116469696-31de0f17cc34?auto=format&fit=crop&w=800&q=80"
+          ];
+      } else if (cat.contains('comida') || cat.contains('gastronom') || cat.contains('restaurante')) {
+          images = [
+              "https://images.unsplash.com/photo-1504674900247-0877df9cc836?auto=format&fit=crop&w=800&q=80",
+              "https://images.unsplash.com/photo-1555396273-367ea4eb4db5?auto=format&fit=crop&w=800&q=80",
+              "https://images.unsplash.com/photo-1517248135467-4c7edcad34c4?auto=format&fit=crop&w=800&q=80",
+              "https://images.unsplash.com/photo-1414235077428-338989a2e8c0?auto=format&fit=crop&w=800&q=80",
+              "https://images.unsplash.com/photo-1544025162-d76694265947?auto=format&fit=crop&w=800&q=80"
+          ];
+      } else if (cat.contains('cine') || cat.contains('película')) {
+          images = [
+              "https://images.unsplash.com/photo-1536440136628-849c177e76a1?auto=format&fit=crop&w=800&q=80",
+              "https://images.unsplash.com/photo-1485846234645-a62644f84728?auto=format&fit=crop&w=800&q=80",
+              "https://images.unsplash.com/photo-1517604931442-7e0c8ed2963c?auto=format&fit=crop&w=800&q=80"
+          ];
+      }
+
+      return images[hash % images.length];
   }
 }

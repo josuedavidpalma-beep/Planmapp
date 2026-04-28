@@ -74,8 +74,13 @@ class _AiMatchmakerScreenState extends State<AiMatchmakerScreen> {
       
       // Navigate to Create Plan with AI data
       if (mounted) {
-         final text = "${result['title']} - ${result['description']} en ${result['location']} (Presupuesto: ${result['budget']})";
-         context.push('/create-plan?shared_text=${Uri.encodeComponent(text)}');
+         final title = result['title'] ?? 'Plan Mágico';
+         final address = "${result['location'] ?? 'Ubicación sorpresa'} • Presupuesto: ${result['budget'] ?? '$$'}";
+         // We use extra parameters to directly inject title and address into CreatePlanScreen
+         context.push('/create-plan', extra: {
+             'initialTitle': title,
+             'initialAddress': address,
+         });
       }
       
     } catch (e) {

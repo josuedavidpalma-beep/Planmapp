@@ -166,7 +166,12 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                 onPressed: () async {
                     String currentJson = "{}";
                     String currentTier = r['tier'] ?? 'basic';
-                    String mapsUrl = r['maps_url'] ?? '';
+                    String mapsUrl = r['maps_url'] ?? r['google_maps_url'] ?? '';
+                    String googlePlaceId = r['google_place_id'] ?? '';
+                    bool isVerified = r['is_verified'] ?? false;
+                    bool isFeatured = r['is_featured'] ?? false;
+                    String whatsappLink = r['whatsapp_link'] ?? '';
+                    String promoText = r['promo_text'] ?? '';
                     String currentPin = '';
                     
                     try {
@@ -184,42 +189,67 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                     final ctrl = TextEditingController(text: currentJson);
                     final mapsCtrl = TextEditingController(text: mapsUrl);
                     final pinCtrl = TextEditingController(text: currentPin);
+                    final placeIdCtrl = TextEditingController(text: googlePlaceId);
+                    final waCtrl = TextEditingController(text: whatsappLink);
+                    final promoCtrl = TextEditingController(text: promoText);
                     
                     final save = await showDialog<bool>(context: context, builder: (c) => StatefulBuilder(builder: (ctx, setSt) => AlertDialog(
-                        title: const Text("Ajustes del Comercio"),
-                        content: SingleChildScrollView(
-                            child: Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                    DropdownButtonFormField<String>(
-                                        value: currentTier,
-                                        decoration: const InputDecoration(labelText: "Suscripción B2B (Tier)"),
-                                        items: const [
-                                            DropdownMenuItem(value: 'basic', child: Text("Básico")),
-                                            DropdownMenuItem(value: 'premium', child: Text("Premium")),
-                                            DropdownMenuItem(value: 'gold', child: Text("Gold")),
-                                            DropdownMenuItem(value: 'custom', child: Text("A la Carta (Personalizado)")),
-                                        ],
-                                        onChanged: (v) => setSt(() => currentTier = v!),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    TextField(
-                                        controller: mapsCtrl,
-                                        decoration: const InputDecoration(labelText: "Google Maps URL", hintText: "https://g.page/..."),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    TextField(
-                                        controller: pinCtrl,
-                                        decoration: const InputDecoration(labelText: "PIN de Acceso (B2B Dashboard)", hintText: "Ej: 1234"),
-                                    ),
-                                    const SizedBox(height: 16),
-                                    TextField(
-                                        controller: ctrl,
-                                        maxLines: 4,
-                                        decoration: const InputDecoration(labelText: "JSON Encuesta (Fase 2)"),
-                                    ),
-                                ]
-                            )
+                        title: const Text("Ajustes del Comercio B2B"),
+                        content: SizedBox(
+                            width: double.maxFinite,
+                            child: SingleChildScrollView(
+                                child: Column(
+                                    mainAxisSize: MainAxisSize.min,
+                                    children: [
+                                        DropdownButtonFormField<String>(
+                                            value: currentTier,
+                                            decoration: const InputDecoration(labelText: "Suscripción B2B (Tier)"),
+                                            items: const [
+                                                DropdownMenuItem(value: 'basic', child: Text("Básico")),
+                                                DropdownMenuItem(value: 'premium', child: Text("Premium")),
+                                                DropdownMenuItem(value: 'gold', child: Text("Gold")),
+                                                DropdownMenuItem(value: 'custom', child: Text("A la Carta (Personalizado)")),
+                                            ],
+                                            onChanged: (v) => setSt(() => currentTier = v!),
+                                        ),
+                                        const Divider(height: 30),
+                                        const Text("Integración Explorar", style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBrand)),
+                                        TextField(
+                                            controller: placeIdCtrl,
+                                            decoration: const InputDecoration(labelText: "Google Place ID (Obligatorio para Feed)"),
+                                        ),
+                                        SwitchListTile(
+                                            title: const Text("Perfil Verificado"),
+                                            value: isVerified,
+                                            onChanged: (v) => setSt(() => isVerified = v),
+                                        ),
+                                        SwitchListTile(
+                                            title: const Text("Destacado (Posición Top)"),
+                                            value: isFeatured,
+                                            onChanged: (v) => setSt(() => isFeatured = v),
+                                        ),
+                                        TextField(
+                                            controller: waCtrl,
+                                            decoration: const InputDecoration(labelText: "Link WhatsApp (Ej: https://wa.me/...)"),
+                                        ),
+                                        TextField(
+                                            controller: promoCtrl,
+                                            decoration: const InputDecoration(labelText: "Texto Promo (Ej: 2x1 Cócteles)"),
+                                        ),
+                                        const Divider(height: 30),
+                                        const Text("Dashboard & Cosechador QR", style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondaryBrand)),
+                                        TextField(
+                                            controller: mapsCtrl,
+                                            decoration: const InputDecoration(labelText: "Google Maps URL (Para Cosechador)"),
+                                        ),
+                                        const SizedBox(height: 16),
+                                        TextField(
+                                            controller: pinCtrl,
+                                            decoration: const InputDecoration(labelText: "PIN de Acceso (B2B Dashboard)"),
+                                        ),
+                                    ]
+                                )
+                            ),
                         ),
                         actions: [
                            TextButton(onPressed: () => Navigator.pop(c), child: const Text("Cancelar")),
@@ -229,11 +259,16 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                     
                     if (save == true) {
                         try {
-                            final decoded = jsonDecode(ctrl.text);
+                            final decoded = currentJson.isNotEmpty ? jsonDecode(ctrl.text) : {};
                             await _supabase.from('restaurants').update({
                                 'survey_settings': decoded,
-                                'maps_url': mapsCtrl.text,
-                                'tier': currentTier
+                                'google_maps_url': mapsCtrl.text,
+                                'tier': currentTier,
+                                'google_place_id': placeIdCtrl.text.isEmpty ? null : placeIdCtrl.text,
+                                'is_verified': isVerified,
+                                'is_featured': isFeatured,
+                                'whatsapp_link': waCtrl.text,
+                                'promo_text': promoCtrl.text,
                             }).eq('id', r['id']);
                             
                             if (pinCtrl.text != currentPin) {
@@ -373,53 +408,188 @@ class _AdminAnalyticsTab extends StatefulWidget {
 
 class _AdminAnalyticsTabState extends State<_AdminAnalyticsTab> {
   final _supabase = Supabase.instance.client;
-  int _totalEncuestas = 0;
   bool _isLoading = true;
+  DateTimeRange? _dateRange;
+
+  // KPIs
+  int _totalUsers = 0;
+  int _qrUsers = 0;
+  int _totalPlans = 0;
+  int _abandonedPlans = 0;
+  int _aiPlans = 0;
+  int _totalSurveys = 0;
+  double _totalRevenueB2B = 0; // Simulated using Tiers
 
   @override
   void initState() {
     super.initState();
+    // Default to last 30 days
+    _dateRange = DateTimeRange(start: DateTime.now().subtract(const Duration(days: 30)), end: DateTime.now());
     _loadMectrics();
   }
 
   Future<void> _loadMectrics() async {
+    setState(() => _isLoading = true);
     try {
-      final res = await _supabase.from('survey_responses').select('id');
-      setState(() {
-        _totalEncuestas = res.length;
-        _isLoading = false;
-      });
+      final startIso = _dateRange?.start.toIso8601String() ?? DateTime(2000).toIso8601String();
+      final endIso = _dateRange?.end.add(const Duration(days: 1)).toIso8601String() ?? DateTime.now().toIso8601String();
+
+      // We use RPC or raw fetches. For simplicity, fetch and filter locally if not too big, or use Postgrest filters.
+      final usersReq = await _supabase.from('profiles').select('created_at, origin').gte('created_at', startIso).lte('created_at', endIso);
+      final plansReq = await _supabase.from('plans').select('created_at, status, plan_type').gte('created_at', startIso).lte('created_at', endIso);
+      final surveyReq = await _supabase.from('survey_responses').select('id').gte('created_at', startIso).lte('created_at', endIso);
+      final restReq = await _supabase.from('restaurants').select('created_at, tier'); // all active
+
+      final now = DateTime.now();
+
+      int qrU = 0;
+      for (var u in usersReq) {
+          if (u['origin'] == 'qr') qrU++;
+      }
+
+      int abPlans = 0;
+      int aiP = 0;
+      for (var p in plansReq) {
+          if (p['plan_type'] == 'ai_suggestion') aiP++;
+          
+          if (p['status'] == 'draft') {
+              final created = DateTime.parse(p['created_at']);
+              if (now.difference(created).inHours > 48) {
+                  abPlans++;
+              }
+          }
+      }
+
+      double rev = 0;
+      for (var r in restReq) {
+          final t = r['tier'] ?? 'basic';
+          if (t == 'gold') rev += 299000;
+          else if (t == 'premium') rev += 149000;
+          else if (t == 'basic') rev += 49000;
+      }
+
+      if (mounted) {
+          setState(() {
+              _totalUsers = usersReq.length;
+              _qrUsers = qrU;
+              _totalPlans = plansReq.length;
+              _abandonedPlans = abPlans;
+              _aiPlans = aiP;
+              _totalSurveys = surveyReq.length;
+              _totalRevenueB2B = rev;
+              _isLoading = false;
+          });
+      }
+
     } catch (e) {
       if (mounted) setState(() => _isLoading = false);
     }
   }
 
+  Future<void> _pickDateRange() async {
+      final res = await showDateRangePicker(
+          context: context,
+          initialDateRange: _dateRange,
+          firstDate: DateTime(2023),
+          lastDate: DateTime.now(),
+          builder: (context, child) => Theme(
+              data: ThemeData.dark().copyWith(
+                  colorScheme: const ColorScheme.dark(primary: AppTheme.primaryBrand, onPrimary: Colors.black, surface: AppTheme.surfaceDark)
+              ),
+              child: child!,
+          )
+      );
+      if (res != null) {
+          setState(() => _dateRange = res);
+          _loadMectrics();
+      }
+  }
+
   @override
   Widget build(BuildContext context) {
-    if (_isLoading) return const Center(child: CircularProgressIndicator());
     return Padding(
       padding: const EdgeInsets.all(24.0),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text("Analíticas Globales", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 20),
-          Card(
-            color: AppTheme.surfaceDark,
-            child: Padding(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                children: [
-                   const Icon(Icons.insert_chart, size: 50, color: AppTheme.primaryBrand),
-                   const SizedBox(height: 12),
-                   Text("$_totalEncuestas", style: const TextStyle(color: Colors.white, fontSize: 40, fontWeight: FontWeight.bold)),
-                   const Text("Encuestas Recolectadas", style: TextStyle(color: Colors.grey)),
-                ],
-              ),
-            ),
-          )
+          Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                  const Text("Analíticas Globales", style: TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.bold)),
+                  TextButton.icon(
+                      onPressed: _pickDateRange, 
+                      icon: const Icon(Icons.date_range, color: AppTheme.primaryBrand), 
+                      label: Text(
+                          _dateRange != null ? "${DateFormat('MMM d').format(_dateRange!.start)} - ${DateFormat('MMM d').format(_dateRange!.end)}" : "Filtro Global",
+                          style: const TextStyle(color: AppTheme.primaryBrand)
+                      )
+                  )
+              ]
+          ),
+          const SizedBox(height: 24),
+          if (_isLoading) 
+              const Center(child: CircularProgressIndicator())
+          else
+              Expanded(
+                  child: SingleChildScrollView(
+                      child: Column(
+                          children: [
+                              GridView.count(
+                                  crossAxisCount: MediaQuery.of(context).size.width > 600 ? 3 : 2,
+                                  shrinkWrap: true,
+                                  physics: const NeverScrollableScrollPhysics(),
+                                  crossAxisSpacing: 16,
+                                  mainAxisSpacing: 16,
+                                  childAspectRatio: 1.2,
+                                  children: [
+                                      _StatCard(title: "Nuevos Usuarios", value: _totalUsers.toString(), subtitle: "$_qrUsers entraron por QR", icon: Icons.people, color: Colors.blue),
+                                      _StatCard(title: "Planes Creados", value: _totalPlans.toString(), subtitle: "$_aiPlans sugeridos por IA", icon: Icons.rocket_launch, color: Colors.purple),
+                                      _StatCard(title: "Planes Abandonados", value: _abandonedPlans.toString(), subtitle: "Drafts > 48h", icon: Icons.warning_amber_rounded, color: Colors.orange),
+                                      _StatCard(title: "Encuestas B2B", value: _totalSurveys.toString(), subtitle: "Tickets escaneados", icon: Icons.receipt_long, color: Colors.green),
+                                      _StatCard(title: "MRR Estimado (B2B)", value: "\$${(_totalRevenueB2B/1000).toStringAsFixed(1)}k", subtitle: "Suscripciones Activas", icon: Icons.monetization_on, color: Colors.amber),
+                                  ],
+                              )
+                          ],
+                      )
+                  )
+              )
         ],
       ),
     );
   }
 }
+
+class _StatCard extends StatelessWidget {
+    final String title;
+    final String value;
+    final String subtitle;
+    final IconData icon;
+    final Color color;
+
+    const _StatCard({required this.title, required this.value, required this.subtitle, required this.icon, required this.color});
+
+    @override
+    Widget build(BuildContext context) {
+        return Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+                color: AppTheme.surfaceDark,
+                borderRadius: BorderRadius.circular(16),
+                border: Border.all(color: color.withOpacity(0.3))
+            ),
+            child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.center,
+                children: [
+                    Icon(icon, color: color, size: 28),
+                    const Spacer(),
+                    Text(value, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.bold, color: Colors.white)),
+                    Text(title, style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.grey)),
+                    const SizedBox(height: 4),
+                    Text(subtitle, style: TextStyle(fontSize: 10, color: color.withOpacity(0.8))),
+                ]
+            )
+        );
+    }
+}
+

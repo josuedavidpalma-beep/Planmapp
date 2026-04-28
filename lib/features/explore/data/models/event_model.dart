@@ -23,6 +23,8 @@ class Event {
   final bool? isOpen;
   final String? googlePlaceId;
   final double? ratingGoogle;
+  final bool isVerified;
+  final String? b2bTier;
 
   Event({
     required this.id,
@@ -47,6 +49,8 @@ class Event {
     this.status = 'active',
     this.priceLevel,
     this.isOpen,
+    this.isVerified = false,
+    this.b2bTier,
   });
 
   Event copyWith({
@@ -72,6 +76,8 @@ class Event {
     String? status,
     String? priceLevel,
     bool? isOpen,
+    bool? isVerified,
+    String? b2bTier,
   }) {
     return Event(
       id: id ?? this.id,
@@ -96,6 +102,8 @@ class Event {
       status: status ?? this.status,
       priceLevel: priceLevel ?? this.priceLevel,
       isOpen: isOpen ?? this.isOpen,
+      isVerified: isVerified ?? this.isVerified,
+      b2bTier: b2bTier ?? this.b2bTier,
     );
   }
 

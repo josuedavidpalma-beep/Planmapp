@@ -7,6 +7,7 @@ import 'package:image_picker/image_picker.dart';
 import 'package:planmapp/features/profile/presentation/widgets/avatar_gallery_modal.dart';
 import 'package:planmapp/features/profile/presentation/screens/submit_ticket_screen.dart';
 import 'package:planmapp/features/profile/presentation/screens/rewards_screen.dart';
+import 'dart:async';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({super.key});
@@ -29,6 +30,8 @@ class _ProfileScreenState extends State<ProfileScreen> {
   String _budgetLevel = 'bacano';
   List<Map<String, dynamic>> _paymentMethods = [];
   int _reputationScore = 100;
+  Timer? _debounceTimer;
+  bool _isSavingSilent = false;
 
   static const _budgetOptions = [
     {'key': 'economico', 'label': '💰 Ahorrador', 'sub': 'Planes tranqui y baratos'},
@@ -63,6 +66,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
   void initState() {
     super.initState();
     _loadProfile();
+    _nameController.addListener(_onFieldChanged);
+    _nicknameController.addListener(_onFieldChanged);
+    _phoneController.addListener(_onFieldChanged);
+  }
+
+  @override
+  void dispose() {
+    _debounceTimer?.cancel();
+    _nameController.dispose();
+    _nicknameController.dispose();
+    _phoneController.dispose();
+    super.dispose();
+  }
+
+  void _onFieldChanged() {
+    if (_isLoading) return; // Ignore changes during initial load
+    if (_debounceTimer?.isActive ?? false) _debounceTimer!.cancel();
+    _debounceTimer = Timer(const Duration(seconds: 1), () {
+      _saveProfile(silent: true);
+    });
   }
 
   Future<void> _loadProfile() async {
@@ -113,8 +136,9 @@ class _ProfileScreenState extends State<ProfileScreen> {
     }
   }
 
-  Future<void> _saveProfile() async {
-    setState(() => _isLoading = true);
+  Future<void> _saveProfile({bool silent = false}) async {
+    if (!silent) setState(() => _isLoading = true);
+    else setState(() => _isSavingSilent = true);
     try {
       final userId = Supabase.instance.client.auth.currentUser!.id;
       await Supabase.instance.client.from('profiles').upsert({
@@ -134,17 +158,26 @@ class _ProfileScreenState extends State<ProfileScreen> {
         'updated_at': DateTime.now().toIso8601String(),
       });
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-          content: Text('✅ Perfil actualizado'),
-          backgroundColor: Colors.green,
-        ));
+        if (!silent) {
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
+            content: Text('✅ Perfil actualizado'),
+            backgroundColor: Colors.green,
+          ));
+        } else {
+            // Optional subtle indication of saving
+        }
       }
     } catch (e) {
       if (mounted) {
          ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Error guardando: $e')));
       }
     } finally {
-      if (mounted) setState(() => _isLoading = false);
+      if (mounted) {
+         setState(() {
+            _isLoading = false;
+            _isSavingSilent = false;
+         });
+      }
     }
   }
 
@@ -585,7 +618,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           child: DropdownButton<String>(
                             value: _selectedCountryCode,
                             items: _countryCodes.map((code) => DropdownMenuItem(value: code, child: Text(code))).toList(),
-                            onChanged: (val) => setState(() => _selectedCountryCode = val!),
+                            onChanged: (val) {
+                                setState(() => _selectedCountryCode = val!);
+                                _onFieldChanged();
+                            },
                           ),
                         ),
                       ),
@@ -624,7 +660,10 @@ class _ProfileScreenState extends State<ProfileScreen> {
                            child: child!,
                          ),
                        );
-                       if (d != null) setState(() => _birthday = d);
+                       if (d != null) {
+                           setState(() => _birthday = d);
+                           _onFieldChanged();
+                       }
                      },
                      child: InputDecorator(
                        decoration: InputDecoration(
@@ -664,6 +703,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 _selectedInterests.remove(opt['key']);
                               }
                             });
+                            _onFieldChanged();
                           },
                         );
                       }),
@@ -683,6 +723,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                                 _selectedPreferences.remove(entry.key);
                               }
                             });
+                            _onFieldChanged();
                           },
                         );
                       }),
@@ -703,24 +744,18 @@ class _ProfileScreenState extends State<ProfileScreen> {
                       activeColor: AppTheme.primaryBrand,
                       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
                       tileColor: isSelected ? AppTheme.primaryBrand.withOpacity(0.05) : null,
-                      onChanged: (val) => setState(() => _budgetLevel = val!),
+                      onChanged: (val) {
+                          setState(() => _budgetLevel = val!);
+                          _onFieldChanged();
+                      },
                     );
                   }),
 
                   
-                  const SizedBox(height: 40),
-                  ElevatedButton(
-                    onPressed: _saveProfile,
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: AppTheme.primaryBrand,
-                      foregroundColor: Colors.white,
-                      minimumSize: const Size(double.infinity, 50),
-                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-                    ),
-                    child: const Text("Guardar Cambios", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-                  ),
-                  
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
+                  if (_isSavingSilent) 
+                    const Align(alignment: Alignment.centerRight, child: Text("Guardando...", style: TextStyle(color: Colors.grey, fontSize: 12))),
+                  const SizedBox(height: 16),
                   Center(
                     child: TextButton(
                       onPressed: () {
