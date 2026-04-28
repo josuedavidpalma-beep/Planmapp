@@ -174,6 +174,7 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                     String whatsappLink = r['whatsapp_link'] ?? '';
                     String promoText = r['promo_text'] ?? '';
                     String logoUrl = r['logo_url'] ?? '';
+                    String ownerEmail = r['owner_email'] ?? '';
                     String currentPin = '';
                     
                     try {
@@ -195,6 +196,7 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                     final waCtrl = TextEditingController(text: whatsappLink);
                     final promoCtrl = TextEditingController(text: promoText);
                     final logoCtrl = TextEditingController(text: logoUrl);
+                    final ownerEmailCtrl = TextEditingController(text: ownerEmail);
                     
                     final save = await showDialog<bool>(context: context, builder: (c) => StatefulBuilder(builder: (ctx, setSt) => AlertDialog(
                         title: const Text("Ajustes del Comercio B2B"),
@@ -246,7 +248,12 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                                             decoration: const InputDecoration(labelText: "Texto Promo (Ej: 2x1 Cócteles)"),
                                         ),
                                         const Divider(height: 30),
-                                        const Text("Dashboard & Cosechador QR", style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondaryBrand)),
+                                        const Text("Dashboard & Alertas", style: TextStyle(fontWeight: FontWeight.bold, color: AppTheme.secondaryBrand)),
+                                        TextField(
+                                            controller: ownerEmailCtrl,
+                                            decoration: const InputDecoration(labelText: "Correo del Dueño (Para Alertas de 1-2 estrellas)"),
+                                        ),
+                                        const SizedBox(height: 16),
                                         TextField(
                                             controller: mapsCtrl,
                                             decoration: const InputDecoration(labelText: "Google Maps URL (Para Cosechador)"),
@@ -279,6 +286,7 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
                                 'whatsapp_link': waCtrl.text,
                                 'promo_text': promoCtrl.text,
                                 'logo_url': logoCtrl.text.isEmpty ? null : logoCtrl.text,
+                                'owner_email': ownerEmailCtrl.text.isEmpty ? null : ownerEmailCtrl.text,
                             }).eq('id', r['id']);
                             
                             if (pinCtrl.text != currentPin) {

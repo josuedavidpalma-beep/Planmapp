@@ -1,7 +1,7 @@
-import { serve } from "https://deno.land/std@0.168.0/http/server.ts"
+import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 
-const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY')
-const ALERT_EMAIL = Deno.env.get('ALERT_EMAIL') // Correo del administrador o dueño al que le llegará la alerta
+const RESEND_API_KEY = Deno.env.get('RESEND_API_KEY');
 
 serve(async (req) => {
   try {
@@ -24,6 +24,26 @@ serve(async (req) => {
          return new Response("Alerta generada pero no enviada (Falta API Key)", { status: 200 });
       }
 
+      // Conectar a Supabase para obtener el owner_email del restaurante
+      const supabaseUrl = Deno.env.get("SUPABASE_URL")!;
+      const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
+      const supabase = createClient(supabaseUrl, supabaseKey);
+
+      const { data: restaurant } = await supabase
+         .from('restaurants')
+         .select('owner_email, name')
+         .eq('id', record.restaurant_id)
+         .maybeSingle();
+
+      const targetEmail = restaurant?.owner_email;
+
+      if (!targetEmail || targetEmail.trim() === '') {
+         console.log("El restaurante no tiene owner_email configurado. No se enviará alerta.");
+         return new Response("Alerta omitida (No hay owner_email)", { status: 200 });
+      }
+
+      const restName = restaurant?.name || "Tu Restaurante";
+
       // 3. Enviar correo usando la API de Resend
       const res = await fetch('https://api.resend.com/emails', {
         method: 'POST',
@@ -33,11 +53,11 @@ serve(async (req) => {
         },
         body: JSON.stringify({
           from: 'Planmapp Alerts <onboarding@resend.dev>', // Cambia esto si tienes un dominio verificado
-          to: [ALERT_EMAIL || 'josuedavidpalma@gmail.com'],
-          subject: '🚨 ALERTA CRÍTICA: Cliente Insatisfecho en la Mesa',
+          to: [targetEmail],
+          subject: `🚨 ALERTA CRÍTICA: Cliente Insatisfecho en ${restName}`,
           html: `
             <h2>¡Atención Inmediata!</h2>
-            <p>Se acaba de registrar una encuesta con una calificación crítica.</p>
+            <p>Se acaba de registrar una encuesta con una calificación crítica en <b>${restName}</b>.</p>
             <ul>
               <li><strong>Promedio General:</strong> <span style="color:red;font-weight:bold;">${avg.toFixed(1)} / 5.0</span></li>
               <li><strong>Comida:</strong> ${food}</li>
