@@ -7,7 +7,8 @@ class Event {
   final String? date;
   final String? location;
   final String? category;
-  final String? imageUrl;
+  final String? _imageUrl;
+  String? get imageUrl => (_imageUrl != null && _imageUrl!.isNotEmpty) ? _imageUrl : null;
   final String? sourceUrl;
   final String? endDate;
   final String? address;
@@ -33,7 +34,7 @@ class Event {
     this.date,
     this.location,
     this.category,
-    this.imageUrl,
+    String? imageUrl,
     this.sourceUrl,
     this.endDate,
     this.address,
@@ -51,7 +52,7 @@ class Event {
     this.isOpen,
     this.isVerified = false,
     this.b2bTier,
-  });
+  }) : _imageUrl = imageUrl;
 
   Event copyWith({
     String? id,
@@ -183,7 +184,7 @@ class Event {
       date: json['date'] as String?,
       location: json['location'] as String?,
       category: json['category'] as String?,
-      imageUrl: json['image_url'] as String?,
+      imageUrl: (json['image_url'] != null && json['image_url'].toString().trim().isNotEmpty) ? json['image_url'] as String : null,
       sourceUrl: json['source_url'] as String?,
       endDate: json['end_date'] as String?,
       address: json['address'] as String?,

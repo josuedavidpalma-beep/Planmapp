@@ -62,6 +62,15 @@ serve(async (req) => {
        
        if (!caption || caption.length < 20) continue;
 
+       // Prevent duplicate scraping by checking primary_source URL
+       if (url) {
+           const { data: existing } = await supabase.from('local_events').select('id').eq('primary_source', url).limit(1);
+           if (existing && existing.length > 0) {
+               console.log(`Skipping duplicate URL: ${url}`);
+               continue;
+           }
+       }
+
        // 1. Enviar a Gemini para extraer los datos
        const prompt = `
 Eres un Conserje Experto en eventos de Barranquilla (y Colombia).

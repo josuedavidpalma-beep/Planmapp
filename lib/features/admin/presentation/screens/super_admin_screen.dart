@@ -734,7 +734,9 @@ class _AdminCuraduriaTabState extends State<_AdminCuraduriaTab> {
           color: Colors.white10,
           margin: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
           child: ListTile(
-            leading: ev['image_url'] != null ? Image.network(ev['image_url'], width: 50, height: 50, fit: BoxFit.cover) : const Icon(Icons.event),
+            leading: (ev['image_url'] != null && ev['image_url'].toString().isNotEmpty) 
+                ? Image.network(ev['image_url'], width: 50, height: 50, fit: BoxFit.cover, errorBuilder: (c, e, s) => const Icon(Icons.broken_image)) 
+                : const Icon(Icons.event),
             title: Text(ev['event_name'] ?? 'Sin título', style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold)),
             subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
