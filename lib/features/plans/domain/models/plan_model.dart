@@ -96,7 +96,7 @@ class Plan {
     final finalId = pool[seed % pool.length];
 
     final rawUrl = 'images.unsplash.com/photo-$finalId?auto=format&fit=crop&q=80&w=800';
-    return 'https://wsrv.nl/?url=${Uri.encodeComponent(rawUrl)}';
+    return 'https://$rawUrl';
   }
 
   Map<String, dynamic> toJson() {

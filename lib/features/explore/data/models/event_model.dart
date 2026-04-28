@@ -167,7 +167,7 @@ class Event {
 
     // Handle Backup as emergency fallback
     final rawUrl = 'images.unsplash.com/photo-$finalId?auto=format&fit=crop&q=80&w=800';
-    return 'https://wsrv.nl/?url=${Uri.encodeComponent(rawUrl)}';
+    return 'https://$rawUrl';
   }
 
   String _getRandomFromPool(List<String> pool) {
