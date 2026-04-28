@@ -21,12 +21,28 @@ serve(async (req) => {
     console.log("Recibido Webhook de Apify:", JSON.stringify(payload));
 
     // Validar payload
+    if (payload.test === "get_events") {
+        const { data, error } = await supabase.from('local_events').select('*').eq('status', 'pending');
+        return new Response(JSON.stringify({ data, error }), {
+            headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+            status: 200,
+        });
+    }
+
     let items = [];
     if (payload.resource && payload.resource.defaultDatasetId) {
         // Es un webhook de Apify (Run Succeeded)
         const datasetId = payload.resource.defaultDatasetId;
-        const datasetRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items`);
-        items = await datasetRes.json();
+        const apifyToken = Deno.env.get('APIFY_TOKEN') || '';
+        const tokenParam = apifyToken ? `?token=${apifyToken}` : '';
+        
+        const datasetRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items${tokenParam}`);
+        const jsonRes = await datasetRes.json();
+        
+        if (!Array.isArray(jsonRes)) {
+            throw new Error(`Apify Dataset error. Token: ${apifyToken ? 'Presente' : 'Ausente'}. Respuesta: ${JSON.stringify(jsonRes).substring(0, 200)}`);
+        }
+        items = jsonRes;
         console.log(`Recuperados ${items.length} items del dataset ${datasetId}`);
     } else {
         // Envio directo o formato diferente
@@ -132,6 +148,21 @@ Si la publicación NO parece ser un evento o plan, devuelve {"is_valid": false}
     });
 
   } catch (error) {
+    try {
+        const supabase = createClient(
+          Deno.env.get('SUPABASE_URL') ?? '',
+          Deno.env.get('SUPABASE_SERVICE_ROLE_KEY') ?? ''
+        );
+        await supabase.from('local_events').insert({
+            event_name: 'CRITICAL WEBHOOK ERROR',
+            description: String(error.message).substring(0, 500),
+            venue_name: 'Error',
+            date: new Date().toISOString().split('T')[0],
+            status: 'pending',
+            city: 'Barranquilla'
+        });
+    } catch(e) {}
+
     return new Response(JSON.stringify({ error: error.message }), {
       headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       status: 400,

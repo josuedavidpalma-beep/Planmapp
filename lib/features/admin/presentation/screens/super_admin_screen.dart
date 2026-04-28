@@ -731,9 +731,14 @@ class _AdminCuraduriaTabState extends State<_AdminCuraduriaTab> {
             subtitle: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                    Text('Lugar: ${ev["location"] ?? "Desconocido"} • Fecha: ${ev["date"] ?? "N/A"}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
-                    if (ev['source_url'] != null)
-                      Text('Origen: ${ev["source_url"]}', style: const TextStyle(color: AppTheme.primaryBrand, fontSize: 10)),
+                    Text('Lugar: ${ev["venue_name"] ?? "Desconocido"} • Fecha: ${ev["date"] ?? "N/A"}', style: const TextStyle(color: Colors.white70, fontSize: 12)),
+                    const SizedBox(height: 4),
+                    Text(ev['description'] ?? 'Sin descripción', maxLines: 2, overflow: TextOverflow.ellipsis, style: const TextStyle(color: Colors.white54, fontSize: 11)),
+                    if (ev['primary_source'] != null)
+                      Padding(
+                        padding: const EdgeInsets.only(top: 4),
+                        child: Text('Origen: ${ev["primary_source"]}', maxLines: 1, overflow: TextOverflow.ellipsis, style: const TextStyle(color: AppTheme.primaryBrand, fontSize: 10)),
+                      ),
                 ]
             ),
             trailing: Row(
