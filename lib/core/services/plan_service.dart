@@ -51,33 +51,13 @@ class PlanService {
       if (user == null) throw Exception("No autenticado");
       
       // RLS (Plans_Select_Decoupled) already filters out plans the user shouldn't see.
-      // We don't need !inner join which may be causing PostgREST filtering issues.
-      var query = _supabase.from('plans').select('*');
-
-      // Fetch all plans to avoid PostgREST filtering anomalies with NULLs
-      final response = await query.order('created_at', ascending: false);
+      // Call the robust RPC function that bypasses all SDK and RLS complexities
+      final response = await _supabase.rpc('get_my_plans', params: {
+          'p_is_chat': isDirectChat
+      });
           
       List rawList = response as List;
       
-      // Dart-side filtering for isDirectChat
-      if (isDirectChat) {
-          rawList = rawList.where((item) => item['is_direct_chat'] == true).toList();
-      } else {
-          rawList = rawList.where((item) => item['is_direct_chat'] != true).toList();
-      }
-      
-      // Dart-side filtering for tools mode
-      rawList = rawList.where((item) => item['title'] != '__PLANMAPP_TOOLS_MODE__').toList();
-      
-      // Robust Dart-side filtering to guarantee no PostgREST filter drops
-      if (deleted) {
-          rawList = rawList.where((item) => item['deleted_at'] != null).toList();
-      } else if (archived) {
-          rawList = rawList.where((item) => item['deleted_at'] == null && item['archived_at'] != null).toList();
-      } else {
-          rawList = rawList.where((item) => item['deleted_at'] == null && item['archived_at'] == null).toList();
-      }
-
       final mappedPlans = rawList.map((item) => Plan.fromJson(item as Map<String, dynamic>)).toList();
       
       // DIAGNOSTIC FALLBACK: If list is empty, show EXACTLY why in the UI
