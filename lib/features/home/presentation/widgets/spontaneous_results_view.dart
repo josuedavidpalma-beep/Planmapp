@@ -153,6 +153,7 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                   'tag': e.category?.toUpperCase() ?? 'PLANAZO ✨',
                   'desc': e.description ?? e.promoHighlights ?? e.title,
                   'image': e.imageUrl ?? e.displayImageUrl,
+                  'fallback_image': e.displayImageUrl,
                   'reservation_link': e.reservationLink ?? e.sourceUrl,
                   'date': e.date,
                   'address': e.address ?? e.location,
@@ -438,7 +439,11 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                   Image.network(
                       place['image'], 
                       fit: BoxFit.cover, 
-                      errorBuilder: (c,e,s) => Container(color: Colors.grey[900])
+                      errorBuilder: (c,err,s) => Image.network(
+                          place['fallback_image'], 
+                          fit: BoxFit.cover,
+                          errorBuilder: (c,e,s) => Container(color: Colors.grey[900])
+                      )
                   ),
                   
                   // Gradient Overlay for readability
