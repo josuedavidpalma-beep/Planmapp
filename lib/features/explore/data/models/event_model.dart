@@ -159,24 +159,19 @@ class Event {
     } else if (searchSpace.contains('teatro') || searchSpace.contains('escena') || searchSpace.contains('obra')) {
       categoryKey = 'teatro';
     } else if (searchSpace.contains('romantico') || searchSpace.contains('pareja') || searchSpace.contains('amor') || searchSpace.contains('cita')) {
-      categoryKey = 'romantico';
+      categoryKey = 'romantic';
+    } else {
+      categoryKey = 'city';
     }
 
-    // Default to 'barranquilla_gen' instead of 'cultura'
-    final pool = ImagePools.pools[categoryKey] ?? ImagePools.pools['barranquilla_gen'] ?? ImagePools.pools['amigos']!;
-    
     // Logic: Rotation by ID + Day
-    final seed = (id.hashCode + daysSinceEpoch).abs();
-    final finalId = pool[seed % pool.length];
-
-    return 'https://images.unsplash.com/photo-$finalId?auto=format&fit=crop&q=80&w=800';
+    final seed = (id.hashCode + daysSinceEpoch).abs() % 1000;
+    return 'https://loremflickr.com/800/600/$categoryKey?lock=$seed';
   }
 
   String _getRandomFromPool(List<String> pool) {
-    if (pool.isEmpty) return 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800';
-    final hashCode = (id.hashCode + title.hashCode).abs();
-    final finalId = pool[hashCode % pool.length];
-    return 'https://images.unsplash.com/photo-$finalId?auto=format&fit=crop&q=80&w=800';
+    final seed = (id.hashCode + title.hashCode).abs() % 1000;
+    return 'https://loremflickr.com/800/600/city?lock=$seed';
   }
 
   factory Event.fromJson(Map<String, dynamic> json) {
