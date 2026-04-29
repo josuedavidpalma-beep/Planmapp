@@ -1,7 +1,11 @@
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'dart:io' show Platform;
+import 'package:planmapp/core/router/app_router.dart';
+import 'package:planmapp/core/globals.dart'; // for rootSnackbarKey
 
 class PushNotificationsService {
   static final _firebaseMessaging = FirebaseMessaging.instance;
@@ -24,11 +28,55 @@ class PushNotificationsService {
         _firebaseMessaging.onTokenRefresh.listen((token) {
            _saveToken(forcedToken: token);
         });
+
+        // Handle foreground notifications
+        FirebaseMessaging.onMessage.listen((RemoteMessage message) {
+          debugPrint('Foreground message received: ${message.notification?.title}');
+          final context = rootNavigatorKey.currentContext;
+          if (context != null && message.notification != null) {
+             rootSnackbarKey.currentState?.showSnackBar(
+                SnackBar(
+                   content: Text('${message.notification?.title ?? ''}\n${message.notification?.body ?? ''}'),
+                   behavior: SnackBarBehavior.floating,
+                   action: message.data.containsKey('route') ? SnackBarAction(
+                     label: 'Ver', 
+                     textColor: Colors.blueAccent,
+                     onPressed: () => context.push(message.data['route'])
+                   ) : null,
+                   duration: const Duration(seconds: 4),
+                )
+             );
+          }
+        });
+
+        // Handle background tap (app was in background)
+        FirebaseMessaging.onMessageOpenedApp.listen(_handleMessage);
+
+        // Handle terminated state tap (app was completely closed)
+        _firebaseMessaging.getInitialMessage().then((RemoteMessage? message) {
+           if (message != null) {
+              // Wait a bit for the GoRouter to initialize before pushing
+              Future.delayed(const Duration(milliseconds: 500), () {
+                 _handleMessage(message);
+              });
+           }
+        });
+
       } else {
         debugPrint('User declined push permission');
       }
     } catch (e) {
       debugPrint('Error initializing Push Notifications: $e');
+    }
+  }
+
+  static void _handleMessage(RemoteMessage message) {
+    if (message.data.containsKey('route')) {
+      final route = message.data['route'];
+      final context = rootNavigatorKey.currentContext;
+      if (context != null) {
+        context.push(route);
+      }
     }
   }
 
