@@ -33,7 +33,7 @@ class PlanService {
           'plan_id': plan.id,
           'user_id': user.id,
           'role': 'admin',
-          'status': 'accepted' // FIX: Must be accepted to pass RLS and avoid invite notifications
+          'status': 'confirmed' // Must be 'confirmed' (enum attendance_status) to pass RLS and avoid errors
       });
       
       // Notify listeners to refresh lists
