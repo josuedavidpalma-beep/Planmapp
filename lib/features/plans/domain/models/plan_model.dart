@@ -149,7 +149,7 @@ class Plan {
         reminderChannel: json['reminder_channel']?.toString() ?? 'whatsapp',
         lastReminderSent: json['last_reminder_sent'] != null ? DateTime.tryParse(json['last_reminder_sent'].toString()) : null,
         paymentMode: json['payment_mode']?.toString() ?? 'individual',
-        imageUrl: json['image_url']?.toString(),
+        imageUrl: (json['image_url'] != null && json['image_url'].toString().trim().isNotEmpty) ? json['image_url'].toString() : null,
         reservationLink: json['reservation_link']?.toString(),
         contactInfo: json['contact_info']?.toString(),
         promoHighlights: json['promo_highlights']?.toString(),
