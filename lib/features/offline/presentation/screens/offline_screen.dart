@@ -14,7 +14,7 @@ class OfflineScreen extends StatelessWidget {
     final String userName = user?.userMetadata?['full_name'] ?? "Usuario de Planmapp";
 
     return Scaffold(
-      backgroundColor: AppTheme.backgroundDark,
+      backgroundColor: AppTheme.darkBackground,
       body: SafeArea(
         child: Padding(
           padding: const EdgeInsets.all(24.0),
