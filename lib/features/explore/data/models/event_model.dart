@@ -158,7 +158,6 @@ class Event {
       categoryKey = 'romantico';
     }
 
-    String finalId = '';
     final pool = ImagePools.pools[categoryKey] ?? ImagePools.pools['cultura']!;
     
     // Logic: Rotation by ID + Day
