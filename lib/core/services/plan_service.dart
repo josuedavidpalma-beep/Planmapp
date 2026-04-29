@@ -54,20 +54,20 @@ class PlanService {
       // We don't need !inner join which may be causing PostgREST filtering issues.
       var query = _supabase.from('plans').select('*');
 
-      // We will filter deleted_at and archived_at in Dart to avoid any PostgREST 'is null' syntax bugs
-      
-      if (isDirectChat) {
-          query = query.eq('is_direct_chat', true);
-      } else {
-          // Handle legacy plans where is_direct_chat might be NULL
-          query = query.or('is_direct_chat.eq.false,is_direct_chat.is.null');
-      }
-      
-      final response = await query
-          .neq('title', '__PLANMAPP_TOOLS_MODE__')
-          .order('created_at', ascending: false);
+      // Fetch all plans to avoid PostgREST filtering anomalies with NULLs
+      final response = await query.order('created_at', ascending: false);
           
       List rawList = response as List;
+      
+      // Dart-side filtering for isDirectChat
+      if (isDirectChat) {
+          rawList = rawList.where((item) => item['is_direct_chat'] == true).toList();
+      } else {
+          rawList = rawList.where((item) => item['is_direct_chat'] != true).toList();
+      }
+      
+      // Dart-side filtering for tools mode
+      rawList = rawList.where((item) => item['title'] != '__PLANMAPP_TOOLS_MODE__').toList();
       
       // Robust Dart-side filtering to guarantee no PostgREST filter drops
       if (deleted) {
