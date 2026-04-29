@@ -50,7 +50,9 @@ class PlanService {
       final user = _supabase.auth.currentUser;
       if (user == null) throw Exception("No autenticado");
       
-      var query = _supabase.from('plans').select('*, plan_members!inner(user_id)').eq('plan_members.user_id', user.id);
+      // RLS (Plans_Select_Decoupled) already filters out plans the user shouldn't see.
+      // We don't need !inner join which may be causing PostgREST filtering issues.
+      var query = _supabase.from('plans').select('*');
 
       if (deleted) {
           query = query.not('deleted_at', 'is', null);
