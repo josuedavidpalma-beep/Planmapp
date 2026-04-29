@@ -1068,7 +1068,9 @@ class _AnimatedPlanCardState extends State<_AnimatedPlanCard> {
                          width: double.infinity,
                          height: double.infinity,
                     ),
-                  ),
+                  ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+                   .scaleXY(begin: 1.0, end: 1.15, duration: 25.seconds, curve: Curves.easeInOut)
+                   .moveX(begin: 0, end: -10, duration: 25.seconds, curve: Curves.easeInOut),
 
                   // Premium Badges (Price & Status) - TOP LEFT
                   Positioned(

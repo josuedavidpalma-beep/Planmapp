@@ -447,7 +447,9 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                           placeholder: (context, url) => Container(color: Colors.grey[900]),
                           errorWidget: (context, url, error) => Container(color: Colors.grey[900]),
                       ),
-                  ),
+                  ).animate(onPlay: (controller) => controller.repeat(reverse: true))
+                   .scaleXY(begin: 1.0, end: 1.15, duration: 25.seconds, curve: Curves.easeInOut)
+                   .moveX(begin: 0, end: -10, duration: 25.seconds, curve: Curves.easeInOut),
                   
                   // Gradient Overlay for readability
                   Container(
