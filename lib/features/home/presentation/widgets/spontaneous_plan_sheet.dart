@@ -97,13 +97,13 @@ class _SpontaneousPlanSheetState extends State<SpontaneousPlanSheet> {
                     const Spacer(),
                 ] else ...[
                     const Text(
-                        "¿Cuál es el vibe de hoy?", 
+                        "Planmapp Conserje", 
                         style: TextStyle(fontSize: 26, fontWeight: FontWeight.w900, color: Colors.black87),
                         textAlign: TextAlign.center
                     ).animate().fadeIn().moveY(begin: 10),
                     const SizedBox(height: 8),
                     Text(
-                        "Deja que la Inteligencia Artificial arme tu plan, o elige una vibra rápida.", 
+                        "Deja que nuestra IA encuentre el plan perfecto en tu ciudad, o selecciona una vibra específica para explorar.", 
                         style: TextStyle(fontSize: 14, color: Colors.grey[600], fontWeight: FontWeight.w500),
                         textAlign: TextAlign.center
                     ).animate().fadeIn().moveY(begin: 10, delay: 100.ms),

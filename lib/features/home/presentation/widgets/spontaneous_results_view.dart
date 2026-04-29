@@ -88,47 +88,35 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
                   final cat = (e.category ?? '').toLowerCase();
                   return cat.contains(queryVibe) || cat.contains(widget.category.toLowerCase());
               }).toList();
-              
-              // Si no hay suficientes planes nativos (menos de 5), rellenar con info nativa de Google Places para respetar la categoría estrictamente
-              if (filtered.length < 5) {
-                  String gCat = '';
-                  if (widget.category == 'Rumba') gCat = 'bar';
-                  else if (widget.category == 'Chill') gCat = 'cafe';
-                  else if (widget.category == 'Comida') gCat = 'restaurant';
-                  else if (widget.category == 'Aventura') gCat = 'park';
-                  else if (widget.category == 'Cultura') gCat = 'museum';
-                  else if (widget.category == 'Deportes 🏃') gCat = 'gym';
-
-                  if (gCat.isNotEmpty) {
-                      final fallbackPlaces = await PlacesService().getNearbyPlaces(
-                          city: widget.city.isNotEmpty ? widget.city : 'Bogotá',
-                          lat: widget.position.latitude,
-                          lng: widget.position.longitude,
-                          category: gCat,
-                      );
-                      
-                      final remaining = 10 - filtered.length;
-                      final validFallbacks = fallbackPlaces
-                          .where((p) => p['rating'] is num && (p['rating'] as num) >= 4.0)
-                          .take(remaining)
-                          .toList();
-
-                      for (var p in validFallbacks) {
-                          filtered.add(Event(
-                              id: p['place_id'],
-                              title: p['name'] ?? 'Plan Sorpresa',
-                              description: "Un excelente lugar sugerido para tu vibe de ${widget.category}.",
-                              imageUrl: PlacesService().getPhotoUrl(p['photo_reference']),
-                              ratingGoogle: p['rating'],
-                              latitude: p['latitude'],
-                              longitude: p['longitude'],
-                              category: widget.category,
-                              city: widget.city,
-                              googlePlaceId: p['place_id'],
-                              priceLevel: p['price_level']
-                          ));
-                      }
+              // Si no hay suficientes planes de la vibra solicitada, rellenamos inteligentemente con otros eventos
+              if (filtered.isEmpty) {
+                  final fallbacks = List<Event>.from(dailyEvents)..shuffle(random);
+                  for (var f in fallbacks.take(5)) {
+                      filtered.add(Event(
+                          id: f.id,
+                          title: f.title,
+                          description: "La vibra ${widget.category} está apagada hoy, pero encontramos esto que está On Fire 🔥\n\n${f.description ?? ''}",
+                          address: f.address,
+                          location: f.location,
+                          imageUrl: f.imageUrl,
+                          ratingGoogle: f.ratingGoogle,
+                          latitude: f.latitude,
+                          longitude: f.longitude,
+                          category: f.category,
+                          city: f.city,
+                          sourceUrl: f.sourceUrl,
+                          promoHighlights: f.promoHighlights,
+                          date: f.date,
+                          endDate: f.endDate,
+                          priceLevel: f.priceLevel,
+                          contactPhone: f.contactPhone,
+                          reservationLink: f.reservationLink
+                      ));
                   }
+              } else if (filtered.length < 5) {
+                  // Si hay poquitos, metemos algunos adicionales para que la ruleta tenga variedad
+                  final fallbacks = dailyEvents.where((e) => !filtered.any((f) => f.id == e.id)).toList()..shuffle(random);
+                  filtered.addAll(fallbacks.take(5 - filtered.length));
               }
           }
 
