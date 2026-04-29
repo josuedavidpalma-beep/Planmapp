@@ -62,7 +62,12 @@ class PlanService {
           query = query.filter('deleted_at', 'is', null).filter('archived_at', 'is', null);
       }
       
-      query = query.eq('is_direct_chat', isDirectChat);
+      if (isDirectChat) {
+          query = query.eq('is_direct_chat', true);
+      } else {
+          // Handle legacy plans where is_direct_chat might be NULL
+          query = query.or('is_direct_chat.eq.false,is_direct_chat.is.null');
+      }
       
       final response = await query
           .neq('title', '__PLANMAPP_TOOLS_MODE__')
