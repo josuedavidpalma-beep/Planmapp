@@ -119,9 +119,10 @@ class _MainWrapperScreenState extends State<MainWrapperScreen> {
                 isSelected: currentIndex == 3,
                 onTap: () => _onItemTapped(3, context),
               ),
-            ),
+            ],
           ),
         ),
+      ),
       ),
       ),
     );

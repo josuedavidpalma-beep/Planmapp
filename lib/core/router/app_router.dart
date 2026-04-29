@@ -267,7 +267,6 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                   );
                },
             );
-            );
          }
       ),
       GoRoute(
