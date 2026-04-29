@@ -88,7 +88,7 @@ Extrae la siguiente información en formato JSON estricto sin markdown extra:
    "location": "Nombre del lugar (Ej: Puerta de Oro, El Gran Malecón)",
    "vibes": ["Relajado", "Romántico", "Electrónica", "Familiar", "etc... extrae máximo 3 vibes clave"]
 }
-Si la publicación NO parece ser un evento o plan, devuelve {"is_valid": false}
+Si la publicación NO parece ser un evento o plan real (ej. es un meme, una foto genérica sin invitación, un comunicado de horarios, spam, u opiniones sin ubicación/precio claro), devuelve estrictamente {"is_valid": false}
         `;
 
        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
