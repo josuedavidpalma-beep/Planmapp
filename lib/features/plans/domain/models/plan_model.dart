@@ -1,4 +1,5 @@
 import 'package:planmapp/core/constants/image_pools.dart';
+import 'package:planmapp/features/explore/services/places_service.dart';
 
 enum PlanStatus { draft, active, completed, cancelled }
 
@@ -48,7 +49,12 @@ class Plan {
   });
 
   String? get displayImageUrl {
-    if (imageUrl != null && imageUrl!.trim().isNotEmpty) return imageUrl;
+    if (imageUrl != null && imageUrl!.trim().isNotEmpty) {
+        if (imageUrl!.startsWith('places/')) {
+            return PlacesService().getPhotoUrl(imageUrl) ?? imageUrl;
+        }
+        return imageUrl;
+    }
 
     final searchSpace = "${title.toLowerCase()} ${description?.toLowerCase() ?? ''} ${locationName.toLowerCase()}";
     final daysSinceEpoch = DateTime.now().difference(DateTime(1970, 1, 1)).inDays;
