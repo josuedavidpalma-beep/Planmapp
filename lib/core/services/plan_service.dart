@@ -54,13 +54,7 @@ class PlanService {
       // We don't need !inner join which may be causing PostgREST filtering issues.
       var query = _supabase.from('plans').select('*');
 
-      if (deleted) {
-          query = query.not('deleted_at', 'is', null);
-      } else if (archived) {
-          query = query.filter('deleted_at', 'is', null).not('archived_at', 'is', null);
-      } else {
-          query = query.filter('deleted_at', 'is', null).filter('archived_at', 'is', null);
-      }
+      // We will filter deleted_at and archived_at in Dart to avoid any PostgREST 'is null' syntax bugs
       
       if (isDirectChat) {
           query = query.eq('is_direct_chat', true);
@@ -73,7 +67,18 @@ class PlanService {
           .neq('title', '__PLANMAPP_TOOLS_MODE__')
           .order('created_at', ascending: false);
           
-      return (response as List).map((item) => Plan.fromJson(item)).toList();
+      List rawList = response as List;
+      
+      // Robust Dart-side filtering to guarantee no PostgREST filter drops
+      if (deleted) {
+          rawList = rawList.where((item) => item['deleted_at'] != null).toList();
+      } else if (archived) {
+          rawList = rawList.where((item) => item['deleted_at'] == null && item['archived_at'] != null).toList();
+      } else {
+          rawList = rawList.where((item) => item['deleted_at'] == null && item['archived_at'] == null).toList();
+      }
+
+      return rawList.map((item) => Plan.fromJson(item as Map<String, dynamic>)).toList();
     } catch (e) {
       throw Exception('Error al cargar planes: $e');
     }
