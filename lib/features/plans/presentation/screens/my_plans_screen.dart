@@ -467,6 +467,7 @@ class _SpecialPlansModalState extends State<_SpecialPlansModal> {
             )
         );
     }
+}
 
 class _PlanCard extends StatelessWidget {
   final Plan plan;
