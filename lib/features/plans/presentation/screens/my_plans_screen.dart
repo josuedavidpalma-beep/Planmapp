@@ -267,62 +267,206 @@ class _MyPlansScreenState extends ConsumerState<MyPlansScreen> {
           context: context,
           isScrollControlled: true,
           backgroundColor: Colors.transparent,
-          builder: (c) => Container(
-              height: MediaQuery.of(context).size.height * 0.75,
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor, borderRadius: const BorderRadius.vertical(top: Radius.circular(30))),
-              child: Column(
-                  children: [
-                      Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
-                      const SizedBox(height: 24),
-                      Row(
-                          children: [
-                              Icon(isArchive ? Icons.archive : Icons.delete, color: isArchive ? Colors.blue : Colors.red),
-                              const SizedBox(width: 12),
-                              Text(isArchive ? "Archivo de Planes" : "Papelera", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
-                          ]
-                      ),
-                      const SizedBox(height: 8),
-                      Text(
-                          isArchive ? "Se eliminan definitivamente a los 7 días." : "Se eliminan definitivamente a las 24 horas.", 
-                          style: TextStyle(color: Colors.grey[600], fontSize: 13)
-                      ),
-                      const SizedBox(height: 24),
-                      Expanded(
-                          child: FutureBuilder<List<Plan>>(
-                              future: PlanService().getPlans(archived: isArchive, deleted: !isArchive),
-                              builder: (context, snapshot) {
-                                  if (snapshot.connectionState == ConnectionState.waiting) return const Center(child: CircularProgressIndicator());
-                                  if (!snapshot.hasData || snapshot.data!.isEmpty) return const Center(child: Text("No hay elementos aquí."));
-                                  return ListView.separated(
-                                      itemCount: snapshot.data!.length,
-                                      separatorBuilder: (_,__) => const SizedBox(height: 12),
-                                      itemBuilder: (context, idx) {
-                                           final p = snapshot.data![idx];
-                                           return ListTile(
-                                                title: Text(p.title, style: const TextStyle(fontWeight: FontWeight.bold)),
-                                                subtitle: Text(p.locationName),
-                                                trailing: IconButton(
-                                                    icon: const Icon(Icons.restore),
-                                                    tooltip: "Restaurar",
-                                                    onPressed: () async {
-                                                        await PlanService().restorePlan(p.id);
-                                                        if (context.mounted) Navigator.pop(context);
-                                                        _loadPlans();
-                                                    }
-                                                )
-                                           );
-                                      }
-                                  );
-                              }
-                          )
-                      )
-                  ]
-              )
+          builder: (c) => _SpecialPlansModal(
+              isArchive: isArchive, 
+              parentRefresh: _loadPlans
           )
       );
   }
 }
+
+class _SpecialPlansModal extends StatefulWidget {
+    final bool isArchive;
+    final VoidCallback parentRefresh;
+
+    const _SpecialPlansModal({required this.isArchive, required this.parentRefresh});
+
+    @override
+    State<_SpecialPlansModal> createState() => _SpecialPlansModalState();
+}
+
+class _SpecialPlansModalState extends State<_SpecialPlansModal> {
+    List<Plan>? _items;
+    bool _isLoading = true;
+
+    @override
+    void initState() {
+        super.initState();
+        _loadData();
+    }
+
+    Future<void> _loadData() async {
+        setState(() => _isLoading = true);
+        try {
+            final data = await PlanService().getPlans(archived: widget.isArchive, deleted: !widget.isArchive);
+            if (mounted) setState(() { _items = data; _isLoading = false; });
+        } catch(e) {
+            if (mounted) setState(() { _items = []; _isLoading = false; });
+        }
+    }
+
+    Future<void> _emptyAll() async {
+        if (_items == null || _items!.isEmpty) return;
+        
+        final confirm = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+            title: Text("¿Vaciar ${widget.isArchive ? 'Archivo' : 'Papelera'}?"),
+            content: const Text("Esta acción NO se puede deshacer. Todos estos planes serán eliminados permanentemente."),
+            actions: [
+                TextButton(onPressed: ()=>Navigator.pop(c, false), child: const Text("Cancelar")),
+                ElevatedButton(
+                    style: ElevatedButton.styleFrom(backgroundColor: Colors.red, foregroundColor: Colors.white),
+                    onPressed: ()=>Navigator.pop(c, true), 
+                    child: const Text("VACIAR TODO")
+                ),
+            ]
+        ));
+
+        if (confirm == true) {
+            setState(() => _isLoading = true);
+            try {
+                final service = PlanService();
+                for (var plan in _items!) {
+                    await service.deletePlan(plan.id);
+                }
+                if (mounted) setState(() { _items = []; });
+                widget.parentRefresh();
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Limpieza completada ✨")));
+            } catch(e) {
+                if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error al vaciar: $e")));
+            } finally {
+                if (mounted) setState(() => _isLoading = false);
+            }
+        }
+    }
+
+    Future<void> _deleteSingle(Plan plan) async {
+        try {
+            await PlanService().deletePlan(plan.id);
+            if (mounted) setState(() { _items?.removeWhere((p) => p.id == plan.id); });
+            widget.parentRefresh();
+        } catch(e) {
+            if (mounted) ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error: $e")));
+        }
+    }
+
+    @override
+    Widget build(BuildContext context) {
+        return Container(
+            height: MediaQuery.of(context).size.height * 0.75,
+            padding: const EdgeInsets.all(24),
+            decoration: BoxDecoration(color: Theme.of(context).scaffoldBackgroundColor, borderRadius: const BorderRadius.vertical(top: Radius.circular(30))),
+            child: Column(
+                children: [
+                    Center(child: Container(width: 40, height: 4, decoration: BoxDecoration(color: Colors.grey[300], borderRadius: BorderRadius.circular(2)))),
+                    const SizedBox(height: 24),
+                    Row(
+                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                        children: [
+                            Row(
+                                children: [
+                                    Icon(widget.isArchive ? Icons.archive : Icons.delete, color: widget.isArchive ? Colors.blue : Colors.red),
+                                    const SizedBox(width: 12),
+                                    Text(widget.isArchive ? "Archivo" : "Papelera", style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)),
+                                ]
+                            ),
+                            if (_items != null && _items!.isNotEmpty)
+                                TextButton.icon(
+                                    onPressed: _isLoading ? null : _emptyAll,
+                                    icon: const Icon(Icons.delete_sweep, color: Colors.red),
+                                    label: const Text("Vaciar", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold)),
+                                    style: TextButton.styleFrom(backgroundColor: Colors.red.withOpacity(0.1)),
+                                )
+                        ]
+                    ),
+                    const SizedBox(height: 8),
+                    Align(
+                        alignment: Alignment.centerLeft,
+                        child: Text(
+                            widget.isArchive ? "Se eliminan definitivamente a los 7 días." : "Desliza para eliminar permanentemente o toca vaciar.", 
+                            style: TextStyle(color: Colors.grey[600], fontSize: 13)
+                        ),
+                    ),
+                    const SizedBox(height: 24),
+                    Expanded(
+                        child: _isLoading 
+                            ? const Center(child: CircularProgressIndicator())
+                            : (_items == null || _items!.isEmpty)
+                                ? const Center(child: Text("No hay elementos aquí."))
+                                : ListView.separated(
+                                    itemCount: _items!.length,
+                                    separatorBuilder: (_,__) => const SizedBox(height: 12),
+                                    itemBuilder: (context, idx) {
+                                         final p = _items![idx];
+                                         return Dismissible(
+                                             key: Key(p.id),
+                                             direction: DismissDirection.endToStart,
+                                             background: Container(
+                                                 alignment: Alignment.centerRight,
+                                                 padding: const EdgeInsets.only(right: 20),
+                                                 decoration: BoxDecoration(color: Colors.red, borderRadius: BorderRadius.circular(16)),
+                                                 child: const Icon(Icons.delete_forever, color: Colors.white),
+                                             ),
+                                             confirmDismiss: (direction) async {
+                                                 final confirm = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+                                                     title: const Text("¿Eliminar para siempre?"),
+                                                     content: const Text("Esta acción no se puede deshacer."),
+                                                     actions: [
+                                                         TextButton(onPressed: ()=>Navigator.pop(c, false), child: const Text("Cancelar")),
+                                                         TextButton(onPressed: ()=>Navigator.pop(c, true), child: const Text("Eliminar", style: TextStyle(color: Colors.red))),
+                                                     ]
+                                                 ));
+                                                 return confirm;
+                                             },
+                                             onDismissed: (direction) => _deleteSingle(p),
+                                             child: Container(
+                                                 decoration: BoxDecoration(
+                                                     color: Theme.of(context).cardColor,
+                                                     borderRadius: BorderRadius.circular(16),
+                                                     border: Border.all(color: Colors.grey.withOpacity(0.1))
+                                                 ),
+                                                 child: ListTile(
+                                                     title: Text(p.title, style: const TextStyle(fontWeight: FontWeight.bold)),
+                                                     subtitle: Text(p.locationName),
+                                                     trailing: Row(
+                                                         mainAxisSize: MainAxisSize.min,
+                                                         children: [
+                                                             IconButton(
+                                                                 icon: const Icon(Icons.restore, color: AppTheme.primaryBrand),
+                                                                 tooltip: "Restaurar",
+                                                                 onPressed: () async {
+                                                                     setState(() => _isLoading = true);
+                                                                     await PlanService().restorePlan(p.id);
+                                                                     widget.parentRefresh();
+                                                                     await _loadData();
+                                                                 }
+                                                             ),
+                                                             IconButton(
+                                                                 icon: const Icon(Icons.delete_outline, color: Colors.red),
+                                                                 tooltip: "Eliminar definitivamente",
+                                                                 onPressed: () async {
+                                                                     final confirm = await showDialog<bool>(context: context, builder: (c) => AlertDialog(
+                                                                         title: const Text("¿Eliminar para siempre?"),
+                                                                         content: const Text("Esta acción no se puede deshacer."),
+                                                                         actions: [
+                                                                             TextButton(onPressed: ()=>Navigator.pop(c, false), child: const Text("Cancelar")),
+                                                                             TextButton(onPressed: ()=>Navigator.pop(c, true), child: const Text("Eliminar", style: TextStyle(color: Colors.red))),
+                                                                         ]
+                                                                     ));
+                                                                     if(confirm == true) _deleteSingle(p);
+                                                                 }
+                                                             ),
+                                                         ]
+                                                     )
+                                                 )
+                                             ),
+                                         );
+                                    }
+                                )
+                    )
+                ]
+            )
+        );
+    }
 
 class _PlanCard extends StatelessWidget {
   final Plan plan;
