@@ -485,15 +485,16 @@ class _PlanCard extends StatelessWidget {
     final isCreator = uid == plan.creatorId;
     final theme = Theme.of(context);
 
+    final imageUrl = plan.displayImageUrl;
+
     return Hero(
       tag: 'plan_bg_${plan.id}',
       child: Container(
       decoration: BoxDecoration(
-        color: Colors.black, // fallback
-        image: DecorationImage(
-          image: CachedNetworkImageProvider(plan.imageUrl ?? plan.displayImageUrl),
-          fit: BoxFit.cover,
-          colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.55), BlendMode.darken),
+        gradient: LinearGradient(
+           colors: _getPlanGradient(plan.id),
+           begin: Alignment.topLeft,
+           end: Alignment.bottomRight,
         ),
         borderRadius: BorderRadius.circular(24),
         boxShadow: [
@@ -510,7 +511,23 @@ class _PlanCard extends StatelessWidget {
           )
         ],
       ),
-      child: Material(
+      child: ClipRRect(
+        borderRadius: BorderRadius.circular(24),
+        child: Stack(
+          fit: StackFit.expand,
+          children: [
+            if (imageUrl != null && imageUrl.isNotEmpty)
+              CachedNetworkImage(
+                imageUrl: imageUrl,
+                fit: BoxFit.cover,
+                errorWidget: (context, url, error) => const SizedBox.shrink(),
+                color: Colors.black.withOpacity(0.55),
+                colorBlendMode: BlendMode.darken,
+              )
+            else
+              Container(color: Colors.black.withOpacity(0.2)), // Slight dark overlay for gradient text contrast
+
+            Material(
         color: Colors.transparent,
         child: InkWell(
           borderRadius: BorderRadius.circular(24),
@@ -677,8 +694,26 @@ class _PlanCard extends StatelessWidget {
           ),
         ),
       ),
+          ],
+        ),
+      ),
       ),
     );
+  }
+
+  List<Color> _getPlanGradient(String id) {
+     final seed = id.hashCode.abs();
+     final palettes = [
+         [const Color(0xFF1E3C72), const Color(0xFF2A5298)], // Deep Blue
+         [const Color(0xFF4B1248), const Color(0xFFF0C27B)], // Sunset
+         [const Color(0xFF0F2027), const Color(0xFF203A43)], // Space
+         [const Color(0xFF232526), const Color(0xFF414345)], // Dark Grey
+         [const Color(0xFF11998E), const Color(0xFF38EF7D)], // Green
+         [const Color(0xFF8E2DE2), const Color(0xFF4A00E0)], // Purple
+         [const Color(0xFFED213A), const Color(0xFF93291E)], // Red
+         [const Color(0xFFFDC830), const Color(0xFFF37335)], // Orange
+     ];
+     return palettes[seed % palettes.length];
   }
 
   Widget _buildDirectChatCard(BuildContext context) {
