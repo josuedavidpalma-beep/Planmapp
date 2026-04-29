@@ -417,43 +417,174 @@ Dame el texto directo, sin saludo, estructurado en 2 o 3 viñetas ágiles con lo
       doc.addPage(
          pw.MultiPage(
             pageFormat: PdfPageFormat.a4,
+            margin: const pw.EdgeInsets.all(32),
             build: (pw.Context context) {
                return [
-                  pw.Header(
-                     level: 0,
+                  // HEADER SECTION
+                  pw.Container(
+                     padding: const pw.EdgeInsets.all(16),
+                     decoration: pw.BoxDecoration(
+                         color: PdfColor.fromHex('#009090'),
+                         borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12))
+                     ),
                      child: pw.Row(
                         mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                         children: [
-                           pw.Text("Reporte B2B: ${_restData['name']}", style: pw.TextStyle(fontSize: 24, fontWeight: pw.FontWeight.bold)),
-                           if (logoImage != null) pw.Container(width: 50, height: 50, child: pw.Image(logoImage)),
+                           pw.Column(
+                               crossAxisAlignment: pw.CrossAxisAlignment.start,
+                               children: [
+                                   pw.Text("PLANMAPP BUSINESS", style: pw.TextStyle(color: PdfColors.white, fontSize: 12, letterSpacing: 2)),
+                                   pw.SizedBox(height: 4),
+                                   pw.Text(_restData['name'] ?? 'Reporte', style: pw.TextStyle(color: PdfColors.white, fontSize: 28, fontWeight: pw.FontWeight.bold)),
+                                   pw.SizedBox(height: 4),
+                                   pw.Text("Reporte de Desempeño y Satisfacción", style: pw.TextStyle(color: PdfColors.white, fontSize: 14)),
+                               ]
+                           ),
+                           if (logoImage != null) 
+                               pw.Container(
+                                   width: 60, height: 60, 
+                                   decoration: pw.BoxDecoration(
+                                       shape: pw.BoxShape.circle,
+                                       image: pw.DecorationImage(image: logoImage, fit: pw.BoxFit.cover)
+                                   )
+                               ),
                         ]
                      )
                   ),
-                  pw.SizedBox(height: 20),
-                  pw.Text("Resumen de Desempeno", style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-                  pw.SizedBox(height: 10),
-                  pw.Bullet(text: "NPS (Net Promoter Score): $_npsScore"),
-                  pw.Bullet(text: "Total Encuestas: $_totalSurveys"),
-                  pw.Bullet(text: "Ticket Promedio Estimado: \$${_avgTicket.toStringAsFixed(0)}"),
-                  pw.Bullet(text: "Calificacion Promedio: ${_avgGeneral.toStringAsFixed(1)} / 5.0"),
-                  pw.SizedBox(height: 20),
+                  pw.SizedBox(height: 24),
                   
+                  // KPI CARDS GRID
+                  pw.Row(
+                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                      children: [
+                          _buildPdfKpiCard("NPS Score", "$_npsScore", PdfColor.fromHex('#22C55E')),
+                          _buildPdfKpiCard("Satisfacción", "${_avgGeneral.toStringAsFixed(1)}/5.0", PdfColor.fromHex('#EAB308')),
+                          _buildPdfKpiCard("Ticket Prom", "\$${(_avgTicket/1000).toStringAsFixed(1)}k", PdfColor.fromHex('#3B82F6')),
+                          _buildPdfKpiCard("Encuestas", "$_totalSurveys", PdfColor.fromHex('#8B5CF6')),
+                      ]
+                  ),
+                  pw.SizedBox(height: 24),
+                  
+                  // AI INSIGHTS SECTION
                   if (_aiRecommendation != null) ...[
-                     pw.Text("Recomendacion Estrategica IA", style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-                     pw.SizedBox(height: 10),
-                     pw.Text(_aiRecommendation!),
-                     pw.SizedBox(height: 20),
+                      pw.Container(
+                          padding: const pw.EdgeInsets.all(16),
+                          decoration: pw.BoxDecoration(
+                              color: PdfColor.fromHex('#FEF3C7'),
+                              border: pw.Border.all(color: PdfColor.fromHex('#F59E0B')),
+                              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12))
+                          ),
+                          child: pw.Column(
+                              crossAxisAlignment: pw.CrossAxisAlignment.start,
+                              children: [
+                                  pw.Text("✨ AI Business Insights", style: pw.TextStyle(color: PdfColor.fromHex('#B45309'), fontSize: 18, fontWeight: pw.FontWeight.bold)),
+                                  pw.SizedBox(height: 12),
+                                  pw.Text(_aiRecommendation!, style: pw.TextStyle(color: PdfColor.fromHex('#92400E'), fontSize: 12, lineSpacing: 1.5)),
+                              ]
+                          )
+                      ),
+                      pw.SizedBox(height: 24),
                   ],
 
-                  pw.Text("Platos Estrella (Favoritos)", style: pw.TextStyle(fontSize: 20, fontWeight: pw.FontWeight.bold)),
-                  pw.SizedBox(height: 10),
-                  ..._topDishes.take(5).map((d) => pw.Bullet(text: d['name'])),
+                  // TWO COLUMNS: Top Dishes & Menu Matrix
+                  pw.Row(
+                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                      children: [
+                          // Left Col: Top Dishes
+                          pw.Expanded(
+                              flex: 1,
+                              child: pw.Container(
+                                  padding: const pw.EdgeInsets.all(16),
+                                  decoration: pw.BoxDecoration(
+                                      color: PdfColors.grey100,
+                                      borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12))
+                                  ),
+                                  child: pw.Column(
+                                      crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                      children: [
+                                          pw.Text("Platos Estrella", style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                                          pw.SizedBox(height: 12),
+                                          ..._topDishes.take(5).map((d) => pw.Padding(
+                                              padding: const pw.EdgeInsets.only(bottom: 8),
+                                              child: pw.Row(
+                                                  children: [
+                                                      pw.Container(width: 6, height: 6, decoration: const pw.BoxDecoration(color: PdfColors.amber, shape: pw.BoxShape.circle)),
+                                                      pw.SizedBox(width: 8),
+                                                      pw.Expanded(child: pw.Text(d['name'], style: const pw.TextStyle(fontSize: 12))),
+                                                  ]
+                                              )
+                                          )),
+                                      ]
+                                  )
+                              )
+                          ),
+                          pw.SizedBox(width: 16),
+                          // Right Col: Menu matrix (Top 5)
+                          if (_menuMatrix.isNotEmpty)
+                              pw.Expanded(
+                                  flex: 1,
+                                  child: pw.Container(
+                                      padding: const pw.EdgeInsets.all(16),
+                                      decoration: pw.BoxDecoration(
+                                          color: PdfColors.grey100,
+                                          borderRadius: const pw.BorderRadius.all(pw.Radius.circular(12))
+                                      ),
+                                      child: pw.Column(
+                                          crossAxisAlignment: pw.CrossAxisAlignment.start,
+                                          children: [
+                                              pw.Text("Ingeniería de Menú (Top)", style: pw.TextStyle(fontSize: 16, fontWeight: pw.FontWeight.bold)),
+                                              pw.SizedBox(height: 12),
+                                              ..._menuMatrix.take(5).map((m) => pw.Padding(
+                                                  padding: const pw.EdgeInsets.only(bottom: 8),
+                                                  child: pw.Row(
+                                                      mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
+                                                      children: [
+                                                          pw.Expanded(child: pw.Text(m['name'], style: const pw.TextStyle(fontSize: 11))),
+                                                          pw.Text(m['type'], style: pw.TextStyle(fontSize: 10, fontWeight: pw.FontWeight.bold, color: PdfColor.fromHex('#009090'))),
+                                                      ]
+                                                  )
+                                              )),
+                                          ]
+                                      )
+                                  )
+                              )
+                      ]
+                  ),
+                  
+                  // FOOTER
+                  pw.Spacer(),
+                  pw.Divider(color: PdfColors.grey300),
+                  pw.SizedBox(height: 8),
+                  pw.Center(
+                      child: pw.Text("Generado automáticamente por Planmapp for Business - ${DateFormat('dd MMM yyyy').format(DateTime.now())}", 
+                          style: const pw.TextStyle(color: PdfColors.grey600, fontSize: 10))
+                  )
                ];
             }
          )
       );
       
       await Printing.sharePdf(bytes: await doc.save(), filename: 'Reporte_Planmapp_${_restData['name'].toString().replaceAll(" ", "_")}.pdf');
+  }
+
+  pw.Widget _buildPdfKpiCard(String title, String value, PdfColor color) {
+      return pw.Container(
+          width: 110,
+          padding: const pw.EdgeInsets.all(12),
+          decoration: pw.BoxDecoration(
+              color: PdfColors.grey100,
+              border: pw.Border(left: pw.BorderSide(color: color, width: 4)),
+              borderRadius: const pw.BorderRadius.all(pw.Radius.circular(8))
+          ),
+          child: pw.Column(
+              crossAxisAlignment: pw.CrossAxisAlignment.start,
+              children: [
+                  pw.Text(title, style: const pw.TextStyle(color: PdfColors.grey700, fontSize: 10)),
+                  pw.SizedBox(height: 4),
+                  pw.Text(value, style: pw.TextStyle(color: PdfColors.grey900, fontSize: 18, fontWeight: pw.FontWeight.bold)),
+              ]
+          )
+      );
   }
 
   @override

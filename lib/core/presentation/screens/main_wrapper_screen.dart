@@ -1,3 +1,4 @@
+import 'dart:ui';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
@@ -52,9 +53,7 @@ class _MainWrapperScreenState extends State<MainWrapperScreen> {
       bottomNavigationBar: SafeArea(
         child: Container(
           margin: const EdgeInsets.only(left: 20, right: 20, bottom: 20),
-          height: 64,
           decoration: BoxDecoration(
-            color: Theme.of(context).cardColor.withOpacity(0.95),
             borderRadius: BorderRadius.circular(32),
             boxShadow: [
               BoxShadow(
@@ -64,6 +63,13 @@ class _MainWrapperScreenState extends State<MainWrapperScreen> {
               )
             ]
           ),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(32),
+            child: BackdropFilter(
+              filter: ImageFilter.blur(sigmaX: 15, sigmaY: 15),
+              child: Container(
+                height: 64,
+                color: Theme.of(context).cardColor.withOpacity(0.7),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.spaceEvenly,
             children: [
@@ -113,9 +119,10 @@ class _MainWrapperScreenState extends State<MainWrapperScreen> {
                 isSelected: currentIndex == 3,
                 onTap: () => _onItemTapped(3, context),
               ),
-            ],
+            ),
           ),
         ),
+      ),
       ),
     );
   }

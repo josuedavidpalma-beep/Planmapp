@@ -32,7 +32,8 @@ class PlanService {
       await _supabase.from('plan_members').insert({
           'plan_id': plan.id,
           'user_id': user.id,
-          'role': 'admin'
+          'role': 'admin',
+          'status': 'accepted' // FIX: Must be accepted to pass RLS and avoid invite notifications
       });
       
       // Notify listeners to refresh lists

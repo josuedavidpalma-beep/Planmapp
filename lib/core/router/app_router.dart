@@ -226,28 +226,47 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(
         path: '/create-plan',
         parentNavigatorKey: rootNavigatorKey, 
-        builder: (context, state) {
+        pageBuilder: (context, state) {
            final extra = state.extra as Map<String, dynamic>?;
            final sharedText = state.uri.queryParameters['shared_text'];
            
-           return CreatePlanScreen(
-               initialTitle: extra?['initialTitle'] ?? sharedText,
-               initialAddress: extra?['initialAddress'],
-               initialDate: extra?['initialDate'],
-               initialImageUrl: extra?['initialImageUrl'],
+           return CustomTransitionPage(
+             key: state.pageKey,
+             child: CreatePlanScreen(
+                 initialTitle: extra?['initialTitle'] ?? sharedText,
+                 initialAddress: extra?['initialAddress'],
+                 initialDate: extra?['initialDate'],
+                 initialImageUrl: extra?['initialImageUrl'],
+             ),
+             transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                 return FadeTransition(opacity: animation, child: child);
+             },
            );
         },
       ),
       GoRoute(
          path: '/plan/:id',
          parentNavigatorKey: rootNavigatorKey,
-         builder: (context, state) {
+         pageBuilder: (context, state) {
             final tabParam = state.uri.queryParameters['tab'];
             final autoScanParam = state.uri.queryParameters['auto_scan'];
-            return PlanDetailScreen(
-               planId: state.pathParameters['id']!,
-               initialTab: tabParam != null ? int.tryParse(tabParam) : null,
-               autoScan: autoScanParam == 'true'
+            return CustomTransitionPage(
+               key: state.pageKey,
+               child: PlanDetailScreen(
+                  planId: state.pathParameters['id']!,
+                  initialTab: tabParam != null ? int.tryParse(tabParam) : null,
+                  autoScan: autoScanParam == 'true'
+               ),
+               transitionsBuilder: (context, animation, secondaryAnimation, child) {
+                  return FadeTransition(
+                     opacity: animation,
+                     child: SlideTransition(
+                        position: Tween<Offset>(begin: const Offset(0.0, 0.05), end: Offset.zero).animate(animation),
+                        child: child,
+                     ),
+                  );
+               },
+            );
             );
          }
       ),

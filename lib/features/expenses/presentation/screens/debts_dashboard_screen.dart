@@ -5,6 +5,7 @@ import 'package:planmapp/features/expenses/data/repositories/expense_repository.
 import 'package:share_plus/share_plus.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
 import 'package:flutter/services.dart';
+import 'package:flutter_animate/flutter_animate.dart';
 
 import 'package:planmapp/core/services/plan_service.dart';
 import 'package:planmapp/features/expenses/presentation/widgets/reminder_settings_dialog.dart';
@@ -395,9 +396,14 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
                      itemBuilder: (context, index) {
                          final key = grouped.keys.elementAt(index);
                          final personDebts = grouped[key]!;
-                         return isReceivable 
+                         Widget card = isReceivable 
                              ? _buildGroupedReceivableCard(personDebts) 
                              : _buildGroupedPayableCard(personDebts);
+                             
+                         return card
+                             .animate(delay: (50 * index).ms)
+                             .slideY(begin: 0.1, end: 0, duration: 400.ms, curve: Curves.easeOutQuad)
+                             .fade(duration: 400.ms);
                      },
                  )
              )

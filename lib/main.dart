@@ -66,6 +66,9 @@ class PlanmappApp extends ConsumerWidget {
       supportedLocales: const [
          Locale('es', 'CO'), 
       ],
+      scrollBehavior: const MaterialScrollBehavior().copyWith(
+        physics: const BouncingScrollPhysics(parent: AlwaysScrollableScrollPhysics()),
+      ),
       routerConfig: router,
       builder: (context, child) {
         // GLOBAL ERROR WIDGET (Replaces Red Screen)
