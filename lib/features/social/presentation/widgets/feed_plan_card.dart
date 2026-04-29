@@ -67,34 +67,55 @@ class FeedPlanCard extends StatelessWidget {
               margin: const EdgeInsets.symmetric(horizontal: 16),
               decoration: BoxDecoration(
                 borderRadius: BorderRadius.circular(16),
-                color: Colors.grey[100],
-                // TODO: Use plan cover image if available
-                gradient: LinearGradient(
-                   begin: Alignment.topLeft,
-                   end: Alignment.bottomRight,
-                   colors: [AppTheme.primaryBrand.withOpacity(0.8), AppTheme.secondaryBrand.withOpacity(0.8)]
-                )
+                color: Colors.grey[300],
+                boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 10, offset: const Offset(0, 4))]
               ),
-              child: Stack(
-                 children: [
-                    Positioned(
-                      bottom: 16, left: 16, right: 16,
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                           Text(plan.title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
-                           const SizedBox(height: 4),
-                           Row(
-                             children: [
-                                const Icon(Icons.location_on, color: Colors.white70, size: 14),
-                                const SizedBox(width: 4),
-                                Text(plan.locationName, style: const TextStyle(color: Colors.white70)),
-                             ],
-                           )
-                        ],
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(16),
+                child: Stack(
+                   children: [
+                      // IMAGE
+                      Positioned.fill(
+                          child: Image.network(
+                              plan.imageUrl ?? plan.displayImageUrl,
+                              fit: BoxFit.cover,
+                              errorBuilder: (ctx, err, stack) => Container(color: AppTheme.primaryBrand),
+                          )
                       ),
-                    )
-                 ],
+                      
+                      // GRADIENT OVERLAY (For text readability)
+                      Positioned.fill(
+                          child: Container(
+                              decoration: BoxDecoration(
+                                  gradient: LinearGradient(
+                                      begin: Alignment.topCenter,
+                                      end: Alignment.bottomCenter,
+                                      colors: [Colors.transparent, Colors.black.withOpacity(0.8)]
+                                  )
+                              )
+                          )
+                      ),
+
+                      // TEXT CONTENT
+                      Positioned(
+                        bottom: 16, left: 16, right: 16,
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                             Text(plan.title, style: const TextStyle(color: Colors.white, fontSize: 20, fontWeight: FontWeight.bold)),
+                             const SizedBox(height: 4),
+                             Row(
+                               children: [
+                                  const Icon(Icons.location_on, color: Colors.white70, size: 14),
+                                  const SizedBox(width: 4),
+                                  Text(plan.locationName, style: const TextStyle(color: Colors.white70)),
+                               ],
+                             )
+                          ],
+                        ),
+                      )
+                   ],
+                ),
               ),
             ),
           ),

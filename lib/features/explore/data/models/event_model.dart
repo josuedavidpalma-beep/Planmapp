@@ -162,7 +162,8 @@ class Event {
       categoryKey = 'romantico';
     }
 
-    final pool = ImagePools.pools[categoryKey] ?? ImagePools.pools['cultura']!;
+    // Default to 'barranquilla_gen' instead of 'cultura'
+    final pool = ImagePools.pools[categoryKey] ?? ImagePools.pools['barranquilla_gen'] ?? ImagePools.pools['amigos']!;
     
     // Logic: Rotation by ID + Day
     final seed = (id.hashCode + daysSinceEpoch).abs();

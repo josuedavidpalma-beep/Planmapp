@@ -53,19 +53,25 @@ class Plan {
     
     String categoryKey = '';
 
-    if (searchSpace.contains('cine') || searchSpace.contains('película') || searchSpace.contains('cinema')) {
+    if (searchSpace.contains('malecon') || searchSpace.contains('malecón') || searchSpace.contains('caiman del rio') || searchSpace.contains('caimán')) {
+      categoryKey = 'malecon';
+    } else if (searchSpace.contains('rio ') || searchSpace.contains('río ') || searchSpace.contains('magdalena')) {
+      categoryKey = 'rio';
+    } else if (searchSpace.contains('cine') || searchSpace.contains('película') || searchSpace.contains('cinema')) {
       categoryKey = 'cine';
-    } else if (searchSpace.contains('restaurante') || searchSpace.contains('comida') || searchSpace.contains('menú')) {
+    } else if (searchSpace.contains('restaurante') || searchSpace.contains('comida') || searchSpace.contains('menú') || searchSpace.contains('hamburguesa') || searchSpace.contains('pizza') || searchSpace.contains('asado')) {
       categoryKey = 'restaurante';
-    } else if (searchSpace.contains('deporte') || searchSpace.contains('running') || searchSpace.contains('futbol') || searchSpace.contains('beisbol')) {
+    } else if (searchSpace.contains('deporte') || searchSpace.contains('running') || searchSpace.contains('ciclismo') || searchSpace.contains('futbol') || searchSpace.contains('beisbol')) {
       categoryKey = 'deporte';
     } else if (searchSpace.contains('desayuno') || searchSpace.contains('almuerzo') || searchSpace.contains('brunch') || searchSpace.contains('cena')) {
       categoryKey = 'comida';
+    } else if (searchSpace.contains('calle') || searchSpace.contains('pueblo') || searchSpace.contains('colonial')) {
+      categoryKey = 'calles_colombia';
     } else if (searchSpace.contains('cultura') || searchSpace.contains('museo') || searchSpace.contains('arte') || searchSpace.contains('historia')) {
       categoryKey = 'cultura';
-    } else if (searchSpace.contains('amigos') || searchSpace.contains('parche') || searchSpace.contains('reunión')) {
+    } else if (searchSpace.contains('amigos') || searchSpace.contains('parche') || searchSpace.contains('reunión') || searchSpace.contains('cumpleaños')) {
       categoryKey = 'amigos';
-    } else if (searchSpace.contains('bar') || searchSpace.contains('cerveza') || searchSpace.contains('pola') || searchSpace.contains('cocktail')) {
+    } else if (searchSpace.contains('bar') || searchSpace.contains('cerveza') || searchSpace.contains('pola') || searchSpace.contains('cocktail') || searchSpace.contains('cóctel') || searchSpace.contains('rumba') || searchSpace.contains('discoteca') || searchSpace.contains('fiesta')) {
       categoryKey = 'bares_cervezas';
     } else if (searchSpace.contains('concierto') || searchSpace.contains('rock') || searchSpace.contains('música en vivo')) {
       categoryKey = 'conciertos';
@@ -73,7 +79,7 @@ class Plan {
       categoryKey = 'viajes';
     } else if (searchSpace.contains('acuatico') || searchSpace.contains('tobogán') || searchSpace.contains('parque de agua')) {
       categoryKey = 'parques_acuaticos';
-    } else if (searchSpace.contains('playa') || searchSpace.contains('mar') || searchSpace.contains('arena')) {
+    } else if (searchSpace.contains('playa') || searchSpace.contains('mar') || searchSpace.contains('arena') || searchSpace.contains('puerto colombia') || searchSpace.contains('salgar') || searchSpace.contains('pradomar')) {
       categoryKey = 'playas';
     } else if (searchSpace.contains('piscina') || searchSpace.contains('pool') || searchSpace.contains('balneario')) {
       categoryKey = 'piscina';
@@ -91,11 +97,12 @@ class Plan {
       categoryKey = 'romantico';
     }
 
-    final pool = ImagePools.pools[categoryKey] ?? ImagePools.pools['cultura']!;
+    // Default to 'barranquilla_gen' instead of 'cultura' so we show vibrant city/people instead of museums
+    final pool = ImagePools.pools[categoryKey] ?? ImagePools.pools['barranquilla_gen'] ?? ImagePools.pools['amigos']!;
     final seed = (id.hashCode + daysSinceEpoch).abs();
     final finalId = pool[seed % pool.length];
 
-    return 'https://img.youtube.com/vi/$finalId/maxresdefault.jpg';
+    return 'https://images.unsplash.com/photo-$finalId?auto=format&fit=crop&q=80&w=800';
   }
 
   Map<String, dynamic> toJson() {
