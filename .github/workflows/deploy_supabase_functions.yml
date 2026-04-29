@@ -39,3 +39,4 @@ jobs:
           
           supabase functions deploy fcm-dispatcher --project-ref $PROJECT_ID
           supabase functions deploy notify-debts --no-verify-jwt --project-ref $PROJECT_ID
+          supabase functions deploy process_apify_webhook --no-verify-jwt --project-ref $PROJECT_ID
