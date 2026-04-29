@@ -20,13 +20,10 @@ class LoginScreen extends ConsumerStatefulWidget {
 class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _phonePasswordController = TextEditingController();
-  
   bool _isLoading = false;
   bool _rememberMe = false;
   bool _obscurePassword = true;
-  bool _obscurePhonePassword = true;
+  bool _showEmailForm = false;
 
   @override
   void initState() {
@@ -91,7 +88,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     setState(() => _isLoading = true);
     try {
         // Redirigir a la misma página actual si es posible, o a home
-        final redirectUrl = kIsWeb ? Uri.base.origin : 'planmapp://login-callback';
+        final redirectUrl = kIsWeb ? Uri.base.origin : 'io.planmapp.app://login-callback/';
         await Supabase.instance.client.auth.signInWithOAuth(
             OAuthProvider.google,
             redirectTo: redirectUrl,
@@ -103,11 +100,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     }
   }
 
-  void _showComingSoon() {
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Acceso por teléfono próximamente (Fase Beta)')),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -162,9 +155,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: DefaultTabController(
-                length: 2,
-                child: Column(
+              child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                      // LOGO / BRANDING
@@ -210,136 +201,101 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                               ),
                                            ),
                                          ),
-                                         const SizedBox(height: 24),
-                                         Row(
-                                             children: [
-                                                 Expanded(child: Divider(color: Colors.white.withOpacity(0.2))),
-                                                 Padding(
-                                                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                                                     child: Text("O usa tu correo", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
-                                                 ),
-                                                 Expanded(child: Divider(color: Colors.white.withOpacity(0.2))),
-                                             ]
-                                         ),
-                                         const SizedBox(height: 24),
-
-                                         TabBar(
-                                           dividerColor: Colors.transparent,
-                                           indicatorColor: AppTheme.primaryBrand,
-                                           labelColor: AppTheme.primaryBrand,
-                                           unselectedLabelColor: Colors.white60,
-                                           tabs: const [
-                                             Tab(text: "Correo"),
-                                             Tab(text: "Teléfono"),
-                                           ],
-                                         ),
-                                         const SizedBox(height: 24),
-                                         SizedBox(
-                                           height: 310, // Increased height for tabs
-                                           child: TabBarView(
-                                             children: [
-                                               // TAB 1: EMAIL
-                                               Column(
-                                                 children: [
-                                                   TextField(
-                                                      controller: _emailController,
-                                                      style: const TextStyle(color: Colors.white),
-                                                      decoration: const InputDecoration(
-                                                          labelText: "Correo Electrónico", 
-                                                          prefixIcon: Icon(Icons.email_outlined),
-                                                      ),
-                                                   ),
-                                                   const SizedBox(height: 16),
-                                                   TextField(
-                                                      controller: _passwordController,
-                                                      style: const TextStyle(color: Colors.white),
-                                                      decoration: InputDecoration(
-                                                          labelText: "Contraseña", 
-                                                          prefixIcon: const Icon(Icons.lock_outlined),
-                                                          suffixIcon: IconButton(
-                                                              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.white70),
-                                                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                                                          ),
-                                                      ),
-                                                      obscureText: _obscurePassword,
-                                                   ),
-                                                   Row(
-                                                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                                                       children: [
-                                                           Row(
-                                                               children: [
-                                                                   SizedBox(
-                                                                       width: 24, height: 24,
-                                                                       child: Checkbox(
-                                                                           value: _rememberMe,
-                                                                           activeColor: AppTheme.primaryBrand,
-                                                                           side: const BorderSide(color: Colors.white60),
-                                                                           onChanged: (val) {
-                                                                               setState(() => _rememberMe = val ?? false);
-                                                                           }
-                                                                       )
-                                                                   ),
-                                                                   const SizedBox(width: 8),
-                                                                   const Text("Recordar datos", style: TextStyle(color: Colors.white70, fontSize: 13)),
-                                                               ]
+                                         const SizedBox(height: 16),
+                                         
+                                         // EXPANDABLE EMAIL LOGIN
+                                         AnimatedSize(
+                                            duration: 300.ms,
+                                            curve: Curves.easeInOut,
+                                            child: _showEmailForm 
+                                              ? Column(
+                                                  children: [
+                                                    const SizedBox(height: 16),
+                                                    Row(
+                                                        children: [
+                                                            Expanded(child: Divider(color: Colors.white.withOpacity(0.2))),
+                                                            Padding(
+                                                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                                                child: Text("O usa tu correo", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
+                                                            ),
+                                                            Expanded(child: Divider(color: Colors.white.withOpacity(0.2))),
+                                                        ]
+                                                    ),
+                                                    const SizedBox(height: 16),
+                                                    TextField(
+                                                       controller: _emailController,
+                                                       style: const TextStyle(color: Colors.white),
+                                                       decoration: const InputDecoration(
+                                                           labelText: "Correo Electrónico", 
+                                                           prefixIcon: Icon(Icons.email_outlined),
+                                                       ),
+                                                    ),
+                                                    const SizedBox(height: 16),
+                                                    TextField(
+                                                       controller: _passwordController,
+                                                       style: const TextStyle(color: Colors.white),
+                                                       decoration: InputDecoration(
+                                                           labelText: "Contraseña", 
+                                                           prefixIcon: const Icon(Icons.lock_outlined),
+                                                           suffixIcon: IconButton(
+                                                               icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.white70),
+                                                               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
                                                            ),
-                                                           TextButton(
-                                                             onPressed: () => context.push('/forgot-password'),
-                                                             child: Text("¿Olvidaste tu contraseña?", style: TextStyle(color: AppTheme.primaryBrand.withOpacity(0.8), fontSize: 12)),
-                                                           ),
-                                                       ]
-                                                   ),
-                                                   const SizedBox(height: 16),
-                                                   SizedBox(
-                                                     width: double.infinity,
-                                                     child: ElevatedButton(
-                                                       onPressed: _isLoading ? null : _loginEmail,
-                                                       child: _isLoading 
-                                                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) 
-                                                          : const Text("Entrar"),
-                                                     ),
-                                                   ),
-                                                 ],
-                                               ),
-                                               // TAB 2: PHONE
-                                               Column(
-                                                 children: [
-                                                   TextField(
-                                                      controller: _phoneController,
-                                                      style: const TextStyle(color: Colors.white),
-                                                      keyboardType: TextInputType.phone,
-                                                      decoration: const InputDecoration(
-                                                          labelText: "Número de Teléfono", 
-                                                          prefixIcon: Icon(Icons.phone_iphone),
+                                                       ),
+                                                       obscureText: _obscurePassword,
+                                                    ),
+                                                    Row(
+                                                        mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                                                        children: [
+                                                            Row(
+                                                                children: [
+                                                                    SizedBox(
+                                                                        width: 24, height: 24,
+                                                                        child: Checkbox(
+                                                                            value: _rememberMe,
+                                                                            activeColor: AppTheme.primaryBrand,
+                                                                            side: const BorderSide(color: Colors.white60),
+                                                                            onChanged: (val) {
+                                                                                setState(() => _rememberMe = val ?? false);
+                                                                            }
+                                                                        )
+                                                                    ),
+                                                                    const SizedBox(width: 8),
+                                                                    const Text("Recordar datos", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                                                                ]
+                                                            ),
+                                                            TextButton(
+                                                              onPressed: () => context.push('/forgot-password'),
+                                                              child: Text("¿Olvidaste tu contraseña?", style: TextStyle(color: AppTheme.primaryBrand.withOpacity(0.8), fontSize: 12)),
+                                                            ),
+                                                        ]
+                                                    ),
+                                                    const SizedBox(height: 16),
+                                                    SizedBox(
+                                                      width: double.infinity,
+                                                      child: ElevatedButton(
+                                                        onPressed: _isLoading ? null : _loginEmail,
+                                                        child: _isLoading 
+                                                           ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) 
+                                                           : const Text("Entrar"),
                                                       ),
-                                                   ),
-                                                   const SizedBox(height: 16),
-                                                   TextField(
-                                                      controller: _phonePasswordController,
-                                                      style: const TextStyle(color: Colors.white),
-                                                      decoration: InputDecoration(
-                                                          labelText: "Contraseña", 
-                                                          prefixIcon: const Icon(Icons.lock_outlined),
-                                                          suffixIcon: IconButton(
-                                                              icon: Icon(_obscurePhonePassword ? Icons.visibility_off : Icons.visibility, color: Colors.white70),
-                                                              onPressed: () => setState(() => _obscurePhonePassword = !_obscurePhonePassword),
-                                                          ),
-                                                      ),
-                                                      obscureText: _obscurePhonePassword,
-                                                   ),
-                                                   const SizedBox(height: 48),
-                                                   SizedBox(
-                                                     width: double.infinity,
-                                                     child: ElevatedButton(
-                                                       onPressed: _isLoading ? null : _showComingSoon,
-                                                       child: const Text("Entrar"),
-                                                     ),
-                                                   ),
-                                                 ],
-                                               ),
-                                             ],
-                                           ),
-                                         )
+                                                    ),
+                                                  ],
+                                                )
+                                              : SizedBox(
+                                                  width: double.infinity,
+                                                  child: OutlinedButton.icon(
+                                                    icon: const Icon(Icons.email_outlined, color: Colors.white),
+                                                    label: const Text("Continuar con Correo", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                                                    onPressed: () => setState(() => _showEmailForm = true),
+                                                    style: OutlinedButton.styleFrom(
+                                                        side: BorderSide(color: Colors.white.withOpacity(0.3)),
+                                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                                                    ),
+                                                  ),
+                                                ),
+                                         ),
                                      ],
                                  ),
                              ),
@@ -362,7 +318,6 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ],
                 ),
               ),
-            ),
           ),
           
           // PWA Install Prompt (Floating at the top right)

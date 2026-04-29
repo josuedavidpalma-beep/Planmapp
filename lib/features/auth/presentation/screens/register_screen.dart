@@ -20,12 +20,9 @@ class RegisterScreen extends ConsumerStatefulWidget {
 class _RegisterScreenState extends ConsumerState<RegisterScreen> {
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _phoneController = TextEditingController();
-  final _phonePasswordController = TextEditingController();
-  
   bool _isLoading = false;
   bool _obscurePassword = true;
-  bool _obscurePhonePassword = true;
+  bool _showEmailForm = false;
   bool _acceptedTerms = false;
 
   Future<void> _registerEmail() async {
@@ -72,7 +69,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
     setState(() => _isLoading = true);
     try {
-        final redirectUrl = kIsWeb ? Uri.base.origin : 'planmapp://login-callback';
+        final redirectUrl = kIsWeb ? Uri.base.origin : 'io.planmapp.app://login-callback/';
         await Supabase.instance.client.auth.signInWithOAuth(
             OAuthProvider.google,
             redirectTo: redirectUrl,
@@ -83,15 +80,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
     }
   }
 
-  void _showComingSoon() {
-    if (!_acceptedTerms) {
-        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Debes aceptar el tratamiento de datos para continuar."), backgroundColor: Colors.red));
-        return;
-    }
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Registro por teléfono próximamente (Fase Beta)')),
-    );
-  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -146,9 +135,7 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
           Center(
             child: SingleChildScrollView(
               padding: const EdgeInsets.symmetric(horizontal: 24),
-              child: DefaultTabController(
-                length: 2,
-                child: Column(
+              child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
                      // LOGO / BRANDING
@@ -211,110 +198,73 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                                                  Expanded(child: Text("Acepto los Términos de Servicio y la Política de Tratamiento de Datos Personales (Ley 1581).", style: TextStyle(color: Colors.white.withOpacity(0.8), fontSize: 11))),
                                              ],
                                          ),
-                                         const SizedBox(height: 24),
-                                         Row(
-                                             children: [
-                                                 Expanded(child: Divider(color: Colors.white.withOpacity(0.2))),
-                                                 Padding(
-                                                     padding: const EdgeInsets.symmetric(horizontal: 8),
-                                                     child: Text("O usa tu correo", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
-                                                 ),
-                                                 Expanded(child: Divider(color: Colors.white.withOpacity(0.2))),
-                                             ]
+                                         // EXPANDABLE EMAIL LOGIN
+                                         AnimatedSize(
+                                            duration: 300.ms,
+                                            curve: Curves.easeInOut,
+                                            child: _showEmailForm 
+                                              ? Column(
+                                                  children: [
+                                                    const SizedBox(height: 24),
+                                                    Row(
+                                                        children: [
+                                                            Expanded(child: Divider(color: Colors.white.withOpacity(0.2))),
+                                                            Padding(
+                                                                padding: const EdgeInsets.symmetric(horizontal: 8),
+                                                                child: Text("O usa tu correo", style: TextStyle(color: Colors.white.withOpacity(0.5), fontSize: 12)),
+                                                            ),
+                                                            Expanded(child: Divider(color: Colors.white.withOpacity(0.2))),
+                                                        ]
+                                                    ),
+                                                    const SizedBox(height: 24),
+                                                    TextField(
+                                                       controller: _emailController,
+                                                       style: const TextStyle(color: Colors.white),
+                                                       decoration: const InputDecoration(
+                                                           labelText: "Correo Electrónico", 
+                                                           prefixIcon: Icon(Icons.email_outlined),
+                                                       ),
+                                                    ),
+                                                    const SizedBox(height: 16),
+                                                    TextField(
+                                                       controller: _passwordController,
+                                                       style: const TextStyle(color: Colors.white),
+                                                       decoration: InputDecoration(
+                                                           labelText: "Contraseña", 
+                                                           prefixIcon: const Icon(Icons.lock_outlined),
+                                                           suffixIcon: IconButton(
+                                                               icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.white70),
+                                                               onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
+                                                           ),
+                                                       ),
+                                                       obscureText: _obscurePassword,
+                                                    ),
+                                                    const SizedBox(height: 24),
+                                                    SizedBox(
+                                                      width: double.infinity,
+                                                      child: ElevatedButton(
+                                                        onPressed: _isLoading ? null : _registerEmail,
+                                                        child: _isLoading 
+                                                           ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) 
+                                                           : const Text("Registrarme"),
+                                                      ),
+                                                    ),
+                                                  ],
+                                                )
+                                              : SizedBox(
+                                                  width: double.infinity,
+                                                  child: OutlinedButton.icon(
+                                                    icon: const Icon(Icons.email_outlined, color: Colors.white),
+                                                    label: const Text("Continuar con Correo", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 14)),
+                                                    onPressed: () => setState(() => _showEmailForm = true),
+                                                    style: OutlinedButton.styleFrom(
+                                                        side: BorderSide(color: Colors.white.withOpacity(0.3)),
+                                                        padding: const EdgeInsets.symmetric(vertical: 14),
+                                                        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12))
+                                                    ),
+                                                  ),
+                                                ),
                                          ),
-                                         const SizedBox(height: 24),
-
-                                         TabBar(
-                                           dividerColor: Colors.transparent,
-                                           indicatorColor: AppTheme.primaryBrand,
-                                           labelColor: AppTheme.primaryBrand,
-                                           unselectedLabelColor: Colors.white60,
-                                           tabs: const [
-                                             Tab(text: "Correo"),
-                                             Tab(text: "Teléfono"),
-                                           ],
-                                         ),
-                                         const SizedBox(height: 24),
-                                         SizedBox(
-                                           height: 250, // Fixed height for tabs
-                                           child: TabBarView(
-                                             children: [
-                                               // TAB 1: EMAIL
-                                               Column(
-                                                 children: [
-                                                   TextField(
-                                                      controller: _emailController,
-                                                      style: const TextStyle(color: Colors.white),
-                                                      decoration: const InputDecoration(
-                                                          labelText: "Correo Electrónico", 
-                                                          prefixIcon: Icon(Icons.email_outlined),
-                                                      ),
-                                                   ),
-                                                   const SizedBox(height: 16),
-                                                   TextField(
-                                                      controller: _passwordController,
-                                                      style: const TextStyle(color: Colors.white),
-                                                      decoration: InputDecoration(
-                                                          labelText: "Contraseña", 
-                                                          prefixIcon: const Icon(Icons.lock_outlined),
-                                                          suffixIcon: IconButton(
-                                                              icon: Icon(_obscurePassword ? Icons.visibility_off : Icons.visibility, color: Colors.white70),
-                                                              onPressed: () => setState(() => _obscurePassword = !_obscurePassword),
-                                                          ),
-                                                      ),
-                                                      obscureText: _obscurePassword,
-                                                   ),
-                                                   const SizedBox(height: 24),
-                                                   SizedBox(
-                                                     width: double.infinity,
-                                                     child: ElevatedButton(
-                                                       onPressed: _isLoading ? null : _registerEmail,
-                                                       child: _isLoading 
-                                                          ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.black, strokeWidth: 2)) 
-                                                          : const Text("Registrarme"),
-                                                     ),
-                                                   ),
-                                                 ],
-                                               ),
-                                               // TAB 2: PHONE
-                                               Column(
-                                                 children: [
-                                                   TextField(
-                                                      controller: _phoneController,
-                                                      style: const TextStyle(color: Colors.white),
-                                                      keyboardType: TextInputType.phone,
-                                                      decoration: const InputDecoration(
-                                                          labelText: "Número de Teléfono", 
-                                                          prefixIcon: Icon(Icons.phone_iphone),
-                                                      ),
-                                                   ),
-                                                   const SizedBox(height: 16),
-                                                   TextField(
-                                                      controller: _phonePasswordController,
-                                                      style: const TextStyle(color: Colors.white),
-                                                      decoration: InputDecoration(
-                                                          labelText: "Contraseña", 
-                                                          prefixIcon: const Icon(Icons.lock_outlined),
-                                                          suffixIcon: IconButton(
-                                                              icon: Icon(_obscurePhonePassword ? Icons.visibility_off : Icons.visibility, color: Colors.white70),
-                                                              onPressed: () => setState(() => _obscurePhonePassword = !_obscurePhonePassword),
-                                                          ),
-                                                      ),
-                                                      obscureText: _obscurePhonePassword,
-                                                   ),
-                                                   const SizedBox(height: 24),
-                                                   SizedBox(
-                                                     width: double.infinity,
-                                                     child: ElevatedButton(
-                                                       onPressed: _isLoading ? null : _showComingSoon,
-                                                       child: const Text("Registrarme"),
-                                                     ),
-                                                   ),
-                                                 ],
-                                               ),
-                                             ],
-                                           ),
-                                         )
                                      ],
                                  ),
                              ),
@@ -337,7 +287,6 @@ class _RegisterScreenState extends ConsumerState<RegisterScreen> {
                   ],
                 ),
               ),
-            ),
           ),
         ],
       ),
