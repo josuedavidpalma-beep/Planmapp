@@ -11,6 +11,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:planmapp/firebase_options.dart';
 import 'package:planmapp/core/globals.dart'; // Import rootSnackbarKey
 import 'package:planmapp/core/services/push_notifications_service.dart';
+import 'package:planmapp/core/widgets/offline_wrapper.dart'; // Import OfflineWrapper
 import 'package:supabase_flutter/supabase_flutter.dart';
 
 void main() async {
@@ -109,17 +110,19 @@ class PlanmappApp extends ConsumerWidget {
           );
         };
 
-        // RESPONSIVE WRAPPER FOR WEB
-        return Center(
-          child: Container(
-            constraints: const BoxConstraints(maxWidth: 600), // Mobile View on Desktop
-            clipBehavior: Clip.antiAlias,
-            decoration: const BoxDecoration(
-               boxShadow: [
-                  BoxShadow(color: Colors.black12, blurRadius: 20, spreadRadius: 5)
-               ] 
+        // RESPONSIVE WRAPPER FOR WEB & OFFLINE
+        return OfflineWrapper(
+          child: Center(
+            child: Container(
+              constraints: const BoxConstraints(maxWidth: 600), // Mobile View on Desktop
+              clipBehavior: Clip.antiAlias,
+              decoration: const BoxDecoration(
+                 boxShadow: [
+                    BoxShadow(color: Colors.black12, blurRadius: 20, spreadRadius: 5)
+                 ] 
+              ),
+              child: child,
             ),
-            child: child,
           ),
         );
       },
