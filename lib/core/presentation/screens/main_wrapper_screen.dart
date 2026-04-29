@@ -125,6 +125,7 @@ class _MainWrapperScreenState extends State<MainWrapperScreen> {
       ),
       ),
       ),
+      ),
     );
   }
 
