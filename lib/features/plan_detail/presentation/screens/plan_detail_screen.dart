@@ -31,7 +31,7 @@ import 'package:planmapp/features/plan_detail/presentation/widgets/participants_
 import 'package:url_launcher/url_launcher.dart';
 import 'package:planmapp/core/services/invitation_service.dart';
 import 'package:planmapp/core/presentation/widgets/social_embed_player.dart';
-
+import 'package:share_plus/share_plus.dart';
 class PlanDetailScreen extends StatefulWidget {
   final String planId;
   final int? initialTab;
@@ -519,6 +519,15 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                                     existingMembers: _membersMap,
                                  )
                               );
+                          },
+                      ),
+                  if (!isDirectChat && _plan != null)
+                      IconButton(
+                          icon: const Icon(Icons.ios_share_rounded, color: Colors.white),
+                          tooltip: "Compartir Link",
+                          onPressed: () {
+                              final url = 'https://planmapp.app/plan/${_plan!.id}';
+                              Share.share('¡Únete a mi plan "${_plan!.title}" en Planmapp! 🚀\n\nEntra aquí para ver los detalles: $url');
                           },
                       ),
                   if (!isDirectChat && _plan != null)

@@ -10,7 +10,7 @@ import 'package:planmapp/core/config/supabase_config.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:planmapp/firebase_options.dart';
 import 'package:planmapp/core/globals.dart'; // Import rootSnackbarKey
-
+import 'package:planmapp/core/services/push_notifications_service.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   
@@ -25,6 +25,13 @@ void main() async {
   await SupabaseConfig.initialize();
   await initializeDateFormatting('es_CO', null); // Initialize Locale Data
   Intl.defaultLocale = 'es_CO';
+  
+  // Initialize Push Notifications if logged in
+  Supabase.instance.client.auth.onAuthStateChange.listen((data) {
+      if (data.session != null && !data.session!.user.isAnonymous) {
+          PushNotificationsService.init();
+      }
+  });
   
   runApp(
     const ProviderScope(

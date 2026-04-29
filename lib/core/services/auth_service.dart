@@ -29,13 +29,13 @@ class AuthService {
     return await _supabase.auth.signInWithPassword(email: email, password: password);
   }
 
-  // Sign In with Google (Native Flow)
+  // Sign In with Google (OAuth Flow)
   Future<bool> signInWithGoogle() async {
-    // NOTE: This requires 'google_sign_in' package and native configuration
-    // For now, we return false as we need to configure the native side first.
-    // Real implementation involves getting idToken from GoogleSignIn and passing to Supabase.
     try {
-        await _supabase.auth.signInWithOAuth(OAuthProvider.google, redirectTo: 'io.supabase.flutterqa://login-callback/');
+        await _supabase.auth.signInWithOAuth(
+            OAuthProvider.google, 
+            redirectTo: 'io.planmapp.app://login-callback/',
+        );
         return true; 
     } catch(e) {
         print("Google Sign In Error: $e");
