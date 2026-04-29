@@ -95,8 +95,7 @@ class Plan {
     final seed = (id.hashCode + daysSinceEpoch).abs();
     final finalId = pool[seed % pool.length];
 
-    final rawUrl = 'images.unsplash.com/photo-$finalId?auto=format&fit=crop&q=80&w=800';
-    return 'https://$rawUrl';
+    return 'https://img.youtube.com/vi/$finalId/maxresdefault.jpg';
   }
 
   Map<String, dynamic> toJson() {

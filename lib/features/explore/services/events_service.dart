@@ -470,6 +470,7 @@ class EventsService {
           ];
       }
 
-      return images[hash % images.length];
+      final finalId = images[hash % images.length];
+      return 'https://img.youtube.com/vi/$finalId/maxresdefault.jpg';
   }
 }

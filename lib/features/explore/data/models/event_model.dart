@@ -165,15 +165,14 @@ class Event {
     final seed = (id.hashCode + daysSinceEpoch).abs();
     finalId = pool[seed % pool.length];
 
-    // Handle Backup as emergency fallback
-    final rawUrl = 'images.unsplash.com/photo-$finalId?auto=format&fit=crop&q=80&w=800';
-    return 'https://$rawUrl';
+    return 'https://img.youtube.com/vi/$finalId/maxresdefault.jpg';
   }
 
   String _getRandomFromPool(List<String> pool) {
-    if (pool.isEmpty) return '1492684223066-81342ee5ff30';
+    if (pool.isEmpty) return 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800';
     final hashCode = (id.hashCode + title.hashCode).abs();
-    return pool[hashCode % pool.length];
+    final finalId = pool[hashCode % pool.length];
+    return 'https://img.youtube.com/vi/$finalId/maxresdefault.jpg';
   }
 
   factory Event.fromJson(Map<String, dynamic> json) {
