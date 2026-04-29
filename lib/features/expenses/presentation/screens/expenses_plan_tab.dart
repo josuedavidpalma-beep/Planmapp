@@ -15,6 +15,7 @@ import 'package:planmapp/features/games/presentation/widgets/wheel_spin_dialog.d
 import 'package:flutter_animate/flutter_animate.dart';
 import 'package:planmapp/core/presentation/widgets/dancing_empty_state.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:planmapp/core/config/supabase_config.dart';
 import 'package:intl/intl.dart';
 
 class ExpensesPlanTab extends StatefulWidget {
@@ -196,7 +197,7 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
   }
 
   void _sharePaymentLink() {
-      final baseUrl = Supabase.instance.client.functions.url.replaceAll('/functions/v1', '');
+      final baseUrl = SupabaseConfig.url;
       final shareUrl = '$baseUrl/functions/v1/render-og-image?plan_id=${widget.planId}&redirect_path=/%23/vaca/${widget.planId}';
       
       Share.share("¡Hola! Entra aquí para ayudarnos a dividir la cuenta: $shareUrl");

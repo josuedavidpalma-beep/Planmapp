@@ -22,7 +22,8 @@ import 'package:planmapp/features/itinerary/presentation/screens/itinerary_plan_
 import 'package:planmapp/core/widgets/auth_guard.dart';
 import 'package:planmapp/core/presentation/widgets/dancing_empty_state.dart';
 import 'package:flutter_animate/flutter_animate.dart';
-import 'package:planmapp/features/games/presentation/widgets/wheel_spin_dialog.dart'; // NEW Wheel
+import 'package:planmapp/features/plans/presentation/widgets/survey_dialog.dart';
+import 'package:planmapp/core/config/supabase_config.dart'; // NEW Wheel
 import 'package:planmapp/features/invite/presentation/widgets/in_app_invite_sheet.dart';
 import 'package:planmapp/features/games/presentation/widgets/sound_commands_dialog.dart';
 import 'package:planmapp/features/plan_detail/presentation/widgets/roulette_message_bubble.dart';
@@ -526,7 +527,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                           icon: const Icon(Icons.ios_share_rounded, color: Colors.white),
                           tooltip: "Compartir Link",
                           onPressed: () {
-                              final baseUrl = Supabase.instance.client.functions.url.replaceAll('/functions/v1', ''); // Get base
+                              final baseUrl = SupabaseConfig.url;
                               final shareUrl = '$baseUrl/functions/v1/render-og-image?plan_id=${_plan!.id}';
                               Share.share('¡Únete a mi plan "${_plan!.title}" en Planmapp! 🚀\n\nEntra aquí para ver los detalles: $shareUrl');
                           },
