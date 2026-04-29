@@ -4,6 +4,7 @@ import 'package:intl/intl.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:planmapp/core/services/invitation_service.dart';
 import 'package:planmapp/features/invite/presentation/widgets/in_app_invite_sheet.dart';
+import 'package:url_launcher/url_launcher.dart';
 
 class PlanProfileSheet extends StatelessWidget {
   final Plan plan;
@@ -82,6 +83,30 @@ class PlanProfileSheet extends StatelessWidget {
                
                const SizedBox(height: 12),
                _buildMetaChip(Icons.location_on, plan.locationName.isNotEmpty ? plan.locationName : 'Ubicación por definir'),
+               
+               if (plan.reservationLink != null && plan.reservationLink!.isNotEmpty) ...[
+                  const SizedBox(height: 24),
+                  SizedBox(
+                      width: double.infinity,
+                      child: ElevatedButton.icon(
+                          onPressed: () async {
+                              final url = Uri.parse(plan.reservationLink!);
+                              if (await canLaunchUrl(url)) {
+                                  await launchUrl(url, mode: LaunchMode.externalApplication);
+                              }
+                          },
+                          icon: const Icon(Icons.public, size: 20),
+                          label: const Text("Ver Sitio Oficial", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                          style: ElevatedButton.styleFrom(
+                              backgroundColor: AppTheme.primaryBrand,
+                              foregroundColor: Colors.white,
+                              padding: const EdgeInsets.symmetric(vertical: 16),
+                              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                              elevation: 0,
+                          ),
+                      ),
+                  ),
+               ],
                
                const SizedBox(height: 32),
                const Align(

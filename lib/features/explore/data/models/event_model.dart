@@ -118,7 +118,11 @@ class Event {
     String categoryKey = '';
 
     // 1. MATCH POR TIPOLOGÍAS ESPECÍFICAS
-    if (searchSpace.contains('cine') || searchSpace.contains('película') || searchSpace.contains('cinema')) {
+    if (searchSpace.contains('malecon') || searchSpace.contains('malecón') || searchSpace.contains('caiman del rio') || searchSpace.contains('caimán')) {
+      categoryKey = 'malecon';
+    } else if (searchSpace.contains('rio ') || searchSpace.contains('río ') || searchSpace.contains('magdalena')) {
+      categoryKey = 'rio';
+    } else if (searchSpace.contains('cine') || searchSpace.contains('película') || searchSpace.contains('cinema')) {
       categoryKey = 'cine';
     } else if (searchSpace.contains('restaurante') || searchSpace.contains('comida') || searchSpace.contains('menú')) {
       categoryKey = 'restaurante';
@@ -132,7 +136,7 @@ class Event {
       categoryKey = 'cultura';
     } else if (searchSpace.contains('amigos') || searchSpace.contains('parche') || searchSpace.contains('reunión')) {
       categoryKey = 'amigos';
-    } else if (searchSpace.contains('bar') || searchSpace.contains('cerveza') || searchSpace.contains('pola') || searchSpace.contains('cocktail') || searchSpace.contains('cóctel')) {
+    } else if (searchSpace.contains('bar') || searchSpace.contains('cerveza') || searchSpace.contains('pola') || searchSpace.contains('cocktail') || searchSpace.contains('cóctel') || searchSpace.contains('rumba') || searchSpace.contains('discoteca')) {
       categoryKey = 'bares_cervezas';
     } else if (searchSpace.contains('concierto') || searchSpace.contains('rock') || searchSpace.contains('música en vivo')) {
       categoryKey = 'conciertos';
@@ -140,7 +144,7 @@ class Event {
       categoryKey = 'viajes';
     } else if (searchSpace.contains('acuatico') || searchSpace.contains('tobogán') || searchSpace.contains('parque de agua')) {
       categoryKey = 'parques_acuaticos';
-    } else if (searchSpace.contains('playa') || searchSpace.contains('mar') || searchSpace.contains('arena')) {
+    } else if (searchSpace.contains('playa') || searchSpace.contains('mar') || searchSpace.contains('arena') || searchSpace.contains('puerto colombia') || searchSpace.contains('salgar') || searchSpace.contains('pradomar')) {
       categoryKey = 'playas';
     } else if (searchSpace.contains('piscina') || searchSpace.contains('pool') || searchSpace.contains('balneario')) {
       categoryKey = 'piscina';
