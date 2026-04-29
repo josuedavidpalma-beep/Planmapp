@@ -120,51 +120,69 @@ class _PwaInstallPromptState extends State<PwaInstallPrompt> with SingleTickerPr
               style: const TextStyle(color: Colors.white70, fontSize: 14),
             ),
             const SizedBox(height: 16),
-            Container(
-                padding: const EdgeInsets.all(12),
-                decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
-                          child: const Text("1", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                        ),
-                        const SizedBox(width: 12),
-                        const Text("Toca el icono de ", style: TextStyle(color: Colors.white70, fontSize: 13)),
-                        Icon(_isIOS ? Icons.ios_share : Icons.more_vert, color: Colors.blueAccent, size: 18),
-                        Text(_isIOS ? " Compartir" : " Menú", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
-                      ],
-                    ),
-                    const SizedBox(height: 12),
-                    Row(
-                      children: [
-                         Container(
-                          padding: const EdgeInsets.all(6),
-                          decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
-                          child: const Text("2", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                        ),
-                        const SizedBox(width: 12),
-                        const Text("Selecciona ", style: TextStyle(color: Colors.white70, fontSize: 13)),
-                        Container(
-                           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                           decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(8)),
-                           child: Row(
-                               children: [
-                                  Icon(_isIOS ? Icons.add_box_outlined : Icons.install_mobile, color: Colors.white, size: 16),
-                                  const SizedBox(width: 6),
-                                  Text(_isIOS ? "Añadir a inicio" : "Instalar aplicación", style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
-                               ]
-                           )
-                        )
-                      ],
-                    )
-                  ]
-                )
-            )
+            if (_isIOS)
+              Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(color: Colors.white.withOpacity(0.1), borderRadius: BorderRadius.circular(12)),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Row(
+                        children: [
+                          Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
+                            child: const Text("1", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text("Toca el icono de ", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                          const Icon(Icons.ios_share, color: Colors.blueAccent, size: 18),
+                          const Text(" Compartir", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 13)),
+                        ],
+                      ),
+                      const SizedBox(height: 12),
+                      Row(
+                        children: [
+                           Container(
+                            padding: const EdgeInsets.all(6),
+                            decoration: const BoxDecoration(color: Colors.white24, shape: BoxShape.circle),
+                            child: const Text("2", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                          ),
+                          const SizedBox(width: 12),
+                          const Text("Selecciona ", style: TextStyle(color: Colors.white70, fontSize: 13)),
+                          Container(
+                             padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+                             decoration: BoxDecoration(color: Colors.white12, borderRadius: BorderRadius.circular(8)),
+                             child: const Row(
+                                 children: [
+                                    Icon(Icons.add_box_outlined, color: Colors.white, size: 16),
+                                    SizedBox(width: 6),
+                                    Text("Añadir a inicio", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                 ]
+                             )
+                          )
+                        ],
+                      )
+                    ]
+                  )
+              )
+            else
+              SizedBox(
+                width: double.infinity,
+                height: 48,
+                child: ElevatedButton.icon(
+                  onPressed: () {
+                    promptPwaInstall();
+                    _dismissPrompt();
+                  },
+                  icon: const Icon(Icons.download, color: Colors.white),
+                  label: const Text("Instalar App Ahora", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 16)),
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppTheme.primaryBrand,
+                    shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+                  ),
+                ),
+              )
           ],
         ),
       ),

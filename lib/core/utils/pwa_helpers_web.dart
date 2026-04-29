@@ -1,5 +1,6 @@
 // ignore: avoid_web_libraries_in_flutter
 import 'dart:html' as html;
+import 'dart:js' as js;
 
 bool isPwaInstalled() {
   try {
@@ -12,5 +13,13 @@ bool isPwaInstalled() {
     return matchesStandalone || isIosStandalone;
   } catch (e) {
     return false;
+  }
+}
+
+void promptPwaInstall() {
+  try {
+    js.context.callMethod('promptPwaInstall');
+  } catch (e) {
+    print("Error calling promptPwaInstall: $e");
   }
 }
