@@ -1,5 +1,6 @@
 import 'dart:ui';
 import 'package:flutter/material.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:planmapp/core/theme/app_theme.dart';
 import 'package:geolocator/geolocator.dart';
 import 'dart:math';
@@ -436,14 +437,16 @@ class _SpontaneousResultsViewState extends State<SpontaneousResultsView> {
               fit: StackFit.expand,
               children: [
                   // Full Background Image
-                  Image.network(
-                      place['image'], 
-                      fit: BoxFit.cover, 
-                      errorBuilder: (c,err,s) => Image.network(
-                          place['fallback_image'], 
+                  CachedNetworkImage(
+                      imageUrl: place['image'],
+                      fit: BoxFit.cover,
+                      placeholder: (context, url) => Container(color: Colors.grey[900]),
+                      errorWidget: (context, url, error) => CachedNetworkImage(
+                          imageUrl: place['fallback_image'],
                           fit: BoxFit.cover,
-                          errorBuilder: (c,e,s) => Container(color: Colors.grey[900])
-                      )
+                          placeholder: (context, url) => Container(color: Colors.grey[900]),
+                          errorWidget: (context, url, error) => Container(color: Colors.grey[900]),
+                      ),
                   ),
                   
                   // Gradient Overlay for readability
