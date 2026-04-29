@@ -78,7 +78,20 @@ class PlanService {
           rawList = rawList.where((item) => item['deleted_at'] == null && item['archived_at'] == null).toList();
       }
 
-      return rawList.map((item) => Plan.fromJson(item as Map<String, dynamic>)).toList();
+      final mappedPlans = rawList.map((item) => Plan.fromJson(item as Map<String, dynamic>)).toList();
+      
+      // DIAGNOSTIC FALLBACK: If list is empty, show EXACTLY why in the UI
+      if (mappedPlans.isEmpty) {
+          mappedPlans.add(Plan(
+              id: 'debug_empty',
+              creatorId: 'sys',
+              title: 'DEBUG: DB returned ${response.length} rows. After Dart filters: ${rawList.length}',
+              locationName: 'DB Debugger',
+              eventDate: DateTime.now(),
+          ));
+      }
+      
+      return mappedPlans;
     } catch (e) {
       throw Exception('Error al cargar planes: $e');
     }
