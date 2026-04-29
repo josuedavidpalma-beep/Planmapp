@@ -82,13 +82,14 @@ Extrae la siguiente información en formato JSON estricto sin markdown extra:
 {
    "event_name": "Nombre corto y llamativo del evento",
    "description": "Descripción amigable de lo que trata",
-   "date": "Fecha en formato YYYY-MM-DD (Si menciona 'hoy' o 'mañana', aproxima basado en el texto, si no hay asume null)",
+   "date": "Fecha en formato YYYY-MM-DD (Extrae la fecha real del evento. Si menciona 'hoy' o 'mañana', aproxima. Si es un lugar o plan atemporal, pon la fecha actual)",
+   "expires_at": "Fecha de expiración en formato YYYY-MM-DDTHH:mm:ssZ (Si es un evento de un día, expira al día siguiente a las 6:00 AM. Si es una feria, expira el día después de que termine. Si es un post atemporal como un restaurante, fija la expiración para 30 días después)",
    "price_level": "Nivel de precio: $, $$, $$$, o $$$$",
    "location": "Nombre del lugar (Ej: Puerta de Oro, El Gran Malecón)",
    "vibes": ["Relajado", "Romántico", "Electrónica", "Familiar", "etc... extrae máximo 3 vibes clave"]
 }
 Si la publicación NO parece ser un evento o plan, devuelve {"is_valid": false}
-       `;
+        `;
 
        const geminiRes = await fetch(`https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${geminiApiKey}`, {
            method: 'POST',
@@ -108,14 +109,36 @@ Si la publicación NO parece ser un evento o plan, devuelve {"is_valid": false}
            const parsed = JSON.parse(cleanJson);
            if (parsed.is_valid === false) continue;
 
+            // Fetch image and upload to Supabase
+            let finalImageUrl = null;
+            try {
+                if (imageUrl) {
+                    const imgRes = await fetch(imageUrl);
+                    if (imgRes.ok) {
+                        const buffer = await imgRes.arrayBuffer();
+                        const fileName = crypto.randomUUID() + ".jpg";
+                        const { error: uploadError } = await supabase.storage.from('event_images').upload(fileName, buffer, { contentType: 'image/jpeg', upsert: true });
+                        if (!uploadError) {
+                            const { data: { publicUrl } } = supabase.storage.from('event_images').getPublicUrl(fileName);
+                            finalImageUrl = publicUrl;
+                        } else {
+                            console.error("Storage upload failed:", uploadError);
+                        }
+                    }
+                }
+            } catch (e) {
+                console.error("Image fetch failed", e);
+            }
+
             // 2. Insert into local_events with status = 'pending'
             const insertData = {
                 event_name: parsed.event_name || 'Evento sin título',
                 description: parsed.description || '',
                 date: parsed.date || new Date().toISOString().split('T')[0], // FECHA SEGURA
+                expires_at: parsed.expires_at || new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
                 price_level: parsed.price_level || '',
                 venue_name: parsed.location || 'Desconocido',
-                image_url: imageUrl,
+                image_url: finalImageUrl,
                 primary_source: url,
                 city: "Barranquilla", // Default based on target scraping
                 status: 'pending', // Requires Super Admin approval!
