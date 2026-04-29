@@ -163,16 +163,16 @@ class Event {
     
     // Logic: Rotation by ID + Day
     final seed = (id.hashCode + daysSinceEpoch).abs();
-    finalId = pool[seed % pool.length];
+    final finalId = pool[seed % pool.length];
 
-    return 'https://img.youtube.com/vi/$finalId/maxresdefault.jpg';
+    return 'https://images.unsplash.com/photo-$finalId?auto=format&fit=crop&q=80&w=800';
   }
 
   String _getRandomFromPool(List<String> pool) {
     if (pool.isEmpty) return 'https://images.unsplash.com/photo-1492684223066-81342ee5ff30?auto=format&fit=crop&q=80&w=800';
     final hashCode = (id.hashCode + title.hashCode).abs();
     final finalId = pool[hashCode % pool.length];
-    return 'https://img.youtube.com/vi/$finalId/maxresdefault.jpg';
+    return 'https://images.unsplash.com/photo-$finalId?auto=format&fit=crop&q=80&w=800';
   }
 
   factory Event.fromJson(Map<String, dynamic> json) {
