@@ -53,11 +53,19 @@ serve(async (req) => {
     }
 
     let description = planData.description || "¡Únete a mi plan en Planmapp!";
-    if (planData.event_date) {
-        description = `📅 Fecha: ${planData.event_date}\n${description}`;
+    let ogTitle = `¡Plan: ${planData.title}! 🔥`;
+
+    if (redirectPath?.includes('vaca') || redirectPath?.includes('split')) {
+        ogTitle = `💸 ¡A pagar! Cuenta de ${planData.title}`;
+        description = `Entra para ver cuánto te toca pagar o confirmar tu aporte en Planmapp.`;
+    } else {
+        ogTitle = `¡Te invitaron a: ${planData.title}! 🔥`;
+        if (planData.event_date) {
+            description = `📅 Fecha: ${planData.event_date}\n${description}`;
+        }
     }
 
-    return new Response(generateHtml(`¡Plan: ${planData.title}! 🔥`, description, finalImageUrl, targetUrl), {
+    return new Response(generateHtml(ogTitle, description, finalImageUrl, targetUrl), {
        headers: { "Content-Type": "text/html" },
     });
 
