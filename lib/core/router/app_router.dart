@@ -27,6 +27,7 @@ import 'package:planmapp/features/expenses/presentation/screens/debts_dashboard_
 import 'package:planmapp/features/expenses/presentation/screens/guest_join_screen.dart';
 import 'package:planmapp/features/landing/presentation/screens/plan_landing_screen.dart'; // NEW landing
 import 'package:planmapp/features/landing/presentation/screens/guest_scan_landing_screen.dart'; // B2B2C landing
+import 'package:planmapp/features/landing/presentation/screens/privacy_screen.dart'; // NEW Privacy
 import 'package:planmapp/features/admin/presentation/screens/super_admin_screen.dart';
 import 'package:planmapp/features/b2b/presentation/screens/restaurant_insights_screen.dart';
 import 'package:planmapp/features/social/presentation/screens/friends_screen.dart';
@@ -82,6 +83,7 @@ final appRouterProvider = Provider<GoRouter>((ref) {
                      state.uri.path.startsWith('/insights') || 
                      state.uri.path.startsWith('/b2b') || 
                      state.uri.path.startsWith('/vaca') || 
+                     state.uri.path == '/privacy' || 
                      state.uri.queryParameters['guest'] == 'true' || 
                      state.uri.path == '/onboarding-setup';
 
@@ -131,6 +133,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           final restaurantId = state.uri.queryParameters['rid'];
           return GuestScanLandingScreen(restaurantId: restaurantId);
         },
+      ),
+      GoRoute(
+        path: '/privacy',
+        builder: (context, state) => const PrivacyScreen(),
       ),
       GoRoute(
         path: '/super-admin',

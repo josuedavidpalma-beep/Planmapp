@@ -23,7 +23,30 @@ class _OnboardingSetupScreenState extends State<OnboardingSetupScreen> {
   final Set<String> _interests = {};
   bool _isLoading = false;
   int _currentPage = 0;
+  String? _selectedAvatarUrl;
   final PageController _pageController = PageController();
+
+  static const _presetAvatars = [
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=Felix&backgroundColor=b6e3f4',
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=Aneka&backgroundColor=c0aede',
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=Mimi&backgroundColor=ffdfbf',
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=Oliver&backgroundColor=d1d4f9',
+      'https://api.dicebear.com/7.x/avataaars/svg?seed=Lucky&backgroundColor=b6e3f4',
+  ];
+
+  @override
+  void initState() {
+      super.initState();
+      final user = Supabase.instance.client.auth.currentUser;
+      if (user != null) {
+          _selectedAvatarUrl = user.userMetadata?['avatar_url'];
+          // Initialize nickname if we have full_name
+          final name = user.userMetadata?['full_name'];
+          if (name != null) {
+             _nicknameController.text = (name as String).split(' ').first;
+          }
+      }
+  }
 
   static const _budgetOptions = [
     {'key': 'economico', 'label': 'Ahorrador 💰', 'icon': '💰', 'desc': 'Planes tranqui y baratos'},
@@ -65,6 +88,7 @@ class _OnboardingSetupScreenState extends State<OnboardingSetupScreen> {
           'birth_date': _birthDate.toIso8601String().split('T')[0],
           'budget_level': _budget,
           'interests': _interests.toList(),
+          if (_selectedAvatarUrl != null) 'avatar_url': _selectedAvatarUrl,
           'updated_at': DateTime.now().toIso8601String(),
         });
         
@@ -228,9 +252,56 @@ class _OnboardingSetupScreenState extends State<OnboardingSetupScreen> {
             style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold, color: Colors.white, height: 1.2),
           ).animate().fadeIn().slideX(begin: -0.2),
           const SizedBox(height: 8),
-          const Text('Este será tu nombre en Planmapp',
+          const Text('Escoge tu avatar y apodo para Planmapp',
             style: TextStyle(color: Colors.white54, fontSize: 15),
           ).animate().fadeIn(delay: 100.ms),
+          const SizedBox(height: 24),
+
+          // Avatar Selector
+          Center(
+             child: Column(
+                children: [
+                    CircleAvatar(
+                        radius: 45,
+                        backgroundColor: AppTheme.primaryBrand.withOpacity(0.2),
+                        backgroundImage: _selectedAvatarUrl != null && !_selectedAvatarUrl!.contains('svg') ? NetworkImage(_selectedAvatarUrl!) : null,
+                        child: _selectedAvatarUrl == null || _selectedAvatarUrl!.contains('svg')
+                            ? (_selectedAvatarUrl == null ? const Icon(Icons.person, size: 40, color: Colors.white) : null)
+                            : null, // Avoid breaking ImageProvider with SVG, though we'll use a trick below if needed, or just let users keep Google photo.
+                    ),
+                    const SizedBox(height: 12),
+                    SizedBox(
+                        height: 50,
+                        child: ListView.builder(
+                            scrollDirection: Axis.horizontal,
+                            shrinkWrap: true,
+                            itemCount: _presetAvatars.length,
+                            itemBuilder: (context, index) {
+                                final isSelected = _selectedAvatarUrl == _presetAvatars[index];
+                                return GestureDetector(
+                                    onTap: () => setState(() => _selectedAvatarUrl = _presetAvatars[index]),
+                                    child: Container(
+                                        margin: const EdgeInsets.symmetric(horizontal: 4),
+                                        padding: const EdgeInsets.all(2),
+                                        decoration: BoxDecoration(
+                                            shape: BoxShape.circle,
+                                            border: Border.all(color: isSelected ? AppTheme.primaryBrand : Colors.transparent, width: 2)
+                                        ),
+                                        child: const CircleAvatar(
+                                            radius: 20,
+                                            backgroundColor: Colors.white,
+                                            child: Icon(Icons.face, color: Colors.grey) // Placeholder for SVG or simple emoji
+                                        )
+                                    )
+                                );
+                            }
+                        )
+                    ),
+                    const Text("Toca para cambiar", style: TextStyle(color: Colors.white38, fontSize: 11)),
+                ]
+             )
+          ).animate().fadeIn(delay: 150.ms),
+
           const SizedBox(height: 32),
 
           // Campo Nickname
