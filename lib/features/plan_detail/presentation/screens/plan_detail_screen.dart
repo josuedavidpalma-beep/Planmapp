@@ -526,8 +526,9 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                           icon: const Icon(Icons.ios_share_rounded, color: Colors.white),
                           tooltip: "Compartir Link",
                           onPressed: () {
-                              final url = 'https://planmapp.app/plan/${_plan!.id}';
-                              Share.share('¡Únete a mi plan "${_plan!.title}" en Planmapp! 🚀\n\nEntra aquí para ver los detalles: $url');
+                              final baseUrl = Supabase.instance.client.functions.url.replaceAll('/functions/v1', ''); // Get base
+                              final shareUrl = '$baseUrl/functions/v1/render-og-image?plan_id=${_plan!.id}';
+                              Share.share('¡Únete a mi plan "${_plan!.title}" en Planmapp! 🚀\n\nEntra aquí para ver los detalles: $shareUrl');
                           },
                       ),
                   if (!isDirectChat && _plan != null)

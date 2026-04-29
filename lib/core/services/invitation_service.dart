@@ -1,6 +1,7 @@
 import 'package:share_plus/share_plus.dart';
 import 'package:planmapp/features/plans/domain/models/plan_model.dart';
 import 'package:intl/intl.dart';
+import 'package:supabase_flutter/supabase_flutter.dart';
 
 class InvitationService {
   static Future<void> inviteToPlan(Plan plan) async {
@@ -12,6 +13,9 @@ class InvitationService {
         ? "\n📍 Lugar: ${plan.locationName}" 
         : "";
 
+    final baseUrl = Supabase.instance.client.functions.url.replaceAll('/functions/v1', '');
+    final shareUrl = '$baseUrl/functions/v1/render-og-image?plan_id=${plan.id}&redirect_path=/?invite=${plan.id}';
+
     final String message = """
 ✨ ¡Te invitaron a un plan en Planmapp! ✨
 
@@ -19,7 +23,7 @@ class InvitationService {
 🗓️ Fecha: $dateStr$locationInfo
 
 Para ver los detalles, votar en encuestas y confirmar tu asistencia, abre este enlace:
-https://planmapp.app/?invite=${plan.id}
+$shareUrl
 
 ¡Nos vemos allá! 🚀
 """;

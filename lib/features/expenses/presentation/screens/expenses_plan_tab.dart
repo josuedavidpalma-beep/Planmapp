@@ -196,14 +196,13 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
   }
 
   void _sharePaymentLink() {
-      // Use localhost port for dev or real domain for prod. 
-      // For now, assume a base URL.
-      const baseUrl = "https://planmapp.app"; // Or use window.location in web
-      final url = "$baseUrl/#/vaca/${widget.planId}";
+      final baseUrl = Supabase.instance.client.functions.url.replaceAll('/functions/v1', '');
+      final shareUrl = '$baseUrl/functions/v1/render-og-image?plan_id=${widget.planId}&redirect_path=/%23/vaca/${widget.planId}';
       
-      Share.share("¡Hola! Entra aquí para ayudarnos a dividir la cuenta: $url");
+      Share.share("¡Hola! Entra aquí para ayudarnos a dividir la cuenta: $shareUrl");
+      
       // Also Copy to clipboard for easy testing
-      Clipboard.setData(ClipboardData(text: url));
+      Clipboard.setData(ClipboardData(text: shareUrl));
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text("Link de invitación a la cuenta copiado!")));
   }
 
