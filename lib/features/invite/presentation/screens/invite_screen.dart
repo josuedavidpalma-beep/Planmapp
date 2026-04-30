@@ -9,6 +9,7 @@ import 'package:planmapp/features/plans/services/plan_members_service.dart';
 import 'package:planmapp/features/plan_detail/presentation/widgets/participant_list_bottom_sheet.dart';
 import 'package:planmapp/features/invite/presentation/widgets/app_download_cta.dart';
 import 'package:supabase_flutter/supabase_flutter.dart';
+import 'package:cached_network_image/cached_network_image.dart';
 
 class InviteScreen extends ConsumerStatefulWidget {
   final String planId;
@@ -203,12 +204,18 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
             // Hero Image Background (Gradient for now)
             Container(
                 height: MediaQuery.of(context).size.height * 0.45,
-                decoration: const BoxDecoration(
-                    gradient: LinearGradient(
+                decoration: BoxDecoration(
+                    color: AppTheme.primaryBrand,
+                    image: _plan?.displayImageUrl != null ? DecorationImage(
+                        image: CachedNetworkImageProvider(_plan!.displayImageUrl!),
+                        fit: BoxFit.cover,
+                        colorFilter: ColorFilter.mode(Colors.black.withOpacity(0.4), BlendMode.darken),
+                    ) : null,
+                    gradient: _plan?.displayImageUrl == null ? const LinearGradient(
                         colors: [AppTheme.primaryBrand, AppTheme.secondaryBrand],
                         begin: Alignment.topLeft,
                         end: Alignment.bottomRight,
-                    )
+                    ) : null,
                 ),
                 alignment: Alignment.center,
                 child: Column(
@@ -216,7 +223,7 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
                     children: [
                          const Icon(Icons.celebration, color: Colors.white, size: 64),
                          const SizedBox(height: 16),
-                         const Text("¡Te han invitado!", style: TextStyle(color: Colors.white70, fontSize: 16, fontWeight: FontWeight.bold, letterSpacing: 1)),
+                         const Text("¡Te han invitado!", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold, letterSpacing: 1)),
                     ],
                 ),
             ),
@@ -254,7 +261,7 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
                              _buildInfoRow(Icons.location_on_rounded, _plan!.locationName),
                              const SizedBox(height: 24),
 
-                             const Text("Lista de Invitados", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
+                             const Text("Lista de Invitados", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 16, color: Colors.black87)),
                              const SizedBox(height: 8),
                              
                              // Embedded Guest List Preview (Clickable)
@@ -279,9 +286,15 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
                                          children: [
                                              // Avatar Stack
                                              SizedBox(
-                                                 width: 80,
+                                                 width: _members.isEmpty ? 40 : 80,
                                                  child: Stack(
                                                      children: [
+                                                         if (_members.isEmpty)
+                                                            const CircleAvatar(
+                                                                radius: 14,
+                                                                backgroundColor: Colors.white,
+                                                                child: CircleAvatar(radius: 12, backgroundColor: AppTheme.primaryBrand, child: Icon(Icons.person, size: 16, color: Colors.white)),
+                                                            ),
                                                          for (int i=0; i < 3 && i < _members.length; i++)
                                                             Align(
                                                                 widthFactor: 0.6,
@@ -297,7 +310,7 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
                                              ),
                                              Expanded(
                                                  child: Text(
-                                                     "${_members.length} invitados", 
+                                                     _members.isNotEmpty ? "${_members.length} invitados" : "${_plan!.participantCount > 0 ? _plan!.participantCount : 1} personas (incluyéndote)", 
                                                      style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87)
                                                  )
                                              ),
