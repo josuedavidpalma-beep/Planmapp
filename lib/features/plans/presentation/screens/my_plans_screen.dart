@@ -105,7 +105,7 @@ class _MyPlansScreenState extends ConsumerState<MyPlansScreen> {
       child: Scaffold(
         extendBodyBehindAppBar: true,
         appBar: AppBar(
-          title: const Text("Mis Espacios", style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white, fontSize: 24)),
+          title: const Text("Mis Espacios v3.0-DEBUG", style: TextStyle(fontWeight: FontWeight.w900, color: Colors.white, fontSize: 24)),
           backgroundColor: AppTheme.darkBackground,
           elevation: 0,
           centerTitle: false,
