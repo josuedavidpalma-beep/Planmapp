@@ -197,8 +197,7 @@ class _ExpensesPlanTabState extends State<ExpensesPlanTab> {
   }
 
   void _sharePaymentLink() {
-      final baseUrl = SupabaseConfig.url;
-      final shareUrl = '$baseUrl/functions/v1/render-og-image?plan_id=${widget.planId}&redirect_path=/%23/vaca/${widget.planId}';
+      final shareUrl = 'https://planmapp.app/#/vaca/${widget.planId}';
       
       Share.share("¡Hola! Entra aquí para ayudarnos a dividir la cuenta: $shareUrl");
       
