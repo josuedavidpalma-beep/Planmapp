@@ -60,17 +60,6 @@ class PlanService {
       
       final mappedPlans = rawList.map((item) => Plan.fromJson(item as Map<String, dynamic>)).toList();
       
-      // DIAGNOSTIC FALLBACK: If list is empty, show EXACTLY why in the UI
-      if (mappedPlans.isEmpty) {
-          mappedPlans.add(Plan(
-              id: 'debug_empty_${isDirectChat ? 'chat' : 'plan'}',
-              creatorId: 'sys',
-              title: 'DEBUG: DB returned ${response.length} rows.',
-              locationName: 'DB Debugger',
-              eventDate: DateTime.now(),
-          ));
-      }
-      
       return mappedPlans;
     } catch (e) {
       throw Exception('Error al cargar planes: $e');
