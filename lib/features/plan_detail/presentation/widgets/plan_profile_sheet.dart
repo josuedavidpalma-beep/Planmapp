@@ -42,7 +42,8 @@ class PlanProfileSheet extends StatelessWidget {
                CircleAvatar(
                   radius: 46,
                   backgroundColor: AppTheme.primaryBrand.withOpacity(0.1),
-                  child: const Icon(Icons.celebration, size: 40, color: AppTheme.primaryBrand),
+                  backgroundImage: (plan.imageUrl != null && plan.imageUrl!.isNotEmpty) ? NetworkImage(plan.imageUrl!) : null,
+                  child: (plan.imageUrl == null || plan.imageUrl!.isEmpty) ? const Icon(Icons.celebration, size: 40, color: AppTheme.primaryBrand) : null,
                ),
                const SizedBox(height: 16),
                
