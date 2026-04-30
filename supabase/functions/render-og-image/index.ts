@@ -11,7 +11,7 @@ serve(async (req) => {
   const targetUrl = redirectPath ? `https://planmapp.app${redirectPath}` : (planId ? `https://planmapp.app/plan/${planId}` : 'https://planmapp.app/');
 
   if (!planId || planId === 'unknown') {
-    return new Response(generateHtml("¡Planmapp!", "Organiza tus salidas.", null, targetUrl), { headers: { "Content-Type": "text/html" } });
+    return new Response(generateHtml("¡Planmapp!", "Organiza tus salidas.", null, targetUrl), { headers: new Headers({ "Content-Type": "text/html; charset=utf-8" }) });
   }
 
   try {
@@ -28,7 +28,9 @@ serve(async (req) => {
       .single();
 
     if (!planData) {
-       return new Response(generateHtml("Plan no encontrado", "Este plan ya no existe.", null, targetUrl), { headers: { "Content-Type": "text/html" } });
+       return new Response(generateHtml("Plan no encontrado", "Este plan ya no existe.", null, targetUrl), { 
+           headers: new Headers({ "Content-Type": "text/html; charset=utf-8" }) 
+       });
     }
 
     let finalImageUrl = planData.image_url;
@@ -66,23 +68,24 @@ serve(async (req) => {
     }
 
     return new Response(generateHtml(ogTitle, description, finalImageUrl, targetUrl), {
-       headers: { "Content-Type": "text/html" },
+       headers: new Headers({ "Content-Type": "text/html; charset=utf-8" }),
     });
 
   } catch (err) {
     console.error("Error rendering OG Tags:", err);
-    return new Response(generateHtml("Planmapp", "Organiza tus salidas sin drama.", null, targetUrl), { headers: { "Content-Type": "text/html" } });
+    return new Response(generateHtml("Planmapp", "Organiza tus salidas sin drama.", null, targetUrl), { 
+        headers: new Headers({ "Content-Type": "text/html; charset=utf-8" }) 
+    });
   }
 })
 
 function generateHtml(title: string, description: string, imageUrl: string | null, redirectUrl: string) {
   const imageTag = imageUrl ? `<meta property="og:image" content="${imageUrl}">\n      <meta name="twitter:image" content="${imageUrl}">` : `<meta property="og:image" content="https://raw.githubusercontent.com/josuedavidpalma-beep/Planmapp/main/web/icons/Icon-512.png">`;
   
-  return `
-    <!DOCTYPE html>
-    <html lang="es">
-    <head>
-      <meta charset="UTF-8">
+  return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
       <meta property="og:title" content="${title}">
       <meta property="og:description" content="${description}">
       <meta property="og:type" content="website">

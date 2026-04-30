@@ -1691,7 +1691,8 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
   }
 
   Widget _buildPollOption(String pollId, PollOption option, int totalVotes) {
-    final double percent = totalVotes > 0 ? (option.voteCount / totalVotes) : 0.0;
+    final int planTotalMembers = _membersMap.isNotEmpty ? _membersMap.length : 1;
+    final double percent = (option.voteCount / planTotalMembers).clamp(0.0, 1.0);
     final bool isMyVote = option.isVotedByMe;
 
     return InkWell(

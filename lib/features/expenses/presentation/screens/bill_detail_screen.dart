@@ -35,6 +35,7 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
 
   late RealtimeChannel _itemsChannel;
   late RealtimeChannel _assignmentsChannel;
+  late RealtimeChannel _membersChannel;
 
   @override
   void initState() {
@@ -68,10 +69,21 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
               event: PostgresChangeEvent.all, 
               schema: 'public', 
               table: 'bill_item_assignments',
-              // We can't filter by bill_id directly on assignments table if it doesn't have it, 
-              // but we can listen to all and filter in memory or rely on the fact that 
-              // assignments are linked to bill_items. 
-              // Efficiently: we listen to all because the table is relatively small per-session.
+              callback: (payload) => _loadData(),
+          )
+          .subscribe();
+
+      _membersChannel = client
+          .channel('public:plan_members_live_${widget.planId}')
+          .onPostgresChanges(
+              event: PostgresChangeEvent.all,
+              schema: 'public',
+              table: 'plan_members',
+              filter: PostgresChangeFilter(
+                  type: PostgresChangeFilterType.eq, 
+                  column: 'plan_id', 
+                  value: widget.planId
+              ),
               callback: (payload) => _loadData(),
           )
           .subscribe();
@@ -82,6 +94,7 @@ class _BillDetailScreenState extends State<BillDetailScreen> with SingleTickerPr
       _tabController.dispose();
       Supabase.instance.client.removeChannel(_itemsChannel);
       Supabase.instance.client.removeChannel(_assignmentsChannel);
+      Supabase.instance.client.removeChannel(_membersChannel);
       super.dispose();
   }
 

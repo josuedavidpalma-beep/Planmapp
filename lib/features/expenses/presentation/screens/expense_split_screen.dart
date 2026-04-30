@@ -1136,7 +1136,7 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
 
       // Pre-calculation for Mode -1 (Checkbox)
       double splitShare = 0;
-      if (_tabController.index == 0) { // Checkbox Mode is now Index 0
+      if (_tabController.index == 1) { // Checkbox Mode is now Index 1
           final selectedCount = _tempValues.values.where((v) => v > 0).length;
           if (selectedCount > 0) {
               splitShare = widget.item.quantity / selectedCount;
@@ -1148,10 +1148,10 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
           
           double finalQty = 0;
           
-          if (_tabController.index == 0) { // Checkbox
+          if (_tabController.index == 1) { // Checkbox
               // If val > 0 (checked), assign share
               finalQty = splitShare;
-          } else if (_tabController.index == 1) { // Units (Previously 0)
+          } else if (_tabController.index == 0) { // Units
               finalQty = val;
           } else if (_tabController.index == 2) { // % (Previously 1)
               finalQty = (val / 100) * widget.item.quantity;
@@ -1201,10 +1201,10 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
                       Builder(builder: (ctx) {
                           double totalAssigned = 0;
                           
-                          if (_tabController.index == 0) {
+                          if (_tabController.index == 1) { // Checkbox
                               final selectedCount = _tempValues.values.where((v) => v > 0).length;
                               if (selectedCount > 0) totalAssigned = widget.item.quantity.toDouble(); 
-                          } else if (_tabController.index == 1) {
+                          } else if (_tabController.index == 0) { // Quantity
                               totalAssigned = _tempValues.values.fold(0.0, (s,v) => s + v);
                           } else if (_tabController.index == 2) {
                               final totalPct = _tempValues.values.fold(0.0, (s,v) => s + v);
@@ -1247,8 +1247,8 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
                               setState(() {});
                           },
                           tabs: const [
-                              Tab(text: "⚖️ Por Iguales"),
                               Tab(text: "🍕 Por Cantidades"),
+                              Tab(text: "⚖️ Por Iguales"),
                               Tab(text: "📊 %"),
                               Tab(text: "💵 \$"),
                           ]
@@ -1258,8 +1258,8 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
                           child: TabBarView(
                               controller: _tabController,
                               children: [
+                                  _buildList(mode: 0), // Cantidades mode
                                   _buildList(mode: -1), // Checkbox mode
-                                  _buildList(mode: 0),
                                   _buildList(mode: 1),
                                   _buildList(mode: 2),
                               ],

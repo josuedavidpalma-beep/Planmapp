@@ -42,9 +42,9 @@ serve(async (req) => {
 
     const { record, old_record, type, table } = payload;
     
-    // Safety check: only handle INSERTS
-    if (type !== 'INSERT' || !record) {
-       return new Response(JSON.stringify({ status: "ignored", reason: "not an insert" }), { headers: reqCorsHeaders })
+    // Safety check: handle INSERTS and UPDATES
+    if ((type !== 'INSERT' && type !== 'UPDATE') || !record) {
+       return new Response(JSON.stringify({ status: "ignored", reason: "not an insert or update" }), { headers: reqCorsHeaders })
     }
 
     const supabaseClient = createClient(
@@ -148,6 +148,35 @@ serve(async (req) => {
           data: { route: `/plan/${planId}`, type: 'new_poll' },
           tokens: fcmTokensArray,
         };
+    } else if (table === 'payment_receipts') {
+        let recipientId;
+        let title;
+        let body;
+
+        if (type === 'INSERT') {
+            // Un deudor subió un comprobante al organizador
+            recipientId = record.receiver_id;
+            title = '🧾 Nuevo comprobante de pago';
+            body = 'Alguien ha subido un comprobante para que lo valides.';
+        } else if (type === 'UPDATE') {
+            // El organizador validó o rechazó el comprobante
+            recipientId = record.uploader_id;
+            const isApproved = record.status === 'approved';
+            title = isApproved ? '✅ Pago Aprobado' : '❌ Pago Rechazado';
+            body = isApproved ? 'Tu pago ha sido verificado correctamente.' : 'Tu comprobante fue rechazado. Revisa con el organizador.';
+        }
+
+        if (recipientId) {
+            const { data: tokens } = await supabaseClient.from('fcm_tokens').select('token').eq('user_id', recipientId);
+            if (!tokens || tokens.length === 0) return new Response(JSON.stringify({ status: "ok", notified: 0 }), { headers: reqCorsHeaders });
+            fcmTokensArray = tokens.map(t => t.token);
+
+            notificationPayload = {
+              notification: { title: title, body: body },
+              data: { route: `/finance`, type: 'payment_receipt' },
+              tokens: fcmTokensArray,
+            };
+        }
     } else {
         return new Response(JSON.stringify({ status: "ignored", reason: "Unsupported table: " + table }), { headers: reqCorsHeaders })
     }

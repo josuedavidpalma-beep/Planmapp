@@ -9,8 +9,11 @@ import 'package:planmapp/core/globals.dart'; // for rootSnackbarKey
 
 class PushNotificationsService {
   static final _firebaseMessaging = FirebaseMessaging.instance;
+  static bool _isInitialized = false;
 
   static Future<void> init() async {
+    if (_isInitialized) return;
+    _isInitialized = true;
     try {
       // Request permission (shows popup on iOS/Web)
       NotificationSettings settings = await _firebaseMessaging.requestPermission(
