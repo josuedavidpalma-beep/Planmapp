@@ -520,12 +520,30 @@ class _ScanReceiptScreenState extends State<ScanReceiptScreen> {
                                         padding: EdgeInsets.zero,
                                         constraints: const BoxConstraints(),
                                         onPressed: () {
+                                            final deletedItem = _items[index];
+                                            final deletedKey = _itemKeys[index];
                                             setState(() {
                                                 _items.removeAt(index);
                                                 _itemKeys.removeAt(index);
                                                 _subtotal = _items.fold(0, (sum, i) => sum + (i.price * i.quantity));
                                                 _total = _subtotal + _tax + _tip;
                                             });
+                                            ScaffoldMessenger.of(context).clearSnackBars();
+                                            ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+                                                content: const Text("Ítem eliminado"),
+                                                action: SnackBarAction(
+                                                    label: "Deshacer",
+                                                    onPressed: () {
+                                                        setState(() {
+                                                            _items.insert(index, deletedItem);
+                                                            _itemKeys.insert(index, deletedKey);
+                                                            _subtotal = _items.fold(0, (sum, i) => sum + (i.price * i.quantity));
+                                                            _total = _subtotal + _tax + _tip;
+                                                        });
+                                                    }
+                                                ),
+                                                duration: const Duration(seconds: 4),
+                                            ));
                                         },
                                     )
                                 ],

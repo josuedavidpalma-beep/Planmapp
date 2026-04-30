@@ -22,7 +22,7 @@ serve(async (req) => {
   }
 
   if (!planId || planId === 'unknown') {
-    return new Response(generateHtml("¡Planmapp!", "Organiza tus salidas.", null, targetUrl), { headers: new Headers({ "Content-Type": "text/html; charset=utf-8" }) });
+    return new Response(generateHtml("¡Planmapp!", "Organiza tus salidas.", null, targetUrl), { headers: new Headers({ "Content-Type": "application/xhtml+xml; charset=utf-8" }) });
   }
 
   try {
@@ -40,7 +40,7 @@ serve(async (req) => {
 
     if (!planData) {
        return new Response(generateHtml("Plan no encontrado", "Este plan ya no existe.", null, targetUrl), { 
-           headers: new Headers({ "Content-Type": "text/html; charset=utf-8" }) 
+           headers: new Headers({ "Content-Type": "application/xhtml+xml; charset=utf-8" }) 
        });
     }
 
@@ -79,13 +79,13 @@ serve(async (req) => {
     }
 
     return new Response(generateHtml(ogTitle, description, finalImageUrl, targetUrl), {
-       headers: new Headers({ "Content-Type": "text/html; charset=utf-8" }),
+       headers: new Headers({ "Content-Type": "application/xhtml+xml; charset=utf-8" }),
     });
 
   } catch (err) {
     console.error("Error rendering OG Tags:", err);
     return new Response(generateHtml("Planmapp", "Organiza tus salidas sin drama.", null, targetUrl), { 
-        headers: new Headers({ "Content-Type": "text/html; charset=utf-8" }) 
+        headers: new Headers({ "Content-Type": "application/xhtml+xml; charset=utf-8" }) 
     });
   }
 })

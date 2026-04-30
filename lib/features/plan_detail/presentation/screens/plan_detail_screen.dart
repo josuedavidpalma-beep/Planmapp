@@ -219,7 +219,8 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                   'full_name': m.name,
                   'avatar_url': m.avatarUrl,
                   'role': m.role,
-                  'interests': m.interests
+                  'interests': m.interests,
+                  'id': m.id
               };
           }
           if (mounted) setState(() => _membersMap = map);
@@ -1691,8 +1692,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
   }
 
   Widget _buildPollOption(String pollId, PollOption option, int totalVotes) {
-    final int planTotalMembers = _membersMap.isNotEmpty ? _membersMap.length : 1;
-    final double percent = (option.voteCount / planTotalMembers).clamp(0.0, 1.0);
+    final double percent = totalVotes > 0 ? (option.voteCount / totalVotes).clamp(0.0, 1.0) : 0.0;
     final bool isMyVote = option.isVotedByMe;
 
     return InkWell(
@@ -1824,6 +1824,37 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                        ],
                        if (interests.isEmpty)
                           Text("Aún no ha configurado sus vibes.", style: TextStyle(color: Colors.grey[600], fontStyle: FontStyle.italic)),
+                       const SizedBox(height: 32),
+                       
+                       // Direct Chat Button
+                       if (userProfile['id'] != null && userProfile['id'] != Supabase.instance.client.auth.currentUser?.id)
+                          SizedBox(
+                              width: double.infinity,
+                              child: ElevatedButton.icon(
+                                  onPressed: () async {
+                                      Navigator.pop(context); // Close modal
+                                      try {
+                                          final planId = await PlanService().getOrCreateDirectChat(userProfile['id']);
+                                          if (context.mounted) {
+                                              context.pushReplacement('/plan/$planId');
+                                          }
+                                      } catch (e) {
+                                          if (context.mounted) {
+                                              ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text("Error al abrir chat: $e")));
+                                          }
+                                      }
+                                  },
+                                  icon: const Icon(Icons.chat_bubble_outline),
+                                  label: const Text("Enviar Mensaje Directo"),
+                                  style: ElevatedButton.styleFrom(
+                                      backgroundColor: AppTheme.primaryBrand,
+                                      foregroundColor: Colors.white,
+                                      padding: const EdgeInsets.symmetric(vertical: 16),
+                                      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+                                  ),
+                              ),
+                          ),
+                          
                        const SizedBox(height: 48),
                     ]
                  )
@@ -1844,7 +1875,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
             isMe: msg.userId == _chatService.currentUserId,
             onViewItinerary: () {
                 // Switch tab to Itinerary (Index 1)
-                DefaultTabController.of(context)?.animateTo(1);
+                _tabController.animateTo(1);
             }
         );
     }

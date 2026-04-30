@@ -361,7 +361,7 @@ class ExpenseRepository {
           
           var query = _supabase
               .from('payment_trackers')
-              .select('id, plan_id, bill_id, user_id, guest_name, amount_owe, amount_paid, status, description, created_at, plans!inner(id, title, creator_id)')
+              .select('id, plan_id, bill_id, user_id, guest_name, amount_owe, amount_paid, status, description, created_at, receipt_url, plans!inner(id, title, creator_id)')
               .or('user_id.neq.$currentUid,user_id.is.null') // Definitively exclude my own debts
               .neq('status', 'paid')
               .gt('amount_owe', 0);
@@ -373,8 +373,8 @@ class ExpenseRepository {
           final response = await query;
           
           // Fetch expenses to determine true creditors for bill splits
-          final expenses = await _supabase.from('expenses').select('title, created_by');
-          final expenseMap = { for (var e in expenses) e['title'] : e['created_by'] };
+          final expenses = await _supabase.from('expenses').select('plan_id, title, created_by');
+          final expenseMap = { for (var e in expenses) "${e['plan_id']}_${e['title']}" : e['created_by'] };
           
           final List<Map<String, dynamic>> receivables = [];
           
@@ -386,7 +386,7 @@ class ExpenseRepository {
               if (isVaca) {
                   isOwedToMe = pt['plans']['creator_id'] == currentUid;
               } else {
-                  final expenseCreator = expenseMap[desc];
+                  final expenseCreator = expenseMap["${pt['plan_id']}_$desc"];
                   if (expenseCreator != null) {
                       isOwedToMe = expenseCreator == currentUid;
                   } else {
@@ -410,6 +410,7 @@ class ExpenseRepository {
                       'amount_owed': (pt['amount_owe'] as num).toDouble() - (pt['amount_paid'] as num).toDouble(),
                       'status': pt['status'],
                       'created_at': pt['created_at'],
+                      'receipt_url': pt['receipt_url'],
                       'plan_title': pt['plans']?['title'] ?? 'Plan',
                       'profiles': debtorProfile,
                       'expenses': {
@@ -429,7 +430,7 @@ class ExpenseRepository {
           
           var query = _supabase
               .from('payment_trackers')
-              .select('id, plan_id, bill_id, user_id, guest_name, amount_owe, amount_paid, status, description, created_at, plans!inner(id, title, creator_id)')
+              .select('id, plan_id, bill_id, user_id, guest_name, amount_owe, amount_paid, status, description, created_at, receipt_url, plans!inner(id, title, creator_id)')
               .eq('user_id', currentUid)
               .neq('status', 'paid')
               .gt('amount_owe', 0);
@@ -440,8 +441,8 @@ class ExpenseRepository {
           
           final response = await query;
           
-          final expenses = await _supabase.from('expenses').select('title, created_by');
-          final expenseMap = { for (var e in expenses) e['title'] : e };
+          final expenses = await _supabase.from('expenses').select('plan_id, title, created_by');
+          final expenseMap = { for (var e in expenses) "${e['plan_id']}_${e['title']}" : e };
           
           final List<Map<String, dynamic>> payables = [];
           
@@ -452,8 +453,8 @@ class ExpenseRepository {
               bool isIOwed = true; 
               dynamic creditorProfile = null;
               
-              if (!isVaca && expenseMap.containsKey(desc)) {
-                  final exp = expenseMap[desc]!;
+              if (!isVaca && expenseMap.containsKey("${pt['plan_id']}_$desc")) {
+                  final exp = expenseMap["${pt['plan_id']}_$desc"]!;
                   if (exp['created_by'] == currentUid) isIOwed = false; // I don't owe myself
                   
                   try {
@@ -476,6 +477,7 @@ class ExpenseRepository {
                       'amount_owed': (pt['amount_owe'] as num).toDouble() - (pt['amount_paid'] as num).toDouble(),
                       'status': pt['status'],
                       'created_at': pt['created_at'],
+                      'receipt_url': pt['receipt_url'],
                       'plan_title': pt['plans']?['title'] ?? 'Plan',
                       'profiles': creditorProfile, // dynamic creditor via expense or plan creator
                       'expenses': {
@@ -517,27 +519,28 @@ class ExpenseRepository {
        try {
            final currentUser = _supabase.auth.currentUser;
            if (currentUser == null) throw Exception("No estás autenticado");
-           
-           await _supabase.from('payment_trackers')
+                      await _supabase.from('payment_trackers')
                .update({
                    'status': 'reported',
-                   // Note: receipt url may not natively exist in payment_trackers yet, but we can temporarily hijack description or add a schema patch later
+                   if (receiptUrl != null) 'receipt_url': receiptUrl
                })
                .eq('id', expenseId)
                .eq('user_id', currentUser.id);
 
            // Notify Creditor
-           final pt = await _supabase.from('payment_trackers').select('description, plans!inner(creator_id)').eq('id', expenseId).single();
-           final profile = await _supabase.from('profiles').select('full_name, nickname').eq('id', currentUser.id).maybeSingle();
-           final senderName = profile?['nickname'] ?? profile?['full_name'] ?? 'Un amigo';
+           final pt = await _supabase.from('payment_trackers').select('description, plans!inner(creator_id)').eq('id', expenseId).maybeSingle();
+           if (pt != null) {
+               final profile = await _supabase.from('profiles').select('full_name, nickname').eq('id', currentUser.id).maybeSingle();
+               final senderName = profile?['nickname'] ?? profile?['full_name'] ?? 'Un amigo';
 
-           await _supabase.from('notifications').insert({
-               'user_id': pt['plans']['creator_id'],
-               'title': '💰 Pago Reportado',
-               'body': '$senderName ha marcado como pagada su parte de "${pt['description']}". Confirma si ya recibiste el dinero.',
-               'type': 'general',
-               'data': {'action': 'payment_reported', 'expense_id': expenseId}
-           });
+               await _supabase.from('notifications').insert({
+                   'user_id': pt['plans']['creator_id'],
+                   'title': '💵 Pago Reportado',
+                   'body': '$senderName ha marcado como pagada su parte de "${pt['description']}". Confirma si ya recibiste el dinero.',
+                   'type': 'general',
+                   'data': {'action': 'payment_reported', 'expense_id': expenseId}
+               });
+           }
        } catch (e) {
            throw Exception("Error reportando pago: $e");
        }

@@ -84,6 +84,7 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
   }
 
   bool _accepted = false;
+  bool _declined = false;
 
   void _handleDecision(bool accept) async {
     if (accept) {
@@ -106,7 +107,11 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
               });
           }
       } catch (_) {}
-      if (mounted) context.go('/');
+      if (mounted) {
+          setState(() {
+              _declined = true;
+          });
+      }
     }
   }
 
@@ -322,7 +327,21 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
 
                              const Spacer(),
                              
-                             if (_accepted) 
+                             if (_declined)
+                                 Container(
+                                     padding: const EdgeInsets.all(16),
+                                     decoration: BoxDecoration(color: Colors.red[50], borderRadius: BorderRadius.circular(12)),
+                                     child: Column(
+                                         children: [
+                                             const Icon(Icons.cancel_outlined, color: Colors.red, size: 40),
+                                             const SizedBox(height: 8),
+                                             const Text("Has rechazado la invitación.", style: TextStyle(color: Colors.red, fontWeight: FontWeight.bold, fontSize: 16)),
+                                             const SizedBox(height: 4),
+                                             const Text("Avisaremos al organizador que no podrás asistir.", textAlign: TextAlign.center, style: TextStyle(color: Colors.red, fontSize: 14)),
+                                         ]
+                                     )
+                                 )
+                             else if (_accepted) 
                                 const AppDownloadCTA()
                              else ...[
                                  Row(

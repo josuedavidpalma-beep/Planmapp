@@ -114,7 +114,15 @@ class _ItineraryPlanTabState extends State<ItineraryPlanTab> {
                                  children: [
                                      const Text("Crono-Itinerario", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 18)),
                                      const SizedBox(height: 16),
-                                     ..._plan!.itinerarySteps.map((step) => _buildItineraryStepCard(step)).toList(),
+                                     ...List.generate(_plan!.itinerarySteps.length, (index) => _buildItineraryStepCard(_plan!.itinerarySteps[index], index)),
+                                     if (_canEdit())
+                                         Center(
+                                             child: TextButton.icon(
+                                                 icon: const Icon(Icons.add_circle_outline),
+                                                 label: const Text("Añadir paso manualmente"),
+                                                 onPressed: _addManualStep,
+                                             )
+                                         ),
                                      const SizedBox(height: 80), // Fab space
                                  ],
                              ),
@@ -144,23 +152,23 @@ class _ItineraryPlanTabState extends State<ItineraryPlanTab> {
     );
   }
 
-  Widget _buildItineraryStepCard(Map<String, dynamic> step) {
+  Widget _buildItineraryStepCard(Map<String, dynamic> step, int index) {
       return Container(
           margin: const EdgeInsets.only(bottom: 16),
           padding: const EdgeInsets.all(16),
           decoration: BoxDecoration(
-              color: Colors.white,
+              color: Theme.of(context).cardColor,
               borderRadius: BorderRadius.circular(16),
               boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10)],
-              border: Border.all(color: Colors.grey.withOpacity(0.1))
+              border: Border.all(color: AppTheme.primaryBrand.withOpacity(0.2))
           ),
           child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                   Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(color: AppTheme.primaryBrand.withOpacity(0.1), borderRadius: BorderRadius.circular(8)),
-                      child: Text(step['time'] ?? '--:--', style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryBrand)),
+                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                      decoration: BoxDecoration(color: AppTheme.primaryBrand.withOpacity(0.15), borderRadius: BorderRadius.circular(12)),
+                      child: Text(step['time'] ?? '--:--', style: const TextStyle(fontWeight: FontWeight.w900, color: AppTheme.primaryBrand)),
                   ),
                   const SizedBox(width: 16),
                   Expanded(
@@ -168,14 +176,85 @@ class _ItineraryPlanTabState extends State<ItineraryPlanTab> {
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
                               Text(step['title'] ?? 'Paso', style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 16)),
-                              const SizedBox(height: 4),
-                              Text(step['description'] ?? '', style: TextStyle(color: Colors.grey[700], fontSize: 14)),
+                              const SizedBox(height: 6),
+                              Text(step['description'] ?? '', style: TextStyle(color: Colors.grey[600], fontSize: 13, height: 1.4)),
                           ],
                       )
-                  )
+                  ),
+                  if (_canEdit())
+                      IconButton(
+                          icon: const Icon(Icons.edit_outlined, size: 20, color: Colors.grey),
+                          onPressed: () => _editItineraryStep(index, step),
+                      )
               ],
           ),
       );
+  }
+
+  Future<void> _addManualStep() async {
+      await _editItineraryStep(-1, {'time': '12:00 PM', 'title': '', 'description': ''});
+  }
+
+  Future<void> _editItineraryStep(int index, Map<String, dynamic> step) async {
+      final timeCtrl = TextEditingController(text: step['time'] ?? '');
+      final titleCtrl = TextEditingController(text: step['title'] ?? '');
+      final descCtrl = TextEditingController(text: step['description'] ?? '');
+
+      final result = await showDialog<bool>(
+          context: context,
+          builder: (c) => AlertDialog(
+              title: Text(index == -1 ? "Añadir Paso" : "Editar Paso"),
+              content: Column(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                      TextField(controller: timeCtrl, decoration: const InputDecoration(labelText: "Hora (ej. 10:00 AM)")),
+                      TextField(controller: titleCtrl, decoration: const InputDecoration(labelText: "Título")),
+                      TextField(controller: descCtrl, decoration: const InputDecoration(labelText: "Descripción"), maxLines: 3),
+                  ]
+              ),
+              actions: [
+                  TextButton(onPressed: () => Navigator.pop(c, false), child: const Text("Cancelar", style: TextStyle(color: Colors.grey))),
+                  if (index != -1)
+                      TextButton(
+                          onPressed: () async {
+                              final steps = List<Map<String, dynamic>>.from(_plan!.itinerarySteps);
+                              steps.removeAt(index);
+                              try {
+                                  await Supabase.instance.client.from('plans').update({'itinerary_steps': steps}).eq('id', widget.planId);
+                                  if (mounted) { Navigator.pop(c, false); _loadPlan(); }
+                              } catch (_) {}
+                          }, 
+                          child: const Text("Eliminar", style: TextStyle(color: Colors.red))
+                      ),
+                  ElevatedButton(
+                      onPressed: () {
+                          Navigator.pop(c, true);
+                      }, 
+                      child: const Text("Guardar")
+                  ),
+              ]
+          )
+      );
+
+      if (result == true) {
+          final steps = List<Map<String, dynamic>>.from(_plan!.itinerarySteps);
+          final newStep = {
+              'time': timeCtrl.text,
+              'title': titleCtrl.text,
+              'description': descCtrl.text,
+          };
+          
+          if (index == -1) {
+              steps.add(newStep);
+          } else {
+              steps[index] = newStep;
+          }
+          
+          try {
+              await Supabase.instance.client.from('plans').update({'itinerary_steps': steps}).eq('id', widget.planId);
+              _loadPlan();
+          } catch (_) {}
+      }
   }
 
   Future<void> _generateAIItinerary() async {
