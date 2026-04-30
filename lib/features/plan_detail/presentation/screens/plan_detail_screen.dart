@@ -528,7 +528,7 @@ class _PlanDetailScreenState extends State<PlanDetailScreen> with TickerProvider
                           tooltip: "Compartir Link",
                           onPressed: () {
                               final baseUrl = SupabaseConfig.url;
-                              final shareUrl = '$baseUrl/functions/v1/render-og-image?plan_id=${_plan!.id}&redirect_path=/?invite=${_plan!.id}';
+                              final shareUrl = '$baseUrl/functions/v1/render-og-image?plan_id=${_plan!.id}&redirect_path=/%23/invite/${_plan!.id}';
                               Share.share('¡Únete a mi plan "${_plan!.title}" en Planmapp! 🚀\n\nEntra aquí para ver los detalles: $shareUrl');
                           },
                       ),
