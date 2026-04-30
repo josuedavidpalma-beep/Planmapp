@@ -63,9 +63,9 @@ class PlanService {
       // DIAGNOSTIC FALLBACK: If list is empty, show EXACTLY why in the UI
       if (mappedPlans.isEmpty) {
           mappedPlans.add(Plan(
-              id: 'debug_empty',
+              id: 'debug_empty_${isDirectChat ? 'chat' : 'plan'}',
               creatorId: 'sys',
-              title: 'DEBUG: DB returned ${response.length} rows. After Dart filters: ${rawList.length}',
+              title: 'DEBUG: DB returned ${response.length} rows.',
               locationName: 'DB Debugger',
               eventDate: DateTime.now(),
           ));
