@@ -39,7 +39,7 @@ class ParticipantListBottomSheet extends StatelessWidget {
           
           Text(
             "Invitados (${members.length})",
-            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+            style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87),
           ),
           const SizedBox(height: 16),
           

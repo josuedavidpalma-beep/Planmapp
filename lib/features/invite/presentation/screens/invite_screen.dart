@@ -266,7 +266,7 @@ class _InviteScreenState extends ConsumerState<InviteScreen> {
                              
                              // Embedded Guest List Preview (Clickable)
                              InkWell(
-                                 onTap: () {
+                                 onTap: _members.isEmpty ? null : () {
                                      showModalBottomSheet(
                                         context: context,
                                         isScrollControlled: true,

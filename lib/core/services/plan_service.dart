@@ -121,6 +121,7 @@ class PlanService {
          creatorId: response['creator_id'],
          eventDate: response['event_date'] != null ? DateTime.tryParse(response['event_date']) : null,
          locationName: response['location_name'] ?? '',
+         imageUrl: response['image_url'],
          paymentMode: 'individual',
       );
     } catch (e) {
