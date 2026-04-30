@@ -14,7 +14,8 @@ class InvitationService {
         ? "\n📍 Lugar: ${plan.locationName}" 
         : "";
 
-    final shareUrl = 'https://planmapp.app/?invite=${plan.id}';
+    final baseUrl = SupabaseConfig.url;
+    final shareUrl = '$baseUrl/functions/v1/render-og-image?plan_id=${plan.id}&redirect_path=/?invite=${plan.id}';
 
     final String message = """
 ✨ ¡Te invitaron a un plan en Planmapp! ✨
