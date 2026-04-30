@@ -505,6 +505,7 @@ class _PlanCard extends StatelessWidget {
     return Hero(
       tag: 'plan_bg_${plan.id}',
       child: Container(
+      height: 240,
       decoration: BoxDecoration(
         gradient: LinearGradient(
            colors: _getPlanGradient(plan.id),
