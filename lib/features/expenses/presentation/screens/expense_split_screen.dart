@@ -64,7 +64,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
       final creatorId = widget.expenseData['created_by'];
       if (creatorId != null) {
           try {
-              final res = await Supabase.instance.client.from('profiles').select('full_name, phone, payment_links').eq('id', creatorId).maybeSingle();
+              final res = await Supabase.instance.client.from('profiles').select('full_name, phone, payment_methods').eq('id', creatorId).maybeSingle();
               if (mounted && res != null) {
                   setState(() => _creatorProfile = res);
               }
@@ -1019,7 +1019,7 @@ class _ExpenseSplitScreenState extends State<ExpenseSplitScreen> with SingleTick
       }
 
       final creatorName = _creatorProfile?['full_name'] ?? 'el organizador';
-      final paymentLinks = _creatorProfile?['payment_links'] as List? ?? [];
+      final paymentLinks = _creatorProfile?['payment_methods'] as List? ?? [];
       final phone = _creatorProfile?['phone'];
 
       return ListView(
@@ -1326,6 +1326,12 @@ class _WizardSheetState extends State<_WizardSheet> with SingleTickerProviderSta
                                        value: val.clamp(0, 100), 
                                        max: 100, 
                                        onChanged: (v) => setState(() => _tempValues[key] = v),
+                                       onChangeEnd: (v) {
+                                           double rounded = (v / 5).round() * 5.0; // Snap to nearest 5%
+                                           if ((v - rounded).abs() < 2.5) {
+                                               setState(() => _tempValues[key] = rounded);
+                                           }
+                                       },
                                        activeColor: AppTheme.primaryBrand,
                                        inactiveColor: Colors.grey.withOpacity(0.3),
                                    )

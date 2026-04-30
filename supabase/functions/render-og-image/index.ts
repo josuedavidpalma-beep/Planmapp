@@ -10,6 +10,17 @@ serve(async (req) => {
   // URL of the PWA
   const targetUrl = redirectPath ? `https://planmapp.app${redirectPath}` : (planId ? `https://planmapp.app/plan/${planId}` : 'https://planmapp.app/');
 
+  const userAgent = req.headers.get('user-agent')?.toLowerCase() || '';
+  const isBot = /whatsapp|facebookexternalhit|twitterbot|linkedinbot|pinterest|slackbot|telegrambot|applebot|discordbot|vkshare/i.test(userAgent);
+
+  // If the user is a human (not a bot), instantly redirect them to avoid Supabase's text/plain enforcement
+  if (!isBot) {
+     return new Response(null, {
+         status: 302,
+         headers: new Headers({ "Location": targetUrl })
+     });
+  }
+
   if (!planId || planId === 'unknown') {
     return new Response(generateHtml("¡Planmapp!", "Organiza tus salidas.", null, targetUrl), { headers: new Headers({ "Content-Type": "text/html; charset=utf-8" }) });
   }

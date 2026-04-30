@@ -480,7 +480,7 @@ class _DebtsDashboardScreenState extends State<DebtsDashboardScreen> with Single
       final profileData = firstDebt['profiles'] as Map<String, dynamic>?;
       final name = profileData?['full_name'] ?? 'Organizador';
       final avatarUrl = profileData?['avatar_url'] as String?;
-      final paymentMethods = profileData?['payment_links'] as List<dynamic>? ?? [];
+      final paymentMethods = profileData?['payment_methods'] as List<dynamic>? ?? [];
       
       final totalAmount = personDebts.fold(0.0, (sum, debt) => sum + ((debt['amount_owed'] as num?)?.toDouble() ?? 0.0));
       
