@@ -439,6 +439,8 @@ class _AdminAnalyticsTabState extends State<_AdminAnalyticsTab> {
   int _aiPlans = 0;
   int _totalSurveys = 0;
   double _totalRevenueB2B = 0; // Simulated using Tiers
+  String _dbSize = "0 MB";
+  List<dynamic> _tableSizes = [];
 
   @override
   void initState() {
@@ -493,6 +495,16 @@ class _AdminAnalyticsTabState extends State<_AdminAnalyticsTab> {
           try {
              restReq = await _supabase.from('restaurants').select('tier');
           } catch(e2) {}
+      }
+
+      try {
+          final dbRes = await _supabase.rpc('get_database_metrics');
+          if (dbRes != null) {
+              _dbSize = dbRes['total_db_size'] ?? "0 MB";
+              _tableSizes = dbRes['table_sizes'] ?? [];
+          }
+      } catch (e) {
+          print("DB Metrics fetch error: $e");
       }
 
       final now = DateTime.now();
@@ -612,8 +624,31 @@ class _AdminAnalyticsTabState extends State<_AdminAnalyticsTab> {
                                       _StatCard(title: "Planes Abandonados", value: _abandonedPlans.toString(), subtitle: "Drafts > 48h", icon: Icons.warning_amber_rounded, color: Colors.orange),
                                       _StatCard(title: "Encuestas B2B", value: _totalSurveys.toString(), subtitle: "Tickets escaneados", icon: Icons.receipt_long, color: Colors.green),
                                       _StatCard(title: "MRR Estimado (B2B)", value: "\$${(_totalRevenueB2B/1000).toStringAsFixed(1)}k", subtitle: "Suscripciones Activas", icon: Icons.monetization_on, color: Colors.amber),
+                                      _StatCard(title: "Base de Datos", value: _dbSize, subtitle: "Total Storage", icon: Icons.storage, color: Colors.cyan),
                                   ],
-                              )
+                              ),
+                              if (_tableSizes.isNotEmpty) ...[
+                                  const SizedBox(height: 32),
+                                  const Align(
+                                      alignment: Alignment.centerLeft,
+                                      child: Text("Uso por Tabla (Top 10)", style: TextStyle(color: Colors.white, fontSize: 18, fontWeight: FontWeight.bold))
+                                  ),
+                                  const SizedBox(height: 16),
+                                  ListView.builder(
+                                      shrinkWrap: true,
+                                      physics: const NeverScrollableScrollPhysics(),
+                                      itemCount: _tableSizes.length,
+                                      itemBuilder: (ctx, i) {
+                                          final t = _tableSizes[i];
+                                          return ListTile(
+                                              contentPadding: EdgeInsets.zero,
+                                              leading: const Icon(Icons.table_chart, color: Colors.grey),
+                                              title: Text(t['table_name'] ?? 'N/A', style: const TextStyle(color: Colors.white)),
+                                              trailing: Text(t['size'] ?? '0 KB', style: const TextStyle(color: AppTheme.primaryBrand, fontWeight: FontWeight.bold)),
+                                          );
+                                      }
+                                  )
+                              ]
                           ],
                       )
                   )
