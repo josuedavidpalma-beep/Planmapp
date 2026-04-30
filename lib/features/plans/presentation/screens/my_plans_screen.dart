@@ -204,16 +204,31 @@ class _MyPlansScreenState extends ConsumerState<MyPlansScreen> {
   Widget _buildEmptyState(bool isChat) {
      return Center(
         child: Column(
+           mainAxisAlignment: MainAxisAlignment.center,
            children: [
-              Expanded(
-                child: PremiumEmptyState(
-                  icon: isChat ? Icons.chat_bubble_outline : Icons.rocket_launch_rounded,
-                  title: isChat ? "Aún no tienes chats" : "Aún no hay expediciones",
-                  subtitle: isChat ? "Tus mensajes y vacas 1 a 1 aparecerán aquí." : "Tus futuros planes, vacas y deudas organizadas aparecerán aquí mágicamente.",
-                )
-              ),
-              _buildArchiveAndTrashSection(context),
+              const Icon(Icons.bug_report, size: 80, color: Colors.orange),
               const SizedBox(height: 16),
+              const Text("PANTALLA DE DIAGNÓSTICO", style: TextStyle(color: Colors.orange, fontSize: 24, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 16),
+              Text("Si estás viendo esto, por favor tómale una foto y envíasela al bot o escríbele exactamente lo que dice:", textAlign: TextAlign.center, style: TextStyle(color: Colors.white70)),
+              const SizedBox(height: 24),
+              Container(
+                 padding: const EdgeInsets.all(16),
+                 color: Colors.black54,
+                 child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                       Text("Tab: ${isChat ? 'Chats' : 'Planes'}"),
+                       Text("_plans.length: ${_plans.length}"),
+                       Text("_chats.length: ${_chats.length}"),
+                       Text("_isLoading: $_isLoading"),
+                       Text("_errorMessage: ${_errorMessage ?? 'NULL'}"),
+                    ],
+                 )
+              ),
+              const SizedBox(height: 24),
+              ElevatedButton(onPressed: _loadPlans, child: const Text("Forzar Recarga")),
+              _buildArchiveAndTrashSection(context),
            ],
         )
      );
