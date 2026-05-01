@@ -806,3 +806,4 @@ class _AdminCuraduriaTabState extends State<_AdminCuraduriaTab> {
     );
   }
 
+}
