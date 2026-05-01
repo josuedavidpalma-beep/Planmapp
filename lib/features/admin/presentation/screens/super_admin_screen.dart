@@ -7,6 +7,7 @@ import 'package:flutter/services.dart';
 import 'package:intl/intl.dart';
 import '../../../../core/theme/app_theme.dart';
 import '../../../b2b/presentation/screens/restaurant_insights_screen.dart';
+import 'package:planmapp/features/admin/presentation/screens/bi_dashboard_screen.dart';
 
 class SuperAdminScreen extends StatefulWidget {
   const SuperAdminScreen({super.key});
@@ -309,6 +310,12 @@ class _AdminRestaurantsTabState extends State<_AdminRestaurantsTab> {
             trailing: Row(
               mainAxisSize: MainAxisSize.min,
               children: [
+                IconButton(
+                  icon: const Icon(Icons.bar_chart, color: Colors.amberAccent),
+                  onPressed: () {
+                    Navigator.push(context, MaterialPageRoute(builder: (_) => BiDashboardScreen(restaurantId: r['id'], restaurantName: r['name'])));
+                  },
+                ),
                 IconButton(
                   icon: const Icon(Icons.analytics, color: Colors.greenAccent),
                   onPressed: () {
@@ -798,5 +805,4 @@ class _AdminCuraduriaTabState extends State<_AdminCuraduriaTab> {
       }
     );
   }
-}
 
