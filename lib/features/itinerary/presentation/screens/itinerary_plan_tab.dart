@@ -87,7 +87,7 @@ class _ItineraryPlanTabState extends State<ItineraryPlanTab> {
                         heroTag: "finalizeBtn",
                         backgroundColor: AppTheme.secondaryBrand,
                         icon: const Icon(Icons.verified, color: Colors.black),
-                        label: const Text("Finalizar Plan", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
+                        label: const Text("Confirmar Plan", style: TextStyle(color: Colors.black, fontWeight: FontWeight.bold)),
                         onPressed: () => _finalizePlan(),
                     ),
                 ], 
